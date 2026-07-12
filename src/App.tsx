@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import ControlCentre from './controlcentre/ControlCentre'
 
 type AuthMode = 'signin' | 'signup'
 
@@ -148,6 +149,21 @@ function DecorativeBackground() {
 
 function App() {
   const [mode, setMode] = useState<AuthMode>('signin')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  const handleSignIn = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsLoggingIn(true)
+    setTimeout(() => {
+      setIsLoggingIn(false)
+      setIsLoggedIn(true)
+    }, 1500)
+  }
+
+  if (isLoggedIn) {
+    return <ControlCentre onLogout={() => setIsLoggedIn(false)} />
+  }
 
   return (
     <div className="page">
@@ -181,14 +197,16 @@ function App() {
               <button
                 type="button"
                 className={`toggle-btn ${mode === 'signin' ? 'active' : ''}`}
-                onClick={() => setMode('signin')}
+                onClick={() => !isLoggingIn && setMode('signin')}
+                disabled={isLoggingIn}
               >
                 SIGN IN
               </button>
               <button
                 type="button"
                 className={`toggle-btn ${mode === 'signup' ? 'active' : ''}`}
-                onClick={() => setMode('signup')}
+                onClick={() => !isLoggingIn && setMode('signup')}
+                disabled={isLoggingIn}
               >
                 SIGN UP
               </button>
@@ -201,20 +219,36 @@ function App() {
             <div className={`forms-grid ${mode}`}>
               <section className="form-section signin-section">
                 <h3>Sign In to Your Account</h3>
-                <form onSubmit={(e) => e.preventDefault()}>
+                <form onSubmit={handleSignIn}>
                   <label className="input-field">
                     <EmailIcon />
-                    <input type="email" placeholder="Email Address" />
+                    <input type="email" placeholder="Email Address" required disabled={isLoggingIn} />
                   </label>
                   <label className="input-field">
                     <LockIcon />
-                    <input type="password" placeholder="Password" />
+                    <input type="password" placeholder="Password" required disabled={isLoggingIn} />
                   </label>
-                  <button type="submit" className="btn btn--primary">Sign In</button>
-                  <a href="#" className="link-forgot">Forgot Password?</a>
+                  <button type="submit" className="btn btn--primary" disabled={isLoggingIn}>
+                    {isLoggingIn ? (
+                      <span className="btn-loading">
+                        <svg className="spinner" viewBox="0 0 24 24">
+                          <circle className="path" cx="12" cy="12" r="10" fill="none" strokeWidth="3" />
+                        </svg>
+                        Signing In...
+                      </span>
+                    ) : (
+                      'Sign In'
+                    )}
+                  </button>
+                  <a href="#" className="link-forgot" onClick={(e) => isLoggingIn && e.preventDefault()}>Forgot Password?</a>
                   <p className="form-footer">
                     Don&apos;t have an account?{' '}
-                    <button type="button" className="link-signup" onClick={() => setMode('signup')}>
+                    <button
+                      type="button"
+                      className="link-signup"
+                      onClick={() => !isLoggingIn && setMode('signup')}
+                      disabled={isLoggingIn}
+                    >
                       Sign Up
                     </button>
                   </p>
