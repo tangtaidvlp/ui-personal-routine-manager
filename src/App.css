@@ -863,3 +863,28 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Alert styling */
+.alert {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-error {
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+}
+
+.alert-success {
+  background-color: #dcfce7;
+  border: 1px solid #86efac;
+  color: #15803d;
+}

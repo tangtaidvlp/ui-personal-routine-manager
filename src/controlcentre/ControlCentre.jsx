@@ -56,7 +56,7 @@ const INITIAL_ROUTINES = [
   { id: 5, title: 'Read 10 pages of a book', done: false, tag: 'Personal', isPriority: false },
 ]
 
-function ControlCentre({ onLogout }) {
+function ControlCentre({ onLogout, user }) {
   const [routines, setRoutines] = useState(INITIAL_ROUTINES)
   const [newRoutineText, setNewRoutineText] = useState('')
 
@@ -108,8 +108,8 @@ function ControlCentre({ onLogout }) {
 
         <div className="cc-user-section">
           <div className="cc-user-info">
-            <p className="cc-user-name">Welcome, Tom!</p>
-            <p className="cc-user-role">Premium Manager Account</p>
+            <p className="cc-user-name">Welcome, {user?.email ? user.email.split('@')[0] : 'Tom'}!</p>
+            <p className="cc-user-role">{user?.email || 'Premium Manager Account'}</p>
           </div>
           <button className="cc-logout-btn" onClick={onLogout}>
             Sign Out
@@ -166,7 +166,7 @@ function ControlCentre({ onLogout }) {
         <section className="cc-dashboard">
           {/* Welcome Banner */}
           <div className="cc-welcome-banner">
-            <h1>Stay Productive, Tom!</h1>
+            <h1>Stay Productive, {user?.email ? user.email.split('@')[0] : 'Tom'}!</h1>
             <p>Your personal control center is ready. Check off your routines below or add new daily habits.</p>
           </div>
 

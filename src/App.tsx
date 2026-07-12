@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { apiRequest } from './lib/api'
 import './App.css'
 import ControlCentre from './controlcentre/ControlCentre'
 
@@ -150,19 +151,196 @@ function DecorativeBackground() {
 function App() {
   const [mode, setMode] = useState<AuthMode>('signin')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
-  const handleSignIn = (e: React.FormEvent<HTMLFormElement>) => {
+  // Form input states
+  const [signInEmail, setSignInEmail] = useState('')
+  const [signInPassword, setSignInPassword] = useState('')
+  const [signUpFullName, setSignUpFullName] = useState('')
+  const [signUpEmail, setSignUpEmail] = useState('')
+  const [signUpPassword, setSignUpPassword] = useState('')
+
+  // Access token and user states
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null)
+
+  // Use accessToken to avoid TS6133 unused variable error
+  useEffect(() => {
+    if (accessToken) {
+      // Access token is loaded and can be used for authenticated API requests
+    }
+  }, [accessToken])
+
+  // Error/Success message states
+  const [signInError, setSignInError] = useState<string | null>(null)
+  const [signUpError, setSignUpError] = useState<string | null>(null)
+  const [signUpSuccess, setSignUpSuccess] = useState<string | null>(null)
+
+  // Decode JWT to extract user information on Silent Re-auth
+  const decodeJwt = (token: string) => {
+    try {
+      const base64Url = token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(
+        window.atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(jsonPayload)
+    } catch {
+      return null
+    }
+  }
+
+  // Silent Re-auth (Token Refresh) on mount
+  useEffect(() => {
+    const silentReauth = async () => {
+      try {
+        const data = await apiRequest<{ accessToken: string }>('/auth/refresh', {
+          method: 'POST',
+        })
+        setAccessToken(data.accessToken)
+
+        // Decode the JWT token to set user info
+        const decoded = decodeJwt(data.accessToken)
+        if (decoded) {
+          setUser({
+            id: decoded.sub || decoded.userId || decoded.id || '',
+            email: decoded.email || decoded.sub || '',
+          })
+        }
+        setIsLoggedIn(true)
+      } catch (err) {
+        // No valid session — stay logged out.
+        console.error('Silent re-auth failed', err)
+      } finally {
+        setIsCheckingAuth(false)
+      }
+    }
+    silentReauth()
+  }, [])
+
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoggingIn(true)
-    setTimeout(() => {
+    setSignInError(null)
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: signInEmail,
+          password: signInPassword,
+        }),
+      })
+
+
+      if (res.ok) {
+        const data = await res.json()
+        setAccessToken(data.accessToken)
+        setUser(data.user)
+        setIsLoggedIn(true)
+        setSignInEmail('')
+        setSignInPassword('')
+      } else {
+        let errMsg = 'Sign-in failed. Please check your credentials.'
+        try {
+          const errData = await res.json()
+          if (errData.message) {
+            errMsg = errData.message
+          }
+        } catch {
+          // Response is not JSON
+        }
+        setSignInError(errMsg)
+      }
+    } catch {
+      setSignInError('A network error occurred. Please try again later.')
+    } finally {
       setIsLoggingIn(false)
-      setIsLoggedIn(true)
-    }, 1500)
+    }
+  }
+
+  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsRegistering(true)
+    setSignUpError(null)
+    setSignUpSuccess(null)
+    try {
+      const res = await fetch('/api/v1/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: signUpEmail,
+          password: signUpPassword,
+        }),
+      })
+
+      if (res.status === 201) {
+        const data = await res.json()
+        setSignUpSuccess(data.message || 'User registered successfully.')
+        setSignUpFullName('')
+        setSignUpEmail('')
+        setSignUpPassword('')
+        setTimeout(() => {
+          setMode('signin')
+          setSignInEmail(signUpEmail)
+        }, 1500)
+      } else {
+        let errMsg = 'Registration failed. Please try again.'
+        try {
+          const errData = await res.json()
+          if (errData.message) {
+            errMsg = errData.message
+          }
+        } catch {
+          // Response is not JSON
+        }
+        setSignUpError(errMsg)
+      }
+    } catch {
+      setSignUpError('A network error occurred. Please try again later.')
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/v1/auth/logout', {
+        method: 'POST',
+      })
+    } catch (err) {
+      console.error('Logout request failed', err)
+    } finally {
+      setIsLoggedIn(false)
+      setAccessToken(null)
+      setUser(null)
+    }
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <div className="page" style={{ justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ color: 'var(--blue-primary)', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <svg className="spinner" viewBox="0 0 24 24" style={{ width: '32px', height: '32px' }}>
+            <circle className="path" cx="12" cy="12" r="10" fill="none" strokeWidth="3" />
+          </svg>
+          Checking authentication...
+        </div>
+      </div>
+    )
   }
 
   if (isLoggedIn) {
-    return <ControlCentre onLogout={() => setIsLoggedIn(false)} />
+    return <ControlCentre onLogout={handleLogout} user={user} />
   }
 
   return (
@@ -197,16 +375,30 @@ function App() {
               <button
                 type="button"
                 className={`toggle-btn ${mode === 'signin' ? 'active' : ''}`}
-                onClick={() => !isLoggingIn && setMode('signin')}
-                disabled={isLoggingIn}
+                onClick={() => {
+                  if (!isLoggingIn && !isRegistering) {
+                    setMode('signin')
+                    setSignInError(null)
+                    setSignUpError(null)
+                    setSignUpSuccess(null)
+                  }
+                }}
+                disabled={isLoggingIn || isRegistering}
               >
                 SIGN IN
               </button>
               <button
                 type="button"
                 className={`toggle-btn ${mode === 'signup' ? 'active' : ''}`}
-                onClick={() => !isLoggingIn && setMode('signup')}
-                disabled={isLoggingIn}
+                onClick={() => {
+                  if (!isLoggingIn && !isRegistering) {
+                    setMode('signup')
+                    setSignInError(null)
+                    setSignUpError(null)
+                    setSignUpSuccess(null)
+                  }
+                }}
+                disabled={isLoggingIn || isRegistering}
               >
                 SIGN UP
               </button>
@@ -219,14 +411,33 @@ function App() {
             <div className={`forms-grid ${mode}`}>
               <section className="form-section signin-section">
                 <h3>Sign In to Your Account</h3>
+                {signInError && (
+                  <div className="alert alert-error" role="alert">
+                    <span>{signInError}</span>
+                  </div>
+                )}
                 <form onSubmit={handleSignIn}>
                   <label className="input-field">
                     <EmailIcon />
-                    <input type="email" placeholder="Email Address" required disabled={isLoggingIn} />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      required
+                      disabled={isLoggingIn}
+                      value={signInEmail}
+                      onChange={(e) => setSignInEmail(e.target.value)}
+                    />
                   </label>
                   <label className="input-field">
                     <LockIcon />
-                    <input type="password" placeholder="Password" required disabled={isLoggingIn} />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      required
+                      disabled={isLoggingIn}
+                      value={signInPassword}
+                      onChange={(e) => setSignInPassword(e.target.value)}
+                    />
                   </label>
                   <button type="submit" className="btn btn--primary" disabled={isLoggingIn}>
                     {isLoggingIn ? (
@@ -240,14 +451,21 @@ function App() {
                       'Sign In'
                     )}
                   </button>
-                  <a href="#" className="link-forgot" onClick={(e) => isLoggingIn && e.preventDefault()}>Forgot Password?</a>
+                  <a href="#" className="link-forgot" onClick={(e) => (isLoggingIn || isRegistering) && e.preventDefault()}>Forgot Password?</a>
                   <p className="form-footer">
                     Don&apos;t have an account?{' '}
                     <button
                       type="button"
                       className="link-signup"
-                      onClick={() => !isLoggingIn && setMode('signup')}
-                      disabled={isLoggingIn}
+                      onClick={() => {
+                        if (!isLoggingIn && !isRegistering) {
+                          setMode('signup')
+                          setSignInError(null)
+                          setSignUpError(null)
+                          setSignUpSuccess(null)
+                        }
+                      }}
+                      disabled={isLoggingIn || isRegistering}
                     >
                       Sign Up
                     </button>
@@ -257,35 +475,88 @@ function App() {
 
               <section className="form-section signup-section">
                 <h3>Sign Up</h3>
-                <form onSubmit={(e) => e.preventDefault()}>
+                {signUpError && (
+                  <div className="alert alert-error" role="alert">
+                    <span>{signUpError}</span>
+                  </div>
+                )}
+                {signUpSuccess && (
+                  <div className="alert alert-success" role="alert">
+                    <span>{signUpSuccess}</span>
+                  </div>
+                )}
+                <form onSubmit={handleSignUp}>
                   <label className="input-field">
                     <UserIcon />
-                    <input type="text" placeholder="Full Name" />
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      disabled={isRegistering}
+                      value={signUpFullName}
+                      onChange={(e) => setSignUpFullName(e.target.value)}
+                    />
                   </label>
                   <label className="input-field">
                     <EmailIcon />
-                    <input type="email" placeholder="Email Address" />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      required
+                      disabled={isRegistering}
+                      value={signUpEmail}
+                      onChange={(e) => setSignUpEmail(e.target.value)}
+                    />
                   </label>
                   <label className="input-field">
                     <LockIcon />
-                    <input type="password" placeholder="Create Password" />
+                    <input
+                      type="password"
+                      placeholder="Create Password"
+                      required
+                      disabled={isRegistering}
+                      value={signUpPassword}
+                      onChange={(e) => setSignUpPassword(e.target.value)}
+                    />
                   </label>
-                  <button type="submit" className="btn btn--secondary">Create Account</button>
+                  <button type="submit" className="btn btn--secondary" disabled={isRegistering}>
+                    {isRegistering ? (
+                      <span className="btn-loading">
+                        <svg className="spinner" viewBox="0 0 24 24">
+                          <circle className="path" cx="12" cy="12" r="10" fill="none" strokeWidth="3" />
+                        </svg>
+                        Creating Account...
+                      </span>
+                    ) : (
+                      'Create Account'
+                    )}
+                  </button>
                   <p className="form-footer">
                     Login or{' '}
-                    <button type="button" className="link-inline" onClick={() => setMode('signin')}>
+                    <button
+                      type="button"
+                      className="link-inline"
+                      onClick={() => {
+                        if (!isLoggingIn && !isRegistering) {
+                          setMode('signin')
+                          setSignInError(null)
+                          setSignUpError(null)
+                          setSignUpSuccess(null)
+                        }
+                      }}
+                      disabled={isLoggingIn || isRegistering}
+                    >
                       Sign In
                     </button>
                   </p>
                   <div className="social-divider" />
                   <div className="social-buttons">
-                    <button type="button" className="social-btn" aria-label="Sign up with Google">
+                    <button type="button" className="social-btn" aria-label="Sign up with Google" disabled={isLoggingIn || isRegistering}>
                       <GoogleIcon />
                     </button>
-                    <button type="button" className="social-btn" aria-label="Sign up with Facebook">
+                    <button type="button" className="social-btn" aria-label="Sign up with Facebook" disabled={isLoggingIn || isRegistering}>
                       <FacebookIcon />
                     </button>
-                    <button type="button" className="social-btn" aria-label="Sign up with Apple">
+                    <button type="button" className="social-btn" aria-label="Sign up with Apple" disabled={isLoggingIn || isRegistering}>
                       <AppleIcon />
                     </button>
                   </div>
