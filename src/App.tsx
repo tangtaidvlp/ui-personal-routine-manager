@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { apiRequest } from './lib/api'
 import './App.css'
 import ControlCentre from './controlcentre/ControlCentre'
+import {apiRequest} from "./lib/api.ts";
 
 type AuthMode = 'signin' | 'signup'
 
