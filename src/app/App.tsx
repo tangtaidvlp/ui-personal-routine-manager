@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import '../App.css'
-import { apiRequest } from '../lib/api.ts'
+import { ApiError, apiRequest } from '../lib/api.ts'
 import AuthPage from '../features/auth/pages/AuthPage.tsx'
 import type { AuthMode, AuthUser } from '../features/auth/types/auth.ts'
 import ControlCentrePage from '../features/dashboard/pages/ControlCentrePage.jsx'
+import OnboardingPage from '../features/onboarding/pages/OnboardingPage.jsx'
+import { completeOnboarding } from '../features/onboarding/api/completeOnboarding.ts'
 
 function LoadingScreen() {
   return (
@@ -20,11 +22,11 @@ function LoadingScreen() {
 }
 
 function App() {
-  const navigate = useNavigate()
   const [mode, setMode] = useState<AuthMode>('signin')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isOnboardCompleted, setIsOnboardCompleted] = useState(true)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [signInEmail, setSignInEmail] = useState('')
   const [signInPassword, setSignInPassword] = useState('')
@@ -36,6 +38,8 @@ function App() {
   const [signInError, setSignInError] = useState<string | null>(null)
   const [signUpError, setSignUpError] = useState<string | null>(null)
   const [signUpSuccess, setSignUpSuccess] = useState<string | null>(null)
+  const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false)
+  const [onboardingError, setOnboardingError] = useState<string | null>(null)
 
   useEffect(() => {
     if (accessToken) {
@@ -78,7 +82,11 @@ function App() {
   useEffect(() => {
     const silentReauth = async () => {
       try {
-        const data = await apiRequest<{ accessToken: string }>('/auth/refresh', {
+        const data = await apiRequest<{
+          accessToken: string
+          isOnboardCompleted?: boolean
+          user?: { isOnboardCompleted?: boolean }
+        }>('/auth/refresh', {
           method: 'POST',
         })
 
@@ -91,6 +99,10 @@ function App() {
             email: decoded.email || decoded.sub || '',
           })
         }
+
+        const onboardCompleted =
+          data.isOnboardCompleted ?? data.user?.isOnboardCompleted ?? decoded?.isOnboardCompleted ?? true
+        setIsOnboardCompleted(onboardCompleted)
 
         setIsLoggedIn(true)
       } catch (error) {
@@ -125,13 +137,12 @@ function App() {
         setAccessToken(data.accessToken)
         setUser(data.user)
         setIsLoggedIn(true)
+        setOnboardingError(null)
         setSignInEmail('')
         setSignInPassword('')
 
-        const isOnboardCompleted = data.isOnboardCompleted ?? data.user?.isOnboardCompleted
-        if (isOnboardCompleted === false) {
-          navigate('/dashboard', { replace: true })
-        }
+        const onboardCompleted = data.user?.onboardCompleted ?? true
+        setIsOnboardCompleted(onboardCompleted)
 
         return
       }
@@ -219,8 +230,35 @@ function App() {
       console.error('Logout request failed', error)
     } finally {
       setIsLoggedIn(false)
+      setIsOnboardCompleted(true)
+      setOnboardingError(null)
       setAccessToken(null)
       setUser(null)
+    }
+  }
+
+  const handleCompleteOnboarding = async () => {
+    if (!user?.id) {
+      setOnboardingError('Unable to complete onboarding because user information is missing.')
+      return
+    }
+
+    setIsCompletingOnboarding(true)
+    setOnboardingError(null)
+
+    try {
+      await completeOnboarding(user.id)
+      setIsOnboardCompleted(true)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 500) {
+        setOnboardingError('Could not complete onboarding for this user (server returned 500).')
+      } else if (error instanceof ApiError) {
+        setOnboardingError(error.message)
+      } else {
+        setOnboardingError('Failed to complete onboarding. Please try again.')
+      }
+    } finally {
+      setIsCompletingOnboarding(false)
     }
   }
 
@@ -228,14 +266,16 @@ function App() {
     return <LoadingScreen />
   }
 
+  const authenticatedTarget = isOnboardCompleted ? '/dashboard' : '/onboarding'
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={isLoggedIn ? '/dashboard' : '/auth'} replace />} />
+      <Route path="/" element={<Navigate to={isLoggedIn ? authenticatedTarget : '/auth'} replace />} />
       <Route
         path="/auth"
         element={
           isLoggedIn ? (
-            <Navigate to="/dashboard" replace />
+            <Navigate to={authenticatedTarget} replace />
           ) : (
             <AuthPage
               mode={mode}
@@ -262,10 +302,39 @@ function App() {
         }
       />
       <Route
-        path="/dashboard"
-        element={isLoggedIn ? <ControlCentrePage onLogout={handleLogout} user={user} /> : <Navigate to="/auth" replace />}
+        path="/onboarding"
+        element={
+          isLoggedIn ? (
+            isOnboardCompleted ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <OnboardingPage
+                user={user}
+                onComplete={handleCompleteOnboarding}
+                isCompleting={isCompletingOnboarding}
+                completeError={onboardingError}
+              />
+            )
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
       />
-      <Route path="*" element={<Navigate to={isLoggedIn ? '/dashboard' : '/auth'} replace />} />
+      <Route
+        path="/dashboard"
+        element={
+          isLoggedIn ? (
+            isOnboardCompleted ? (
+              <ControlCentrePage onLogout={handleLogout} user={user} />
+            ) : (
+              <Navigate to="/onboarding" replace />
+            )
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+      <Route path="*" element={<Navigate to={isLoggedIn ? authenticatedTarget : '/auth'} replace />} />
     </Routes>
   )
 }

@@ -888,3 +888,306 @@
   border: 1px solid #86efac;
   color: #15803d;
 }
+
+/* ── Onboarding ── */
+.ob-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eef4ff 0%, #f6f9ff 100%);
+  padding: 14px;
+  color: #232b37;
+}
+
+.ob-topbar {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #dbe5f1;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 6px 18px rgba(24, 43, 79, 0.08);
+}
+
+.ob-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ob-brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2f74d8 58%, #f2c44a 58%);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 800;
+}
+
+.ob-brand-name {
+  font-size: 30px;
+  letter-spacing: -0.4px;
+  font-weight: 600;
+}
+
+.ob-brand-name strong {
+  color: #d45e58;
+  font-weight: 700;
+}
+
+.ob-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ob-segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #edf2f9;
+}
+
+.ob-segment-btn {
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #8798b3;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 24px;
+  cursor: pointer;
+}
+
+.ob-segment-btn.active {
+  background: #fff;
+  color: #253247;
+  box-shadow: 0 2px 8px rgba(30, 57, 102, 0.16);
+}
+
+.ob-ready-btn {
+  border: none;
+  background: #34c457;
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 30px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(52, 196, 87, 0.22);
+}
+
+.ob-main {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 2fr 0.95fr;
+  gap: 18px;
+}
+
+.ob-canvas-card,
+.ob-buddy-card {
+  background: #fff;
+  border: 1px solid #dee8f3;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(22, 46, 88, 0.08);
+}
+
+.ob-canvas-card {
+  padding: 18px 20px;
+}
+
+.ob-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ob-card-header h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.5px;
+  color: #212936;
+}
+
+.ob-block-count {
+  background: #e9f3ff;
+  color: #3078d7;
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ob-timeline {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ob-hour-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+  min-height: 58px;
+}
+
+.ob-hour-label {
+  color: #95a5bd;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.ob-hour-line {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: #e9eff6;
+}
+
+.ob-buddy-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 640px;
+}
+
+.ob-buddy-head {
+  padding: 16px 18px;
+  border-bottom: 1px solid #e7edf6;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.ob-buddy-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #3e78db;
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.ob-buddy-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #252f3f;
+}
+
+.ob-buddy-subtitle {
+  margin: 0;
+  color: #90a1ba;
+  font-size: 14px;
+}
+
+.ob-buddy-thread {
+  padding: 16px;
+  flex: 1;
+}
+
+.ob-message {
+  border-radius: 16px;
+  padding: 14px 14px;
+  max-width: 94%;
+  line-height: 1.45;
+  font-size: 16px;
+}
+
+.ob-message.bot {
+  background: #dcebff;
+  color: #253247;
+}
+
+.ob-buddy-input-wrap {
+  border-top: 1px solid #e7edf6;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-buddy-input {
+  flex: 1;
+  border: 1px solid #d5dfeb;
+  border-radius: 999px;
+  padding: 11px 14px;
+  font-size: 14px;
+  outline: none;
+}
+
+.ob-buddy-input:focus {
+  border-color: #3e78db;
+}
+
+.ob-send-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #3f7ddd;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.ob-add-btn {
+  align-self: flex-end;
+  margin: -34px 14px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #d35b53;
+  color: #fff;
+  padding: 14px 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 22px rgba(211, 91, 83, 0.28);
+}
+
+.ob-user-chip {
+  margin-top: 12px;
+  color: #8ea0bb;
+  font-size: 12px;
+  text-align: right;
+  padding: 0 6px;
+}
+
+@media (max-width: 1200px) {
+  .ob-main {
+    grid-template-columns: 1fr;
+  }
+
+  .ob-buddy-card {
+    min-height: 460px;
+  }
+}
+
+@media (max-width: 760px) {
+  .ob-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .ob-top-actions {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .ob-brand-name,
+  .ob-card-header h1,
+  .ob-buddy-title {
+    font-size: 22px;
+  }
+
+  .ob-segment-btn {
+    padding: 10px 16px;
+  }
+}
