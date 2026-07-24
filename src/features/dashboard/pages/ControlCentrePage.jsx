@@ -56,7 +56,7 @@ const INITIAL_ROUTINES = [
   { id: 5, title: 'Read 10 pages of a book', done: false, tag: 'Personal', isPriority: false },
 ]
 
-function ControlCentre({ onLogout, user }) {
+function ControlCentrePage({ onLogout, user }) {
   const [routines, setRoutines] = useState(INITIAL_ROUTINES)
   const [newRoutineText, setNewRoutineText] = useState('')
 
@@ -72,8 +72,8 @@ function ControlCentre({ onLogout, user }) {
     setRoutines(routines.filter((routine) => routine.id !== id))
   }
 
-  const handleAdd = (e) => {
-    e.preventDefault()
+  const handleAdd = (event) => {
+    event.preventDefault()
     if (!newRoutineText.trim()) return
 
     const newRoutine = {
@@ -88,13 +88,12 @@ function ControlCentre({ onLogout, user }) {
     setNewRoutineText('')
   }
 
-  const completedCount = routines.filter((r) => r.done).length
+  const completedCount = routines.filter((routine) => routine.done).length
   const totalCount = routines.length
   const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   return (
     <div className="cc-container">
-      {/* Header bar */}
       <header className="cc-header">
         <div className="logo sm">
           <div className="logo-icon" aria-hidden="true">
@@ -117,11 +116,8 @@ function ControlCentre({ onLogout, user }) {
         </div>
       </header>
 
-      {/* Main dashboard body */}
       <main className="cc-main">
-        {/* Sidebar */}
         <aside className="cc-sidebar">
-          {/* Quick Stats card */}
           <div className="cc-card">
             <h3 className="cc-card-title">
               <TrendingUpIcon />
@@ -141,7 +137,6 @@ function ControlCentre({ onLogout, user }) {
             </div>
           </div>
 
-          {/* Weekly Streak Card */}
           <div className="cc-card">
             <h3 className="cc-card-title">
               <AwardIcon />
@@ -162,28 +157,24 @@ function ControlCentre({ onLogout, user }) {
           </div>
         </aside>
 
-        {/* Central Dashboard Area */}
         <section className="cc-dashboard">
-          {/* Welcome Banner */}
           <div className="cc-welcome-banner">
             <h1>Stay Productive, {user?.email ? user.email.split('@')[0] : 'Tom'}!</h1>
             <p>Your personal control center is ready. Check off your routines below or add new daily habits.</p>
           </div>
 
-          {/* Routines Card */}
           <div className="cc-card">
             <h3 className="cc-card-title">
               <CalendarIcon />
               Your Personal Routines ({totalCount})
             </h3>
 
-            {/* Quick Add Form */}
             <form onSubmit={handleAdd} className="cc-quick-add">
               <input
                 type="text"
                 placeholder="What is your next habit or routine?"
                 value={newRoutineText}
-                onChange={(e) => setNewRoutineText(e.target.value)}
+                onChange={(event) => setNewRoutineText(event.target.value)}
                 className="cc-quick-add-input"
               />
               <button type="submit" className="cc-quick-add-btn">
@@ -191,7 +182,6 @@ function ControlCentre({ onLogout, user }) {
               </button>
             </form>
 
-            {/* List */}
             <div className="cc-routine-list">
               {routines.map((routine) => (
                 <div key={routine.id} className={`cc-routine-item ${routine.done ? 'done' : ''}`}>
@@ -232,4 +222,4 @@ function ControlCentre({ onLogout, user }) {
   )
 }
 
-export default ControlCentre
+export default ControlCentrePage
