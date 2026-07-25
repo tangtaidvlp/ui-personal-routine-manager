@@ -1,25 +1,28 @@
-import { ApiError } from '../../../lib/api.ts'
+import { ApiError, apiRequest } from '../../../lib/api.ts'
+
+type ChatResponse = {
+  reply?: unknown
+}
+
+function toAbsoluteApiUrl(path: string): string {
+  return new URL(path, window.location.origin).toString()
+}
 
 export async function completeOnboarding(userId: string): Promise<void> {
-  const response = await fetch(`/api/users/${userId}/onboarding/complete`, {
+  await apiRequest<unknown>(toAbsoluteApiUrl(`/api/users/${userId}/onboarding/complete`), {
     method: 'POST',
-    credentials: 'include',
+  })
+}
+
+export async function submitOnboardingChat(userId: string, message: string): Promise<string> {
+  const data = await apiRequest<ChatResponse>(toAbsoluteApiUrl(`/api/ai/chat/${userId}`), {
+    method: 'POST',
+    json: { message: "Onboarding: [" + message + "]" },
   })
 
-  if (response.ok) {
-    return
+  if (!data || typeof data.reply !== 'string') {
+    throw new ApiError(502, 'Invalid AI response payload')
   }
 
-  let message = `Request failed with status ${response.status}`
-
-  try {
-    const data = await response.json()
-    if (data && typeof data === 'object' && 'message' in data) {
-      message = String((data as { message: unknown }).message)
-    }
-  } catch {
-    // Response body is empty or non-JSON.
-  }
-
-  throw new ApiError(response.status, message)
+  return data.reply
 }

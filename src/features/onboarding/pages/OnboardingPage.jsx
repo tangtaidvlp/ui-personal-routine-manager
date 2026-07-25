@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useRef, useState } from 'react'
+import { submitOnboardingChat } from '../api/completeOnboarding.ts'
+import EditingBoard from '../components/EditingBoard.jsx'
 
 function SparkIcon() {
   return (
@@ -25,13 +27,13 @@ function LogoMark() {
   )
 }
 
-function HourRow({ label }) {
-  return (
-    <div className="ob-hour-row">
-      <span className="ob-hour-label">{label}</span>
-      <span className="ob-hour-line" />
-    </div>
-  )
+function createChatMessage(role, text, isError = false) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    role,
+    text,
+    isError,
+  }
 }
 
 /**
@@ -45,33 +47,39 @@ function HourRow({ label }) {
 function OnboardingPage({ user, onComplete, isCompleting = false, completeError = null }) {
   const [scheduleMode, setScheduleMode] = useState('weekday')
   const [prompt, setPrompt] = useState('')
-  const [blocks, setBlocks] = useState([])
+  const inputRef = useRef(null)
+  const [messages, setMessages] = useState([
+    createChatMessage(
+      'bot',
+      "Hi! I'm your Routine Buddy. We can build your schedule together. Try telling me your first habit, like: \"I wake up at 7:00 AM.\" Or, you can just click the + button to add it yourself."
+    ),
+  ])
+  const [isSendingChat, setIsSendingChat] = useState(false)
 
-  const hourLabels = useMemo(
-    () => [
-      '12 AM',
-      '1 AM',
-      '2 AM',
-      '3 AM',
-      '4 AM',
-      '5 AM',
-      '6 AM',
-      '7 AM',
-      '8 AM',
-      '9 AM',
-    ],
-    [],
-  )
+  const handleSubmitChat = async (event) => {
+    event.preventDefault()
 
-  const handleAddBlock = () => {
-    setBlocks((current) => [
-      ...current,
-      {
-        id: Date.now(),
-        label: prompt.trim() || 'New routine block',
-      },
-    ])
-    setPrompt('')
+    const message = prompt.trim()
+    if (!message || !user?.id || isSendingChat) {
+      inputRef.current?.focus()
+      return
+    }
+
+    try {
+      setIsSendingChat(true)
+      setMessages((current) => [...current, createChatMessage('user', message)])
+      const reply = await submitOnboardingChat(user.id, message)
+      setMessages((current) => [...current, createChatMessage('bot', reply)])
+      setPrompt('')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send message'
+      setMessages((current) => [...current, createChatMessage('bot', errorMessage, true)])
+    } finally {
+      setIsSendingChat(false)
+      requestAnimationFrame(() => {
+        inputRef.current?.focus()
+      })
+    }
   }
 
   return (
@@ -119,14 +127,10 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
         <section className="ob-canvas-card">
           <div className="ob-card-header">
             <h1>{scheduleMode === 'weekday' ? 'Weekday Routine' : 'Weekend Routine'}</h1>
-            <span className="ob-block-count">{blocks.length} blocks</span>
+            <span className="ob-block-count">Drag to reorder</span>
           </div>
 
-          <div className="ob-timeline">
-            {hourLabels.map((label) => (
-              <HourRow key={label} label={label} />
-            ))}
-          </div>
+          <EditingBoard storageKey={scheduleMode} />
         </section>
 
         <aside className="ob-buddy-card">
@@ -141,29 +145,31 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
           </div>
 
           <div className="ob-buddy-thread">
-            <div className="ob-message bot">
-              Hi! I&apos;m your Routine Buddy. We can build your schedule together. Try telling me your first habit,
-              like: &quot;I wake up at 7:00 AM.&quot; Or, you can just click the + button to add it yourself.
-            </div>
+            {messages.map((chat) => (
+              <div>
+                <div key={chat.id} className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>
+                {chat.isError ? `Error: ${chat.text}` : chat.text}
+                </div>
+                <div className="ob-message-spacer"></div>
+              </div>
+            ))}
           </div>
 
-          <div className="ob-buddy-input-wrap">
+          <form className="ob-buddy-input-wrap" onSubmit={handleSubmitChat}>
             <input
+              ref={inputRef}
               type="text"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               className="ob-buddy-input"
               placeholder='Try: "I work from 9 to 5"'
+              readOnly={isSendingChat}
+              aria-busy={isSendingChat}
             />
-            <button type="button" className="ob-send-btn" aria-label="Send message">
+            <button type="submit" className="ob-send-btn" aria-label="Send message" disabled={isSendingChat}>
               <SendIcon />
             </button>
-          </div>
-
-          <button type="button" className="ob-add-btn" onClick={handleAddBlock}>
-            +
-            <span>Add Routine Block</span>
-          </button>
+          </form>
         </aside>
       </main>
 

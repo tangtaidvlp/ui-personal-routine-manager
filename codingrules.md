@@ -23,3 +23,7 @@ src/
 ├── lib/               # Pre-configured third-party libraries (axios instance, dayjs)
 ├── types/             # Global TypeScript definitions
 └── utils/             # Global utility functions (formatters, regex)
+
+
+### Libs usage
+Always use the lib/api.ts
