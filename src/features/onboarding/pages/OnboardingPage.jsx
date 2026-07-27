@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect, useContext } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
+import { apiRequest } from '../../../lib/api.ts'
 import EditingBoard from '../components/EditingBoard.jsx'
+import AuthContext from '../../../context/Auth.ts'
 
 function SparkIcon() {
   return (
@@ -36,6 +38,12 @@ function createChatMessage(role, text, isError = false) {
   }
 }
 
+const fetchDefaultRoutine = async () => {
+    var result = await apiRequest('/api/onboarding/default-routine')
+    return result.getData()
+}
+
+
 /**
  * @param {{
  *   user: { id?: string; email?: string } | null,
@@ -55,6 +63,33 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
     ),
   ])
   const [isSendingChat, setIsSendingChat] = useState(false)
+  const [currentDefaultRoutine, setCurrentDefaultRoutine] = useState([])
+
+  // Load initial state
+  useEffect(() => {
+    const loadDefaultRoutine = async () => {
+      try {
+        const routine = await fetchDefaultRoutine()
+        setCurrentDefaultRoutine(routine.tasks)
+      } catch (error) {
+        console.error('Failed to fetch default routine:', error)
+        setCurrentDefaultRoutine(
+            [
+                {
+                    description: "20 min cardio",
+                    durationMinutes: 70,
+                    startTime: "09:00",
+                    endTime: "10:00",
+                    id: "5764b438-8fe2-467b-883b-987f8b180dcb",
+                    name: "Morning workout",
+                    color: "#3e78db"
+                }
+            ]
+        )
+      }
+    }
+    loadDefaultRoutine()
+  }, [])
 
   const handleSubmitChat = async (event) => {
     event.preventDefault()
@@ -130,7 +165,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             <span className="ob-block-count">Drag to reorder</span>
           </div>
 
-          <EditingBoard storageKey={scheduleMode} />
+          <EditingBoard storageKey={scheduleMode} currentDefaultRoutine={currentDefaultRoutine} />
         </section>
 
         <aside className="ob-buddy-card">

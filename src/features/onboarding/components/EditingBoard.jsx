@@ -8,14 +8,6 @@ const basePalette = ['#0f172a', '#047857', '#0e7490', '#2563eb', '#c2410c', '#6d
 
 const initialBaseSchedule = [
   { name: 'Sleep', start: 0, end: 390 },
-  { name: 'Morning workout', start: 390, end: 435 },
-  { name: 'Breakfast and reset', start: 435, end: 515 },
-  { name: 'Deep work block', start: 515, end: 750 },
-  { name: 'Lunch and social', start: 750, end: 930 },
-  { name: 'Rest and recharge', start: 930, end: 1080 },
-  { name: 'Commute or errands', start: 1080, end: 1290 },
-  { name: 'Evening unwind', start: 1290, end: 1410 },
-  { name: 'Night shutdown', start: 1410, end: 1440 },
 ]
 
 const getCurrentMinutes = () => {
@@ -33,15 +25,52 @@ const calcDurationStr = (start, end) => {
   return `${m}m`
 }
 
+const parseLocalTimeToMinutes = (value, fallback = 0) => {
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
+    if (match) {
+      const hours = Number(match[1])
+      const minutes = Number(match[2])
+      if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+        return hours * 60 + minutes
+      }
+    }
+  }
+
+  return fallback
+}
+
 const normalizeSchedule = (items) =>
-  items.map((item, index) => ({
-    id: item.id ?? `${index}-${item.start}-${item.end}`,
-    name: item.name || `Block ${index + 1}`,
-    start: Number(item.start) || 0,
-    end: Number(item.end) || 0,
-    color: item.color || basePalette[index % basePalette.length],
-    duration: item.duration || calcDurationStr(Number(item.start) || 0, Number(item.end) || 0),
-  }))
+  items.map((item, index) => {
+    const startMinutes =
+      item.start !== undefined && item.start !== null
+        ? parseLocalTimeToMinutes(item.start)
+        : parseLocalTimeToMinutes(item.startTime)
+
+    const defaultEnd = Math.min(startMinutes + 60, MINUTES_PER_DAY)
+    const endMinutes =
+      item.end !== undefined && item.end !== null
+        ? parseLocalTimeToMinutes(item.end, defaultEnd)
+        : parseLocalTimeToMinutes(item.endTime, defaultEnd)
+
+    return {
+      id: item.id ?? `${index}-${startMinutes}-${endMinutes}`,
+      name: item.name || `Block ${index + 1}`,
+      start: startMinutes,
+      end: endMinutes,
+      color: item.color || basePalette[index % basePalette.length],
+      duration: item.duration || calcDurationStr(startMinutes, endMinutes),
+    }
+  })
+
+const showTaskDuration = (minutesDuration) => {
+    const h = Math.floor(minutesDuration / 60)
+    const m = minutesDuration % 60
+    if (h > 0 && m > 0) return `${h}h ${m}m`
+    if (h > 0) return `${h}h`
+    if (h < 0 && m > 0) return `${m}m`
+    return `${m}m`
+}
 
 const formatTime = (minutes) => {
   const normalized = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
@@ -54,7 +83,8 @@ const formatTime = (minutes) => {
   return `${h}:${m}`
 }
 
-function EditingBoard({ storageKey = 'weekday' }) {
+function EditingBoard({ storageKey = 'weekday', currentDefaultRoutine }) {
+
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
   const [hoveredTask, setHoveredTask] = useState(null)
@@ -63,27 +93,9 @@ function EditingBoard({ storageKey = 'weekday' }) {
   const containerRef = useRef(null)
 
   const todayStr = new Date().toDateString()
-  const storagePrefix = useMemo(() => `onboarding_timeline_${storageKey}_`, [storageKey])
 
-  const [baseSchedule, setBaseSchedule] = useState(() => {
-    const saved = localStorage.getItem(`${storagePrefix}baseSchedule`)
-    return saved ? normalizeSchedule(JSON.parse(saved)) : normalizeSchedule(initialBaseSchedule)
-  })
-
-  const [scheduleData, setScheduleData] = useState(() => {
-    const savedDate = localStorage.getItem(`${storagePrefix}date`)
-    const savedSchedule = localStorage.getItem(`${storagePrefix}scheduleData`)
-    if (savedDate === todayStr && savedSchedule) {
-      return normalizeSchedule(JSON.parse(savedSchedule))
-    }
-    const savedBase = localStorage.getItem(`${storagePrefix}baseSchedule`)
-    return savedBase ? normalizeSchedule(JSON.parse(savedBase)) : normalizeSchedule(initialBaseSchedule)
-  })
-
-  const [completedTasks, setCompletedTasks] = useState(() => {
-    const savedDate = localStorage.getItem(`${storagePrefix}date`)
-    const savedTasks = localStorage.getItem(`${storagePrefix}completedTasks`)
-    return savedDate === todayStr && savedTasks ? JSON.parse(savedTasks) : {}
+const [completedTasks, setCompletedTasks] = useState(() => {
+    return {}
   })
 
   useEffect(() => {
@@ -109,18 +121,9 @@ function EditingBoard({ storageKey = 'weekday' }) {
     }
   }, [isLive])
 
-  useEffect(() => {
-    localStorage.setItem(`${storagePrefix}baseSchedule`, JSON.stringify(baseSchedule))
-  }, [baseSchedule, storagePrefix])
-
-  useEffect(() => {
-    localStorage.setItem(`${storagePrefix}date`, todayStr)
-    localStorage.setItem(`${storagePrefix}scheduleData`, JSON.stringify(scheduleData))
-    localStorage.setItem(`${storagePrefix}completedTasks`, JSON.stringify(completedTasks))
-  }, [scheduleData, completedTasks, storagePrefix, todayStr])
-
+  
   const activeTask =
-    scheduleData.find((task) => currentTime >= task.start && currentTime < task.end) || scheduleData[scheduleData.length - 1]
+    currentDefaultRoutine.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || currentDefaultRoutine[currentDefaultRoutine.length - 1]
 
   const handleSliderChange = (event) => {
     setIsLive(false)
@@ -173,14 +176,14 @@ function EditingBoard({ storageKey = 'weekday' }) {
 
     let currentMin = 0
     reordered.forEach((task) => {
-      let duration = task.end - task.start
+      let duration = task.endTime - task.startTime
       if (duration < 0) {
         duration += MINUTES_PER_DAY
       }
-      task.start = currentMin
-      task.end = currentMin + duration
-      currentMin = task.end
-      task.duration = calcDurationStr(task.start, task.end)
+      task.startTime = currentMin
+      task.endTime = currentMin + duration
+      currentMin = task.endTime
+      task.duration = calcDurationStr(task.startTime, task.endTime)
     })
 
     const remappedCompleted = {}
@@ -239,11 +242,15 @@ function EditingBoard({ storageKey = 'weekday' }) {
           ))}
 
           <div className="ob-board-task-layer">
-            {scheduleData.map((task, index) => {
-              const top = (task.start * 100) / MINUTES_PER_DAY
-              const height = ((task.end - task.start) * 100) / MINUTES_PER_DAY
+            {currentDefaultRoutine.map((task, index) => {
+              const taskStartTime = parseLocalTimeToMinutes(task.startTime);
+              const taskEndTime = parseLocalTimeToMinutes(task.endTime);
+
+              const top = (taskStartTime * 100) / MINUTES_PER_DAY
+              const height = ((taskEndTime - taskStartTime) * 100) / MINUTES_PER_DAY
               const isDone = Boolean(completedTasks[index])
-              const isActive = currentTime >= task.start && currentTime < task.end
+              const isActive = currentTime >= taskStartTime && currentTime < taskEndTime
+              
 
               return (
                 <div
@@ -255,7 +262,7 @@ function EditingBoard({ storageKey = 'weekday' }) {
                   onDrop={(event) => handleDrop(event, index)}
                   onClick={() => {
                     setIsLive(false)
-                    setCurrentTime(task.start)
+                    setCurrentTime(taskStartTime)
                   }}
                   onMouseEnter={() => setHoveredTask(task)}
                   onMouseLeave={() => setHoveredTask(null)}
@@ -273,7 +280,7 @@ function EditingBoard({ storageKey = 'weekday' }) {
                   <div className="ob-board-task-content">
                     <span className="ob-board-task-name">{task.name}</span>
                     <span className="ob-board-task-time">
-                      {formatTime(task.start)} - {formatTime(task.end)} | {task.duration}
+                      {task.startTime} - {task.endTime} | {showTaskDuration(task.durationMinutes)}
                     </span>
                   </div>
 
@@ -317,7 +324,7 @@ function EditingBoard({ storageKey = 'weekday' }) {
         <div className="ob-board-tooltip">
           <strong>{hoveredTask.name}</strong>
           <span>
-            {formatTime(hoveredTask.start)} - {formatTime(hoveredTask.end)} ({hoveredTask.duration})
+            {formatTime(hoveredTask.startTime)} - {formatTime(hoveredTask.endTime)} ({hoveredTask.duration})
           </span>
         </div>
       )}
