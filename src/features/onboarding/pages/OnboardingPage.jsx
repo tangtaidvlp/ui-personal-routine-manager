@@ -69,30 +69,19 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   const [currentDefaultRoutine, setCurrentDefaultRoutine] = useState([])
   var authContext = useContext(AuthContext);
 
+  const refreshDefaultRoutine = async () => {
+    try {
+      const routine = await fetchDefaultRoutine(authContext.user.id)
+      setCurrentDefaultRoutine(routine.tasks)
+    } catch (error) {
+      console.error('Failed to fetch default routine:', error)
+      setCurrentDefaultRoutine([])
+    }
+  }
+
   // Load initial state
   useEffect(() => {
-    const loadDefaultRoutine = async () => {
-      try {
-        const routine = await fetchDefaultRoutine(authContext.user.id)
-        setCurrentDefaultRoutine(routine.tasks)
-      } catch (error) {
-        console.error('Failed to fetch default routine:', error)
-        setCurrentDefaultRoutine(
-            [
-                {
-                    description: "20 min cardio",
-                    durationMinutes: 70,
-                    startTime: "09:00",
-                    endTime: "10:00",
-                    id: "5764b438-8fe2-467b-883b-987f8b180dcb",
-                    name: "Morning workout",
-                    color: "#3e78db"
-                }
-            ]
-        )
-      }
-    }
-    loadDefaultRoutine()
+    refreshDefaultRoutine()
   }, [])
 
   const handleSubmitChat = async (event) => {
@@ -110,6 +99,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
       const reply = await submitOnboardingChat(user.id, message)
       setMessages((current) => [...current, createChatMessage('bot', reply)])
       setPrompt('')
+      refreshDefaultRoutine()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message'
       setMessages((current) => [...current, createChatMessage('bot', errorMessage, true)])
