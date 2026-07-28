@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useContext } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
 import { apiRequest } from '../../../lib/api.ts'
 import EditingBoard from '../components/EditingBoard.jsx'
-import AuthContext from '../../../context/Auth.ts'
+import AuthContext from '../../../context/AuthContext.ts'
 
 function SparkIcon() {
   return (
@@ -38,9 +38,12 @@ function createChatMessage(role, text, isError = false) {
   }
 }
 
-const fetchDefaultRoutine = async () => {
-    var result = await apiRequest('/api/onboarding/default-routine')
-    return result.getData()
+const fetchDefaultRoutine = async (userId) => {
+  console.log("Fetching default routine for userId:", userId);
+  var result = await apiRequest(`/default-routine/users/${userId}`, {
+    method: 'GET',
+  })
+  return result
 }
 
 
@@ -64,12 +67,13 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   ])
   const [isSendingChat, setIsSendingChat] = useState(false)
   const [currentDefaultRoutine, setCurrentDefaultRoutine] = useState([])
+  var authContext = useContext(AuthContext);
 
   // Load initial state
   useEffect(() => {
     const loadDefaultRoutine = async () => {
       try {
-        const routine = await fetchDefaultRoutine()
+        const routine = await fetchDefaultRoutine(authContext.user.id)
         setCurrentDefaultRoutine(routine.tasks)
       } catch (error) {
         console.error('Failed to fetch default routine:', error)

@@ -3,10 +3,12 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import '../App.css'
 import { ApiError, apiRequest } from '../lib/api.ts'
 import AuthPage from '../features/auth/pages/AuthPage.tsx'
-import type { AuthMode, AuthUser } from '../features/auth/types/auth.ts'
+import type { AuthMode } from '../features/auth/types/auth.ts'
+import type { AuthUser } from '../context/AuthContext.ts'
 import ControlCentrePage from '../features/dashboard/pages/ControlCentrePage.jsx'
 import OnboardingPage from '../features/onboarding/pages/OnboardingPage.jsx'
 import { completeOnboarding } from '../features/onboarding/api/completeOnboarding.ts'
+import AuthContext from '../context/AuthContext.ts'
 
 function LoadingScreen() {
   return (
@@ -97,6 +99,7 @@ function App() {
           setUser({
             id: decoded.sub || decoded.userId || decoded.id || '',
             email: decoded.email || decoded.sub || '',
+            name: decoded.name || decoded.username || '',
           })
         }
 
@@ -193,6 +196,11 @@ function App() {
         setSignUpFullName('')
         setSignUpEmail('')
         setSignUpPassword('')
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name
+        })
 
         window.setTimeout(() => {
           setMode('signin')
@@ -269,73 +277,75 @@ function App() {
   const authenticatedTarget = isOnboardCompleted ? '/dashboard' : '/onboarding'
 
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to={isLoggedIn ? authenticatedTarget : '/auth'} replace />} />
-      <Route
-        path="/auth"
-        element={
-          isLoggedIn ? (
-            <Navigate to={authenticatedTarget} replace />
-          ) : (
-            <AuthPage
-              mode={mode}
-              isLoggingIn={isLoggingIn}
-              isRegistering={isRegistering}
-              signInEmail={signInEmail}
-              signInPassword={signInPassword}
-              signUpFullName={signUpFullName}
-              signUpEmail={signUpEmail}
-              signUpPassword={signUpPassword}
-              signInError={signInError}
-              signUpError={signUpError}
-              signUpSuccess={signUpSuccess}
-              onModeChange={setAuthMode}
-              onSignInEmailChange={setSignInEmail}
-              onSignInPasswordChange={setSignInPassword}
-              onSignUpFullNameChange={setSignUpFullName}
-              onSignUpEmailChange={setSignUpEmail}
-              onSignUpPasswordChange={setSignUpPassword}
-              onSignIn={handleSignIn}
-              onSignUp={handleSignUp}
-            />
-          )
-        }
-      />
-      <Route
-        path="/onboarding"
-        element={
-          isLoggedIn ? (
-            isOnboardCompleted ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <OnboardingPage
-                user={user}
-                onComplete={handleCompleteOnboarding}
-                isCompleting={isCompletingOnboarding}
-                completeError={onboardingError}
-              />
-            )
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
-      <Route
-        path="/dashboard"
-        element={
-          isLoggedIn ? (
-            isOnboardCompleted ? (
-              <ControlCentrePage onLogout={handleLogout} user={user} />
-            ) : (
-              <Navigate to="/onboarding" replace />
-            )
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
-      <Route path="*" element={<Navigate to={isLoggedIn ? authenticatedTarget : '/auth'} replace />} />
-    </Routes>
+    <AuthContext.Provider value={{ user, setUser }}>
+        <Routes>
+          <Route path="/" element={<Navigate to={isLoggedIn ? authenticatedTarget : '/auth'} replace />} />
+          <Route
+            path="/auth"
+            element={
+              isLoggedIn ? (
+                <Navigate to={authenticatedTarget} replace />
+              ) : (
+                <AuthPage
+                  mode={mode}
+                  isLoggingIn={isLoggingIn}
+                  isRegistering={isRegistering}
+                  signInEmail={signInEmail}
+                  signInPassword={signInPassword}
+                  signUpFullName={signUpFullName}
+                  signUpEmail={signUpEmail}
+                  signUpPassword={signUpPassword}
+                  signInError={signInError}
+                  signUpError={signUpError}
+                  signUpSuccess={signUpSuccess}
+                  onModeChange={setAuthMode}
+                  onSignInEmailChange={setSignInEmail}
+                  onSignInPasswordChange={setSignInPassword}
+                  onSignUpFullNameChange={setSignUpFullName}
+                  onSignUpEmailChange={setSignUpEmail}
+                  onSignUpPasswordChange={setSignUpPassword}
+                  onSignIn={handleSignIn}
+                  onSignUp={handleSignUp}
+                />
+              )
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              isLoggedIn ? (
+                isOnboardCompleted ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <OnboardingPage
+                    user={user}
+                    onComplete={handleCompleteOnboarding}
+                    isCompleting={isCompletingOnboarding}
+                    completeError={onboardingError}
+                  />
+                )
+              ) : (
+                <Navigate to="/auth" replace />
+              )
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              isLoggedIn ? (
+                isOnboardCompleted ? (
+                  <ControlCentrePage onLogout={handleLogout} user={user} />
+                ) : (
+                  <Navigate to="/onboarding" replace />
+                )
+              ) : (
+                <Navigate to="/auth" replace />
+              )
+            }
+          />
+          <Route path="*" element={<Navigate to={isLoggedIn ? authenticatedTarget : '/auth'} replace />} />
+      </Routes>
+    </AuthContext.Provider>
   )
 }
 
