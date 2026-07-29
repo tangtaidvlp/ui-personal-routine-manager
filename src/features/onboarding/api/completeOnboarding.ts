@@ -14,10 +14,14 @@ export async function completeOnboarding(userId: string): Promise<void> {
   })
 }
 
-export async function submitOnboardingChat(userId: string, message: string): Promise<string> {
-  const data = await apiRequest<ChatResponse>(toAbsoluteApiUrl(`/api/ai/chat/${userId}`), {
+export async function submitOnboardingChat(userId: string, defaultRoutine: object, message: string): Promise<string> {
+  console.log("Submitting onboarding chat for userId:", userId, "defaultRoutine:", defaultRoutine, "message:", message);
+  const data = await apiRequest<ChatResponse>(toAbsoluteApiUrl(`/api/ai/chat/default-routine/${userId}`), {
     method: 'POST',
-    json: { message: "Onboarding: [" + message + "]" },
+    json: { 
+      defaultRoutine: defaultRoutine,
+      message: "Onboarding: [" + message + "]" 
+    },
   })
 
   if (!data || typeof data.reply !== 'string') {

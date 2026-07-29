@@ -93,6 +93,7 @@ function EditingBoard({ storageKey = 'weekday', currentDefaultRoutine }) {
   const containerRef = useRef(null)
 
   const todayStr = new Date().toDateString()
+  const currentDefaultRoutineTasks = currentDefaultRoutine?.tasks || [];
 
 const [completedTasks, setCompletedTasks] = useState(() => {
     return {}
@@ -123,7 +124,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
   
   const activeTask =
-    currentDefaultRoutine.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || currentDefaultRoutine[currentDefaultRoutine.length - 1]
+    currentDefaultRoutineTasks.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || currentDefaultRoutineTasks[currentDefaultRoutineTasks.length - 1]
 
   const handleSliderChange = (event) => {
     setIsLive(false)
@@ -242,7 +243,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           ))}
 
           <div className="ob-board-task-layer">
-            {currentDefaultRoutine.map((task, index) => {
+            {currentDefaultRoutineTasks.map((task, index) => {
               const taskStartTime = parseLocalTimeToMinutes(task.startTime);
               const taskEndTime = parseLocalTimeToMinutes(task.endTime);
 
@@ -275,7 +276,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={{ top: `${top}%`, height: `${height}%`, backgroundColor: task.color }}
+                  style={{ top: `${top}%`, height: `${height}%`, backgroundColor: task.color ? task.color : basePalette[index % basePalette.length] }}
                 >
                   <div className="ob-board-task-content">
                     <span className="ob-board-task-name">{task.name}</span>

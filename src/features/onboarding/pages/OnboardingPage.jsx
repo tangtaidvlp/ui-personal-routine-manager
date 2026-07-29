@@ -72,10 +72,13 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   const refreshDefaultRoutine = async () => {
     try {
       const routine = await fetchDefaultRoutine(authContext.user.id)
-      setCurrentDefaultRoutine(routine.tasks)
+      console.log("Fetched default routine for userId:", authContext.user.id, "routine:", routine);
+      setCurrentDefaultRoutine(routine)
     } catch (error) {
       console.error('Failed to fetch default routine:', error)
-      setCurrentDefaultRoutine([])
+      setCurrentDefaultRoutine({
+        tasks: []
+      })
     }
   }
 
@@ -96,9 +99,10 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
     try {
       setIsSendingChat(true)
       setMessages((current) => [...current, createChatMessage('user', message)])
-      const reply = await submitOnboardingChat(user.id, message)
-      setMessages((current) => [...current, createChatMessage('bot', reply)])
       setPrompt('')
+      const reply = await submitOnboardingChat(user.id, currentDefaultRoutine, message)
+      setMessages((current) => [...current, createChatMessage('bot', reply)])
+      // REFRESH
       refreshDefaultRoutine()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message'
