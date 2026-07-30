@@ -1325,6 +1325,7 @@
 .ob-buddy-thread {
   padding: 16px;
   flex: 1;
+  overflow-y: auto;
 }
 
 .ob-message {

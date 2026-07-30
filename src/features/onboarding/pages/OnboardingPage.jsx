@@ -3,6 +3,7 @@ import { submitOnboardingChat } from '../api/completeOnboarding.ts'
 import { apiRequest } from '../../../lib/api.ts'
 import EditingBoard from '../components/EditingBoard.jsx'
 import AuthContext from '../../../context/AuthContext.ts'
+import ReactMarkdown from 'react-markdown'
 
 function SparkIcon() {
   return (
@@ -181,7 +182,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             {messages.map((chat) => (
               <div>
                 <div key={chat.id} className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>
-                {chat.isError ? `Error: ${chat.text}` : chat.text}
+                <ReactMarkdown>{chat.isError ? `Error: ${chat.text}` : chat.text}</ReactMarkdown>
                 </div>
                 <div className="ob-message-spacer"></div>
               </div>
