@@ -245,7 +245,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           <div className="ob-board-task-layer">
             {currentDefaultRoutineTasks.map((task, index) => {
               const taskStartTime = parseLocalTimeToMinutes(task.startTime);
-              const taskEndTime = parseLocalTimeToMinutes(task.endTime);
+              const taskEndTime = task.endTime != "00:00" ? parseLocalTimeToMinutes(task.endTime) : MINUTES_PER_DAY;
 
               const top = (taskStartTime * 100) / MINUTES_PER_DAY
               const height = ((taskEndTime - taskStartTime) * 100) / MINUTES_PER_DAY
@@ -325,7 +325,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
         <div className="ob-board-tooltip">
           <strong>{hoveredTask.name}</strong>
           <span>
-            {formatTime(hoveredTask.startTime)} - {formatTime(hoveredTask.endTime)} ({hoveredTask.duration})
+            {hoveredTask.startTime} - {hoveredTask.endTime} ({showTaskDuration(hoveredTask.durationMinutes)})
           </span>
         </div>
       )}
