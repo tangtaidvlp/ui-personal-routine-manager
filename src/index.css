@@ -39,6 +39,8 @@ body {
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  /* Blocks pinch-zoom; iOS Safari 10+ ignores user-scalable=no for this gesture on its own. */
+  touch-action: pan-x pan-y;
 }
 
 #root {
