@@ -86,6 +86,8 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   const [isSendingChat, setIsSendingChat] = useState(false)
   const [currentDefaultRoutine, setCurrentDefaultRoutine] = useState([])
   const [taskModalState, setTaskModalState] = useState(null)
+  const [mobileView, setMobileView] = useState('board')
+  const threadRef = useRef(null)
   var authContext = useContext(AuthContext);
 
   const openCreateTaskModal = (draft) => {
@@ -116,6 +118,13 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
     refreshDefaultRoutine()
   }, [])
 
+  useEffect(() => {
+    if (!threadRef.current) {
+      return
+    }
+    threadRef.current.scrollTop = threadRef.current.scrollHeight
+  }, [messages.length, isSendingChat])
+
   const handleSubmitChat = async (event) => {
     event.preventDefault()
 
@@ -133,6 +142,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
       setMessages((current) => [...current, createChatMessage('bot', reply)])
       // REFRESH
       refreshDefaultRoutine()
+      setMobileView('board')
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message'
       setMessages((current) => [...current, createChatMessage('bot', errorMessage, true)])
@@ -145,7 +155,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   }
 
   return (
-    <div className="ob-page">
+    <div className="ob-page" data-mobile-view={mobileView}>
       <header className="ob-topbar">
         <div className="ob-brand">
           <LogoMark />
@@ -211,15 +221,22 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             </div>
           </div>
 
-          <div className="ob-buddy-thread">
+          <div className="ob-buddy-thread" ref={threadRef}>
             {messages.map((chat) => (
-              <div>
-                <div key={chat.id} className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>
+              <div key={chat.id}>
+                <div className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>
                 <ReactMarkdown>{chat.isError ? `Error: ${chat.text}` : chat.text}</ReactMarkdown>
                 </div>
                 <div className="ob-message-spacer"></div>
               </div>
             ))}
+            {isSendingChat && (
+              <div className="ob-message bot ob-typing" aria-label="Routine Buddy is typing">
+                <span className="ob-typing-dot" />
+                <span className="ob-typing-dot" />
+                <span className="ob-typing-dot" />
+              </div>
+            )}
           </div>
 
           <form className="ob-buddy-input-wrap" onSubmit={handleSubmitChat}>
@@ -244,10 +261,24 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
         Planning for {user?.email || 'your account'}
       </footer>
 
-      <FabButton
-        onClick={() => openCreateTaskModal(nextDefaultDraftTask())}
-        disabled={!currentDefaultRoutine?.id}
-      />
+      <div className="ob-fab-group">
+        <FabButton
+          onClick={() => openCreateTaskModal(nextDefaultDraftTask())}
+          disabled={!currentDefaultRoutine?.id}
+        />
+        <button
+          type="button"
+          className="ob-fab-btn-chat"
+          aria-label="Chat with Routine Buddy"
+          onClick={() => setMobileView('chat')}
+        >
+          <SendIcon />
+        </button>
+      </div>
+
+      <button type="button" className="ob-fab-btn-view-schedule" onClick={() => setMobileView('board')}>
+        View schedule
+      </button>
 
       <TaskEditModal
         isOpen={Boolean(taskModalState)}
