@@ -2,8 +2,25 @@ import { useRef, useState, useEffect, useContext } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
 import { apiRequest } from '../../../lib/api.ts'
 import EditingBoard from '../components/EditingBoard.jsx'
+import TaskEditModal from '../components/TaskEditModal.tsx'
+import FabButton from '../components/FabButton.tsx'
 import AuthContext from '../../../context/AuthContext.ts'
 import ReactMarkdown from 'react-markdown'
+
+const MINUTES_PER_DAY = 1440
+
+const formatTimeOfDay = (minutes) => {
+  const h = Math.floor(minutes / 60).toString().padStart(2, '0')
+  const m = Math.floor(minutes % 60).toString().padStart(2, '0')
+  return `${h}:${m}`
+}
+
+function nextDefaultDraftTask() {
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const rounded = Math.min(Math.ceil(nowMinutes / 30) * 30, MINUTES_PER_DAY - 30)
+  return { name: '', startTime: formatTimeOfDay(rounded), durationMinutes: 30 }
+}
 
 function SparkIcon() {
   return (
@@ -68,7 +85,18 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   ])
   const [isSendingChat, setIsSendingChat] = useState(false)
   const [currentDefaultRoutine, setCurrentDefaultRoutine] = useState([])
+  const [taskModalState, setTaskModalState] = useState(null)
   var authContext = useContext(AuthContext);
+
+  const openCreateTaskModal = (draft) => {
+    setTaskModalState({ mode: 'create', draft })
+  }
+
+  const openEditTaskModal = (task) => {
+    setTaskModalState({ mode: 'edit', draft: task })
+  }
+
+  const closeTaskModal = () => setTaskModalState(null)
 
   const refreshDefaultRoutine = async () => {
     try {
@@ -164,7 +192,12 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             <span className="ob-block-count">Drag to reorder</span>
           </div>
 
-          <EditingBoard storageKey={scheduleMode} currentDefaultRoutine={currentDefaultRoutine} />
+          <EditingBoard
+            currentDefaultRoutine={currentDefaultRoutine}
+            onRequestCreateTask={openCreateTaskModal}
+            onRequestEditTask={openEditTaskModal}
+            onTaskUpdated={refreshDefaultRoutine}
+          />
         </section>
 
         <aside className="ob-buddy-card">
@@ -210,6 +243,20 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
       <footer className="ob-user-chip">
         Planning for {user?.email || 'your account'}
       </footer>
+
+      <FabButton
+        onClick={() => openCreateTaskModal(nextDefaultDraftTask())}
+        disabled={!currentDefaultRoutine?.id}
+      />
+
+      <TaskEditModal
+        isOpen={Boolean(taskModalState)}
+        mode={taskModalState?.mode ?? 'create'}
+        draftTask={taskModalState?.draft ?? null}
+        routineId={currentDefaultRoutine?.id}
+        onClose={closeTaskModal}
+        onSaved={refreshDefaultRoutine}
+      />
     </div>
   )
 }

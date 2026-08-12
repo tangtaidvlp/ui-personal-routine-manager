@@ -1,28 +1,19 @@
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { updateDefaultTasks } from '../api/defaultRoutineTasks.ts'
 
 const MINUTES_PER_DAY = 1440
 const BOARD_HEIGHT_PX = 2400
+const MINUTES_PER_PIXEL = MINUTES_PER_DAY / BOARD_HEIGHT_PX
+const SNAP_MINUTES = 15
+const MIN_DURATION_MINUTES = 15
+const CLICK_DISTANCE_THRESHOLD_PX = 5
 
 const basePalette = ['#0f172a', '#047857', '#0e7490', '#2563eb', '#c2410c', '#6d28d9', '#be123c', '#334155']
-
-const initialBaseSchedule = [
-  { name: 'Sleep', start: 0, end: 390 },
-]
 
 const getCurrentMinutes = () => {
   const now = new Date()
   return now.getHours() * 60 + now.getMinutes()
-}
-
-const calcDurationStr = (start, end) => {
-  let diff = end - start
-  if (diff < 0) diff += MINUTES_PER_DAY
-  const h = Math.floor(diff / 60)
-  const m = diff % 60
-  if (h > 0 && m > 0) return `${h}h ${m}m`
-  if (h > 0) return `${h}h`
-  return `${m}m`
 }
 
 const parseLocalTimeToMinutes = (value, fallback = 0) => {
@@ -39,29 +30,6 @@ const parseLocalTimeToMinutes = (value, fallback = 0) => {
 
   return fallback
 }
-
-const normalizeSchedule = (items) =>
-  items.map((item, index) => {
-    const startMinutes =
-      item.start !== undefined && item.start !== null
-        ? parseLocalTimeToMinutes(item.start)
-        : parseLocalTimeToMinutes(item.startTime)
-
-    const defaultEnd = Math.min(startMinutes + 60, MINUTES_PER_DAY)
-    const endMinutes =
-      item.end !== undefined && item.end !== null
-        ? parseLocalTimeToMinutes(item.end, defaultEnd)
-        : parseLocalTimeToMinutes(item.endTime, defaultEnd)
-
-    return {
-      id: item.id ?? `${index}-${startMinutes}-${endMinutes}`,
-      name: item.name || `Block ${index + 1}`,
-      start: startMinutes,
-      end: endMinutes,
-      color: item.color || basePalette[index % basePalette.length],
-      duration: item.duration || calcDurationStr(startMinutes, endMinutes),
-    }
-  })
 
 const showTaskDuration = (minutesDuration) => {
     const h = Math.floor(minutesDuration / 60)
@@ -83,16 +51,19 @@ const formatTime = (minutes) => {
   return `${h}:${m}`
 }
 
-function EditingBoard({ storageKey = 'weekday', currentDefaultRoutine }) {
+const snapMinutes = (minutes, step = SNAP_MINUTES) => Math.round(minutes / step) * step
+
+const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
+
+function EditingBoard({ currentDefaultRoutine, onRequestCreateTask, onRequestEditTask, onTaskUpdated }) {
 
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
   const [hoveredTask, setHoveredTask] = useState(null)
-  const [draggedIdx, setDraggedIdx] = useState(null)
-  const [dragOverIdx, setDragOverIdx] = useState(null)
+  const [dragState, setDragState] = useState(null)
   const containerRef = useRef(null)
+  const trackRef = useRef(null)
 
-  const todayStr = new Date().toDateString()
   const currentDefaultRoutineTasks = currentDefaultRoutine?.tasks || [];
 
 const [completedTasks, setCompletedTasks] = useState(() => {
@@ -122,7 +93,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     }
   }, [isLive])
 
-  
+
   const activeTask =
     currentDefaultRoutineTasks.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || currentDefaultRoutineTasks[currentDefaultRoutineTasks.length - 1]
 
@@ -140,64 +111,95 @@ const [completedTasks, setCompletedTasks] = useState(() => {
   }
 
   const handleResetSchedule = () => {
-    setScheduleData(baseSchedule)
     setCompletedTasks({})
   }
 
-  const handleDragStart = (event, index) => {
-    setDraggedIdx(index)
-    event.dataTransfer.effectAllowed = 'move'
+  const handleTrackClick = (event) => {
+    if (!trackRef.current || !onRequestCreateTask) {
+      return
+    }
+    const rect = trackRef.current.getBoundingClientRect()
+    const offsetY = event.clientY - rect.top
+    const snapped = snapMinutes(offsetY * MINUTES_PER_PIXEL)
+    const startMinutes = clamp(snapped, 0, MINUTES_PER_DAY - 30)
+
+    onRequestCreateTask({ name: '', startTime: formatTime(startMinutes), durationMinutes: 30 })
   }
 
-  const handleDragOver = (event, index) => {
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    if (dragOverIdx !== index) {
-      setDragOverIdx(index)
+  const beginDrag = (event, mode, task, originalStartMinutes, originalDurationMinutes) => {
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDragState({
+      taskId: task.id,
+      mode,
+      pointerId: event.pointerId,
+      startClientY: event.clientY,
+      originalStartMinutes,
+      originalDurationMinutes,
+      liveStartMinutes: originalStartMinutes,
+      liveDurationMinutes: originalDurationMinutes,
+    })
+  }
+
+  const handleDragPointerMove = (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
+      return
+    }
+    const deltaMinutes = snapMinutes((event.clientY - dragState.startClientY) * MINUTES_PER_PIXEL)
+
+    if (dragState.mode === 'move') {
+      const maxStart = MINUTES_PER_DAY - dragState.originalDurationMinutes
+      const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, maxStart)
+      setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveStartMinutes } : current))
+    } else {
+      const maxDuration = MINUTES_PER_DAY - dragState.originalStartMinutes
+      const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, maxDuration)
+      setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveDurationMinutes } : current))
     }
   }
 
-  const handleDragLeave = () => {
-    setDragOverIdx(null)
-  }
+  const handleDragPointerUp = (event, task) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
+      return
+    }
+    const finished = dragState
+    setDragState(null)
 
-  const handleDrop = (event, dropIndex) => {
-    event.preventDefault()
-    setDragOverIdx(null)
+    const movedDistance = Math.abs(event.clientY - finished.startClientY)
 
-    if (draggedIdx === null || draggedIdx === dropIndex) {
+    if (finished.mode === 'move' && movedDistance < CLICK_DISTANCE_THRESHOLD_PX) {
+      onRequestEditTask?.(task)
       return
     }
 
-    const reordered = [...scheduleData]
-    const draggedTask = reordered[draggedIdx]
+    const hasChanged =
+      finished.mode === 'move'
+        ? finished.liveStartMinutes !== finished.originalStartMinutes
+        : finished.liveDurationMinutes !== finished.originalDurationMinutes
 
-    reordered.splice(draggedIdx, 1)
-    reordered.splice(dropIndex, 0, draggedTask)
+    if (!hasChanged) {
+      return
+    }
 
-    let currentMin = 0
-    reordered.forEach((task) => {
-      let duration = task.endTime - task.startTime
-      if (duration < 0) {
-        duration += MINUTES_PER_DAY
-      }
-      task.startTime = currentMin
-      task.endTime = currentMin + duration
-      currentMin = task.endTime
-      task.duration = calcDurationStr(task.startTime, task.endTime)
-    })
+    const updatedTask = {
+      id: task.id,
+      name: task.name,
+      description: task.description,
+      color: task.color,
+      startTime: formatTime(finished.liveStartMinutes),
+      durationMinutes: finished.liveDurationMinutes,
+    }
 
-    const remappedCompleted = {}
-    reordered.forEach((task, newIdx) => {
-      const oldIdx = scheduleData.findIndex((original) => original.id === task.id)
-      if (completedTasks[oldIdx]) {
-        remappedCompleted[newIdx] = true
-      }
-    })
+    updateDefaultTasks([updatedTask])
+      .then(() => onTaskUpdated?.())
+      .catch((error) => console.error('Failed to update task', error))
+  }
 
-    setCompletedTasks(remappedCompleted)
-    setScheduleData(reordered)
-    setDraggedIdx(null)
+  const handleDragPointerCancel = (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
+      return
+    }
+    setDragState(null)
   }
 
   return (
@@ -231,7 +233,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       </div>
 
       <div ref={containerRef} className="ob-board-scroll">
-        <div className="ob-board-track" style={{ height: `${BOARD_HEIGHT_PX}px` }}>
+        <div ref={trackRef} className="ob-board-track" style={{ height: `${BOARD_HEIGHT_PX}px` }} onClick={handleTrackClick}>
           {Array.from({ length: 25 }).map((_, index) => (
             <div
               key={`grid-${index}`}
@@ -244,35 +246,35 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
           <div className="ob-board-task-layer">
             {currentDefaultRoutineTasks.map((task, index) => {
-              const taskStartTime = parseLocalTimeToMinutes(task.startTime);
-              const taskEndTime = task.endTime != "00:00" ? parseLocalTimeToMinutes(task.endTime) : MINUTES_PER_DAY;
+              const storedStartTime = parseLocalTimeToMinutes(task.startTime);
+              const storedEndTime = task.endTime != "00:00" ? parseLocalTimeToMinutes(task.endTime) : MINUTES_PER_DAY;
+              const storedDuration = storedEndTime - storedStartTime
+
+              const isDragging = dragState?.taskId === task.id
+              const taskStartTime = isDragging ? dragState.liveStartMinutes : storedStartTime
+              const taskDuration = isDragging ? dragState.liveDurationMinutes : storedDuration
+              const taskEndTime = taskStartTime + taskDuration
 
               const top = (taskStartTime * 100) / MINUTES_PER_DAY
-              const height = ((taskEndTime - taskStartTime) * 100) / MINUTES_PER_DAY
+              const height = (taskDuration * 100) / MINUTES_PER_DAY
               const isDone = Boolean(completedTasks[index])
               const isActive = currentTime >= taskStartTime && currentTime < taskEndTime
-              
 
               return (
                 <div
                   key={task.id}
-                  draggable
-                  onDragStart={(event) => handleDragStart(event, index)}
-                  onDragOver={(event) => handleDragOver(event, index)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(event) => handleDrop(event, index)}
-                  onClick={() => {
-                    setIsLive(false)
-                    setCurrentTime(taskStartTime)
-                  }}
+                  onPointerDown={(event) => beginDrag(event, 'move', task, storedStartTime, storedDuration)}
+                  onPointerMove={handleDragPointerMove}
+                  onPointerUp={(event) => handleDragPointerUp(event, task)}
+                  onPointerCancel={handleDragPointerCancel}
+                  onClick={(event) => event.stopPropagation()}
                   onMouseEnter={() => setHoveredTask(task)}
                   onMouseLeave={() => setHoveredTask(null)}
                   className={[
                     'ob-board-task',
                     isDone ? 'is-done' : '',
                     isActive ? 'is-active' : '',
-                    draggedIdx === index ? 'is-dragged' : '',
-                    dragOverIdx === index ? 'is-drag-over' : '',
+                    isDragging ? 'is-dragging' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -281,17 +283,14 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   <div className="ob-board-task-content">
                     <span className="ob-board-task-name">{task.name}</span>
                     <span className="ob-board-task-time">
-                      {task.startTime} - {task.endTime} | {showTaskDuration(task.durationMinutes)}
+                      {formatTime(taskStartTime)} - {formatTime(taskEndTime)} | {showTaskDuration(taskDuration)}
                     </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={(event) => toggleTaskCompletion(index, event)}
-                    onDragStart={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
                     className={[
                       'ob-board-task-check',
                       isDone ? 'is-checked' : '',
@@ -302,6 +301,25 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   >
                     {isDone ? '✓' : ''}
                   </button>
+
+                  <div
+                    className="ob-board-task-resize-handle"
+                    onPointerDown={(event) => beginDrag(event, 'resize', task, storedStartTime, storedDuration)}
+                    onPointerMove={(event) => {
+                      event.stopPropagation()
+                      handleDragPointerMove(event)
+                    }}
+                    onPointerUp={(event) => {
+                      event.stopPropagation()
+                      handleDragPointerUp(event, task)
+                    }}
+                    onPointerCancel={(event) => {
+                      event.stopPropagation()
+                      handleDragPointerCancel(event)
+                    }}
+                    onClick={(event) => event.stopPropagation()}
+                    aria-hidden="true"
+                  />
                 </div>
               )
             })}
