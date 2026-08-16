@@ -1,18 +1,26 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { createDefaultTasks, updateDefaultTasks } from '../api/defaultRoutineTasks.ts'
 import { ApiError } from '../../../lib/api.ts'
-import type { RoutineTask } from '../types/routine.ts'
+
+export type TaskFormValue = {
+  id?: string
+  name: string
+  startTime: string
+  durationMinutes: number
+  description?: string
+  color?: string
+}
 
 export type TaskEditModalProps = {
   isOpen: boolean
   mode: 'create' | 'edit'
-  draftTask: RoutineTask | null
-  routineId: string
+  draftTask: TaskFormValue | null
   onClose: () => void
+  onSubmitTask: (mode: 'create' | 'edit', task: TaskFormValue) => Promise<unknown>
   onSaved: () => void | Promise<void>
+  showColor?: boolean
 }
 
-function TaskEditModal({ isOpen, mode, draftTask, routineId, onClose, onSaved }: TaskEditModalProps) {
+function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved, showColor = true }: TaskEditModalProps) {
   const [name, setName] = useState('')
   const [startTime, setStartTime] = useState('09:00')
   const [durationMinutes, setDurationMinutes] = useState(30)
@@ -50,7 +58,7 @@ function TaskEditModal({ isOpen, mode, draftTask, routineId, onClose, onSaved }:
       return
     }
 
-    const task: RoutineTask = {
+    const task: TaskFormValue = {
       id: draftTask?.id,
       name: trimmedName,
       startTime,
@@ -62,11 +70,7 @@ function TaskEditModal({ isOpen, mode, draftTask, routineId, onClose, onSaved }:
     setIsSaving(true)
     setError(null)
     try {
-      if (mode === 'create') {
-        await createDefaultTasks(routineId, [task])
-      } else {
-        await updateDefaultTasks([task])
-      }
+      await onSubmitTask(mode, task)
       await onSaved()
       onClose()
     } catch (err) {
@@ -133,10 +137,12 @@ function TaskEditModal({ isOpen, mode, draftTask, routineId, onClose, onSaved }:
             />
           </label>
 
-          <label className="ob-modal-field">
-            <span>Color</span>
-            <input type="color" value={color || '#2563eb'} onChange={(event) => setColor(event.target.value)} />
-          </label>
+          {showColor && (
+            <label className="ob-modal-field">
+              <span>Color</span>
+              <input type="color" value={color || '#2563eb'} onChange={(event) => setColor(event.target.value)} />
+            </label>
+          )}
 
           <div className="ob-modal-actions">
             <button type="button" className="ob-modal-btn ob-modal-btn-secondary" onClick={onClose} disabled={isSaving}>

@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useContext } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
+import { createDefaultTasks, updateDefaultTasks } from '../api/defaultRoutineTasks.ts'
 import { apiRequest } from '../../../lib/api.ts'
 import EditingBoard from '../components/EditingBoard.jsx'
 import TaskEditModal from '../components/TaskEditModal.tsx'
@@ -203,10 +204,10 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
           </div>
 
           <EditingBoard
-            currentDefaultRoutine={currentDefaultRoutine}
+            routine={currentDefaultRoutine}
             onRequestCreateTask={openCreateTaskModal}
             onRequestEditTask={openEditTaskModal}
-            onTaskUpdated={refreshDefaultRoutine}
+            onPersistTaskChange={(task) => updateDefaultTasks([task]).then(refreshDefaultRoutine)}
           />
         </section>
 
@@ -284,7 +285,9 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
         isOpen={Boolean(taskModalState)}
         mode={taskModalState?.mode ?? 'create'}
         draftTask={taskModalState?.draft ?? null}
-        routineId={currentDefaultRoutine?.id}
+        onSubmitTask={(mode, task) =>
+          mode === 'create' ? createDefaultTasks(currentDefaultRoutine?.id, [task]) : updateDefaultTasks([task])
+        }
         onClose={closeTaskModal}
         onSaved={refreshDefaultRoutine}
       />

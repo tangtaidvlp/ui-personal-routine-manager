@@ -1,6 +1,5 @@
 
 import { useEffect, useRef, useState } from 'react'
-import { updateDefaultTasks } from '../api/defaultRoutineTasks.ts'
 
 const MINUTES_PER_DAY = 1440
 const BOARD_HEIGHT_PX = 2400
@@ -55,7 +54,7 @@ const snapMinutes = (minutes, step = SNAP_MINUTES) => Math.round(minutes / step)
 
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
 
-function EditingBoard({ currentDefaultRoutine, onRequestCreateTask, onRequestEditTask, onTaskUpdated }) {
+function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onToggleComplete }) {
 
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
@@ -64,7 +63,7 @@ function EditingBoard({ currentDefaultRoutine, onRequestCreateTask, onRequestEdi
   const containerRef = useRef(null)
   const trackRef = useRef(null)
 
-  const currentDefaultRoutineTasks = currentDefaultRoutine?.tasks || [];
+  const tasks = routine?.tasks || [];
 
 const [completedTasks, setCompletedTasks] = useState(() => {
     return {}
@@ -95,15 +94,19 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
 
   const activeTask =
-    currentDefaultRoutineTasks.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || currentDefaultRoutineTasks[currentDefaultRoutineTasks.length - 1]
+    tasks.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || tasks[tasks.length - 1]
 
   const handleSliderChange = (event) => {
     setIsLive(false)
     setCurrentTime(parseInt(event.target.value, 10))
   }
 
-  const toggleTaskCompletion = (index, event) => {
+  const toggleTaskCompletion = (task, index, event) => {
     event.stopPropagation()
+    if (onToggleComplete) {
+      onToggleComplete(task)
+      return
+    }
     setCompletedTasks((current) => ({
       ...current,
       [index]: !current[index],
@@ -190,9 +193,9 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       durationMinutes: finished.liveDurationMinutes,
     }
 
-    updateDefaultTasks([updatedTask])
-      .then(() => onTaskUpdated?.())
-      .catch((error) => console.error('Failed to update task', error))
+    Promise.resolve(onPersistTaskChange?.(updatedTask)).catch((error) =>
+      console.error('Failed to update task', error)
+    )
   }
 
   const handleDragPointerCancel = (event) => {
@@ -245,7 +248,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           ))}
 
           <div className="ob-board-task-layer">
-            {currentDefaultRoutineTasks.map((task, index) => {
+            {tasks.map((task, index) => {
               const storedStartTime = parseLocalTimeToMinutes(task.startTime);
               const storedEndTime = task.endTime != "00:00" ? parseLocalTimeToMinutes(task.endTime) : MINUTES_PER_DAY;
               const storedDuration = storedEndTime - storedStartTime
@@ -257,7 +260,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
               const top = (taskStartTime * 100) / MINUTES_PER_DAY
               const height = (taskDuration * 100) / MINUTES_PER_DAY
-              const isDone = Boolean(completedTasks[index])
+              const isDone = onToggleComplete ? Boolean(task.completed) : Boolean(completedTasks[index])
               const isActive = currentTime >= taskStartTime && currentTime < taskEndTime
 
               return (
@@ -289,7 +292,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
                   <button
                     type="button"
-                    onClick={(event) => toggleTaskCompletion(index, event)}
+                    onClick={(event) => toggleTaskCompletion(task, index, event)}
                     onPointerDown={(event) => event.stopPropagation()}
                     className={[
                       'ob-board-task-check',

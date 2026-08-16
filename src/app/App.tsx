@@ -5,7 +5,7 @@ import { ApiError, apiRequest } from '../lib/api.ts'
 import AuthPage from '../features/auth/pages/AuthPage.tsx'
 import type { AuthMode } from '../features/auth/types/auth.ts'
 import type { AuthUser } from '../context/AuthContext.ts'
-import ControlCentrePage from '../features/dashboard/pages/ControlCentrePage.jsx'
+import DailyRoutinePage from '../features/daily/pages/DailyRoutinePage.jsx'
 import OnboardingPage from '../features/onboarding/pages/OnboardingPage.jsx'
 import { completeOnboarding } from '../features/onboarding/api/completeOnboarding.ts'
 import AuthContext from '../context/AuthContext.ts'
@@ -334,7 +334,7 @@ function App() {
             element={
               isLoggedIn ? (
                 isOnboardCompleted ? (
-                  <ControlCentrePage onLogout={handleLogout} user={user} />
+                  <DailyRoutinePage onLogout={handleLogout} user={user} />
                 ) : (
                   <Navigate to="/onboarding" replace />
                 )
