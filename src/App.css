@@ -1328,6 +1328,9 @@
   display: flex;
   flex-direction: column;
   min-height: 640px;
+  /* Keeps the send button clear of the fixed-position FAB group in the
+     viewport's bottom-right corner. */
+  padding-bottom: 90px;
 }
 
 .ob-buddy-head {
@@ -1881,7 +1884,10 @@
   margin-top: 14px;
   flex: 1;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 2fr 0.95fr;
+  grid-template-rows: 1fr;
+  gap: 18px;
 }
 
 .dr-canvas-card {
@@ -1915,5 +1921,45 @@
 
   .dr-canvas-card {
     padding: 8px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .dr-page {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .dr-main {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .dr-canvas-card,
+  .dr-main .ob-buddy-card {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .dr-page[data-mobile-view='board'] .ob-buddy-card {
+    display: none;
+  }
+
+  .dr-page[data-mobile-view='board'] .ob-fab-btn-chat {
+    display: grid;
+  }
+
+  .dr-page[data-mobile-view='chat'] .dr-canvas-card {
+    display: none;
+  }
+
+  .dr-page[data-mobile-view='chat'] .ob-fab-btn {
+    display: none;
+  }
+
+  .dr-page[data-mobile-view='chat'] .ob-fab-btn-view-schedule {
+    display: block;
   }
 }

@@ -1,12 +1,12 @@
-import { useRef, useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
 import { createDefaultTasks, updateDefaultTasks } from '../api/defaultRoutineTasks.ts'
 import { apiRequest } from '../../../lib/api.ts'
 import EditingBoard from '../components/EditingBoard.jsx'
 import TaskEditModal from '../components/TaskEditModal.tsx'
 import FabButton from '../components/FabButton.tsx'
+import BuddyChat, { SendIcon } from '../components/BuddyChat.jsx'
 import AuthContext from '../../../context/AuthContext.ts'
-import ReactMarkdown from 'react-markdown'
 
 const MINUTES_PER_DAY = 1440
 
@@ -23,38 +23,12 @@ function nextDefaultDraftTask() {
   return { name: '', startTime: formatTimeOfDay(rounded), durationMinutes: 30 }
 }
 
-function SparkIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3l1.9 4.8L19 10l-5.1 2.2L12 17l-1.9-4.8L5 10l5.1-2.2L12 3z" fill="currentColor" />
-    </svg>
-  )
-}
-
-function SendIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M22 2L15 22l-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 function LogoMark() {
   return (
     <div className="ob-brand-mark" aria-hidden="true">
       <span>R</span>
     </div>
   )
-}
-
-function createChatMessage(role, text, isError = false) {
-  return {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    role,
-    text,
-    isError,
-  }
 }
 
 const fetchDefaultRoutine = async (userId) => {
@@ -76,19 +50,9 @@ const fetchDefaultRoutine = async (userId) => {
  */
 function OnboardingPage({ user, onComplete, isCompleting = false, completeError = null }) {
   const [scheduleMode, setScheduleMode] = useState('weekday')
-  const [prompt, setPrompt] = useState('')
-  const inputRef = useRef(null)
-  const [messages, setMessages] = useState([
-    createChatMessage(
-      'bot',
-      "Hi! I'm your Routine Buddy. We can build your schedule together. Try telling me your first habit, like: \"I wake up at 7:00 AM.\" Or, you can just click the + button to add it yourself."
-    ),
-  ])
-  const [isSendingChat, setIsSendingChat] = useState(false)
   const [currentDefaultRoutine, setCurrentDefaultRoutine] = useState([])
   const [taskModalState, setTaskModalState] = useState(null)
   const [mobileView, setMobileView] = useState('board')
-  const threadRef = useRef(null)
   var authContext = useContext(AuthContext);
 
   const openCreateTaskModal = (draft) => {
@@ -118,42 +82,6 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   useEffect(() => {
     refreshDefaultRoutine()
   }, [])
-
-  useEffect(() => {
-    if (!threadRef.current) {
-      return
-    }
-    threadRef.current.scrollTop = threadRef.current.scrollHeight
-  }, [messages.length, isSendingChat])
-
-  const handleSubmitChat = async (event) => {
-    event.preventDefault()
-
-    const message = prompt.trim()
-    if (!message || !user?.id || isSendingChat) {
-      inputRef.current?.focus()
-      return
-    }
-
-    try {
-      setIsSendingChat(true)
-      setMessages((current) => [...current, createChatMessage('user', message)])
-      setPrompt('')
-      const reply = await submitOnboardingChat(user.id, currentDefaultRoutine, message)
-      setMessages((current) => [...current, createChatMessage('bot', reply)])
-      // REFRESH
-      refreshDefaultRoutine()
-      setMobileView('board')
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to send message'
-      setMessages((current) => [...current, createChatMessage('bot', errorMessage, true)])
-    } finally {
-      setIsSendingChat(false)
-      requestAnimationFrame(() => {
-        inputRef.current?.focus()
-      })
-    }
-  }
 
   return (
     <div className="ob-page" data-mobile-view={mobileView}>
@@ -211,51 +139,17 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
           />
         </section>
 
-        <aside className="ob-buddy-card">
-          <div className="ob-buddy-head">
-            <div className="ob-buddy-icon">
-              <SparkIcon />
-            </div>
-            <div>
-              <p className="ob-buddy-title">Routine Buddy</p>
-              <p className="ob-buddy-subtitle">Here to help you plan</p>
-            </div>
-          </div>
-
-          <div className="ob-buddy-thread" ref={threadRef}>
-            {messages.map((chat) => (
-              <div key={chat.id}>
-                <div className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>
-                <ReactMarkdown>{chat.isError ? `Error: ${chat.text}` : chat.text}</ReactMarkdown>
-                </div>
-                <div className="ob-message-spacer"></div>
-              </div>
-            ))}
-            {isSendingChat && (
-              <div className="ob-message bot ob-typing" aria-label="Routine Buddy is typing">
-                <span className="ob-typing-dot" />
-                <span className="ob-typing-dot" />
-                <span className="ob-typing-dot" />
-              </div>
-            )}
-          </div>
-
-          <form className="ob-buddy-input-wrap" onSubmit={handleSubmitChat}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              className="ob-buddy-input"
-              placeholder='Try: "I work from 9 to 5"'
-              readOnly={isSendingChat}
-              aria-busy={isSendingChat}
-            />
-            <button type="submit" className="ob-send-btn" aria-label="Send message" disabled={isSendingChat}>
-              <SendIcon />
-            </button>
-          </form>
-        </aside>
+        <BuddyChat
+          title="Routine Buddy"
+          subtitle="Here to help you plan"
+          initialMessage={"Hi! I'm your Routine Buddy. We can build your schedule together. Try telling me your first habit, like: \"I wake up at 7:00 AM.\" Or, you can just click the + button to add it yourself."}
+          placeholder='Try: "I work from 9 to 5"'
+          onSend={(message) => submitOnboardingChat(user.id, currentDefaultRoutine, message)}
+          onAfterSend={() => {
+            refreshDefaultRoutine()
+            setMobileView('board')
+          }}
+        />
       </main>
 
       <footer className="ob-user-chip">

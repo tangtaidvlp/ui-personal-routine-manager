@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import EditingBoard from '../../onboarding/components/EditingBoard.jsx'
 import TaskEditModal from '../../onboarding/components/TaskEditModal.tsx'
 import FabButton from '../../onboarding/components/FabButton.tsx'
+import BuddyChat, { SendIcon } from '../../onboarding/components/BuddyChat.jsx'
 import {
   fetchDailyRoutine,
   ensureDailyRoutine,
   createDailyTasks,
   updateDailyTasks,
   deleteDailyTasks,
+  submitDailyRoutineChat,
 } from '../api/dailyRoutineTasks.ts'
 
 const MINUTES_PER_DAY = 1440
@@ -49,6 +51,7 @@ function DailyRoutinePage({ user, onLogout }) {
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
   const [currentDailyRoutine, setCurrentDailyRoutine] = useState(null)
   const [taskModalState, setTaskModalState] = useState(null)
+  const [mobileView, setMobileView] = useState('board')
 
   const refreshDailyRoutine = async () => {
     if (!user?.id) {
@@ -133,7 +136,7 @@ function DailyRoutinePage({ user, onLogout }) {
   const hasTasks = (currentDailyRoutine?.tasks ?? []).length > 0
 
   return (
-    <div className="dr-page">
+    <div className="dr-page" data-mobile-view={mobileView}>
       <header className="dr-topbar">
         <div className="ob-brand">
           <LogoMark />
@@ -179,11 +182,35 @@ function DailyRoutinePage({ user, onLogout }) {
             onToggleComplete={handleToggleComplete}
           />
         </section>
+
+        <BuddyChat
+          title="Routine Buddy"
+          subtitle={`Here to help with ${selectedDate}`}
+          initialMessage="Hi! Ask me to add, adjust, or check off tasks for this day."
+          placeholder='Try: "Mark my workout as done"'
+          onSend={(message) => submitDailyRoutineChat(user.id, currentDailyRoutine, selectedDate, message)}
+          onAfterSend={() => {
+            refreshDailyRoutine()
+            setMobileView('board')
+          }}
+        />
       </main>
 
       <div className="ob-fab-group">
         <FabButton onClick={() => openCreateTaskModal(nextDefaultDraftTask())} />
+        <button
+          type="button"
+          className="ob-fab-btn-chat"
+          aria-label="Chat with Routine Buddy"
+          onClick={() => setMobileView('chat')}
+        >
+          <SendIcon />
+        </button>
       </div>
+
+      <button type="button" className="ob-fab-btn-view-schedule" onClick={() => setMobileView('board')}>
+        View schedule
+      </button>
 
       <TaskEditModal
         isOpen={Boolean(taskModalState)}
