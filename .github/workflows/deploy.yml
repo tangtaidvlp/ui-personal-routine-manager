@@ -1,4 +1,4 @@
-name: Deploy to S3
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -33,14 +32,10 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Deploy dist/ to milos.github.io
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Sync dist/ to S3
-        run: aws s3 sync dist/ "s3://${{ vars.S3_BUCKET_NAME }}" --delete
-
-      # - name: Invalidate CloudFront cache
-      #   run: aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
+          personal_token: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+          external_repository: tangtaidvlp/milos.github.io
+          publish_branch: main
+          publish_dir: ./dist
