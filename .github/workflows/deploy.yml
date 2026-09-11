@@ -32,6 +32,12 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # GitHub Pages has no SPA rewrite, so a direct visit or refresh on a
+      # client-side route would hard-404. Serving index.html as the 404 page
+      # loads the app and lets react-router resolve the path.
+      - name: Add SPA fallback for client-side routes
+        run: cp dist/index.html dist/404.html
+
       - name: Deploy dist/ to milos.github.io
         uses: peaceiris/actions-gh-pages@v4
         with:
