@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Served from https://tangtaidvlp.github.io/milos.github.io/, so asset URLs
+  // must be prefixed with the repo name rather than the domain root.
+  base: '/milos.github.io/',
   plugins: [react()],
   server: {
     proxy: {
