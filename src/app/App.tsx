@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import '../App.css'
 import { ApiError, apiRequest } from '../lib/api.ts'
@@ -245,7 +245,7 @@ function App() {
     }
   }
 
-  const handleCompleteOnboarding = async () => {
+  const handleCompleteOnboarding = useCallback(async () => {
     if (!user?.id) {
       setOnboardingError('Unable to complete onboarding because user information is missing.')
       return
@@ -268,7 +268,7 @@ function App() {
     } finally {
       setIsCompletingOnboarding(false)
     }
-  }
+  }, [user])
 
   if (isCheckingAuth) {
     return <LoadingScreen />
