@@ -118,8 +118,8 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
               <span>Duration (min)</span>
               <input
                 type="number"
-                min={15}
-                step={15}
+                min={5}
+                step={5}
                 max={1440}
                 value={durationMinutes}
                 onChange={(event) => setDurationMinutes(Number(event.target.value))}

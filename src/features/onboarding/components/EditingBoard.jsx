@@ -6,8 +6,8 @@ const BASE_BOARD_HEIGHT_PX = 2400
 const ZOOM_MIN = 0.5
 const ZOOM_MAX = 3.0
 const ZOOM_STEP = 0.25
-const SNAP_MINUTES = 15
-const MIN_DURATION_MINUTES = 15
+const SNAP_MINUTES = 5
+const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
 
 const basePalette = ['#0f172a', '#047857', '#0e7490', '#2563eb', '#c2410c', '#6d28d9', '#be123c', '#334155']
