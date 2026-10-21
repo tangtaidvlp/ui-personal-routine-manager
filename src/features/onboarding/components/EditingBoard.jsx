@@ -1,9 +1,11 @@
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const MINUTES_PER_DAY = 1440
-const BOARD_HEIGHT_PX = 2400
-const MINUTES_PER_PIXEL = MINUTES_PER_DAY / BOARD_HEIGHT_PX
+const BASE_BOARD_HEIGHT_PX = 2400
+const ZOOM_MIN = 0.5
+const ZOOM_MAX = 3.0
+const ZOOM_STEP = 0.25
 const SNAP_MINUTES = 15
 const MIN_DURATION_MINUTES = 15
 const CLICK_DISTANCE_THRESHOLD_PX = 5
@@ -60,8 +62,12 @@ function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersi
   const [isLive, setIsLive] = useState(true)
   const [hoveredTask, setHoveredTask] = useState(null)
   const [dragState, setDragState] = useState(null)
+  const [zoomLevel, setZoomLevel] = useState(1.0)
   const containerRef = useRef(null)
   const trackRef = useRef(null)
+
+  const boardHeightPx = useMemo(() => BASE_BOARD_HEIGHT_PX * zoomLevel, [zoomLevel])
+  const minutesPerPixel = useMemo(() => MINUTES_PER_DAY / boardHeightPx, [boardHeightPx])
 
   const tasks = routine?.tasks || [];
 
@@ -73,9 +79,9 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     if (!containerRef.current) {
       return
     }
-    const scrollPosition = (currentTime / MINUTES_PER_DAY) * BOARD_HEIGHT_PX - 260
+    const scrollPosition = (currentTime / MINUTES_PER_DAY) * boardHeightPx - 260
     containerRef.current.scrollTop = Math.max(0, scrollPosition)
-  }, [currentTime])
+  }, [currentTime, boardHeightPx])
 
   useEffect(() => {
     let intervalId
@@ -123,7 +129,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     }
     const rect = trackRef.current.getBoundingClientRect()
     const offsetY = event.clientY - rect.top
-    const snapped = snapMinutes(offsetY * MINUTES_PER_PIXEL)
+    const snapped = snapMinutes(offsetY * minutesPerPixel)
     const startMinutes = clamp(snapped, 0, MINUTES_PER_DAY - 30)
 
     onRequestCreateTask({ name: '', startTime: formatTime(startMinutes), durationMinutes: 30 })
@@ -148,7 +154,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return
     }
-    const deltaMinutes = snapMinutes((event.clientY - dragState.startClientY) * MINUTES_PER_PIXEL)
+    const deltaMinutes = snapMinutes((event.clientY - dragState.startClientY) * minutesPerPixel)
 
     if (dragState.mode === 'move') {
       const maxStart = MINUTES_PER_DAY - dragState.originalDurationMinutes
@@ -212,6 +218,29 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           <strong>{formatTime(currentTime)}</strong>
           <span>{isLive ? 'Live' : 'Manual'}</span>
         </div>
+        <div className="ob-board-zoom">
+          <button
+            type="button"
+            className="ob-board-btn ob-board-zoom-btn"
+            onClick={() => setZoomLevel((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP))}
+            disabled={zoomLevel <= ZOOM_MIN}
+            aria-label="Zoom out"
+            title="Zoom out"
+          >
+            −
+          </button>
+          <span className="ob-board-zoom-label">{Math.round(zoomLevel * 100)}%</span>
+          <button
+            type="button"
+            className="ob-board-btn ob-board-zoom-btn"
+            onClick={() => setZoomLevel((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP))}
+            disabled={zoomLevel >= ZOOM_MAX}
+            aria-label="Zoom in"
+            title="Zoom in"
+          >
+            +
+          </button>
+        </div>
         <div className="ob-board-actions">
           <button type="button" className="ob-board-btn" onClick={() => setIsLive((current) => !current)}>
             {isLive ? 'Pause clock' : 'Resume live'}
@@ -236,7 +265,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       </div>
 
       <div ref={containerRef} className="ob-board-scroll">
-        <div ref={trackRef} className="ob-board-track" style={{ height: `${BOARD_HEIGHT_PX}px` }} onClick={handleTrackClick}>
+        <div ref={trackRef} className="ob-board-track" style={{ height: `${boardHeightPx}px` }} onClick={handleTrackClick}>
           {Array.from({ length: 25 }).map((_, index) => (
             <div
               key={`grid-${index}`}
