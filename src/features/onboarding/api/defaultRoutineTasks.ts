@@ -14,3 +14,9 @@ export async function updateDefaultTasks(tasks: RoutineTask[]): Promise<RoutineT
     json: tasks,
   })
 }
+
+export async function deleteDefaultTasks(taskIds: string[]): Promise<void> {
+  await apiRequest<void>(`/default-routine/tasks?taskIds=${taskIds.join(',')}`, {
+    method: 'DELETE',
+  })
+}

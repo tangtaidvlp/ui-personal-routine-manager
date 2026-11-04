@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
-import { createDefaultTasks, updateDefaultTasks } from '../api/defaultRoutineTasks.ts'
+import { createDefaultTasks, updateDefaultTasks, deleteDefaultTasks } from '../api/defaultRoutineTasks.ts'
 import { apiRequest } from '../../../lib/api.ts'
 import EditingBoard from '../components/EditingBoard.jsx'
 import TaskEditModal from '../components/TaskEditModal.tsx'
@@ -64,6 +64,21 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
   }
 
   const closeTaskModal = () => setTaskModalState(null)
+
+  const handleDeleteTask = async (task) => {
+    if (!task?.id) {
+      return
+    }
+    if (!window.confirm('Remove this task?')) {
+      return
+    }
+    try {
+      await deleteDefaultTasks([task.id])
+      await refreshDefaultRoutine()
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+    }
+  }
 
   const refreshDefaultRoutine = async () => {
     try {
@@ -136,6 +151,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             onRequestCreateTask={openCreateTaskModal}
             onRequestEditTask={openEditTaskModal}
             onPersistTaskChange={(task) => updateDefaultTasks([task]).then(refreshDefaultRoutine)}
+            onRequestDeleteTask={handleDeleteTask}
           />
         </section>
 
@@ -184,6 +200,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
         }
         onClose={closeTaskModal}
         onSaved={refreshDefaultRoutine}
+        onDeleteTask={handleDeleteTask}
       />
     </div>
   )

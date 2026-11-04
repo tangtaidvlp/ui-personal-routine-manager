@@ -1236,10 +1236,38 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .ob-board-task-check.is-checked {
   background: #fff;
+}
+
+.ob-board-task-delete {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.ob-board-task:hover .ob-board-task-delete,
+.ob-board-task.is-dragging .ob-board-task-delete {
+  opacity: 1;
+}
+
+.ob-board-task-delete:hover {
+  background: rgba(220, 38, 38, 0.75);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .ob-board-task.is-active {
@@ -1711,8 +1739,15 @@
   color: #fff;
 }
 
+.ob-modal-btn-danger {
+  background: #dc2626;
+  color: #fff;
+  margin-right: auto;
+}
+
 .ob-modal-btn-primary:disabled,
-.ob-modal-btn-secondary:disabled {
+.ob-modal-btn-secondary:disabled,
+.ob-modal-btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

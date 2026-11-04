@@ -80,6 +80,21 @@ function DailyRoutinePage({ user, onLogout }) {
 
   const closeTaskModal = () => setTaskModalState(null)
 
+  const handleDeleteTask = async (task) => {
+    if (!task?.id) {
+      return
+    }
+    if (!window.confirm('Remove this task?')) {
+      return
+    }
+    try {
+      await deleteDailyTasks([task.id])
+      await refreshDailyRoutine()
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+    }
+  }
+
   const shiftDate = (deltaDays) => {
     const date = parseDateInputValue(selectedDate)
     date.setDate(date.getDate() + deltaDays)
@@ -180,6 +195,7 @@ function DailyRoutinePage({ user, onLogout }) {
             onRequestEditTask={openEditTaskModal}
             onPersistTaskChange={handlePersistTaskChange}
             onToggleComplete={handleToggleComplete}
+            onRequestDeleteTask={handleDeleteTask}
           />
         </section>
 
@@ -219,6 +235,7 @@ function DailyRoutinePage({ user, onLogout }) {
         onSubmitTask={handleSubmitTask}
         onClose={closeTaskModal}
         onSaved={refreshDailyRoutine}
+        onDeleteTask={handleDeleteTask}
         showColor={false}
       />
     </div>

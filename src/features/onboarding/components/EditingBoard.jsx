@@ -56,7 +56,7 @@ const snapMinutes = (minutes, step = SNAP_MINUTES) => Math.round(minutes / step)
 
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
 
-function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onToggleComplete }) {
+function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onToggleComplete, onRequestDeleteTask }) {
 
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
@@ -333,6 +333,22 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   >
                     {isDone ? '✓' : ''}
                   </button>
+
+                  {onRequestDeleteTask && (
+                    <button
+                      type="button"
+                      className="ob-board-task-delete"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onRequestDeleteTask(task)
+                      }}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      aria-label={`Delete ${task.name}`}
+                      title="Delete task"
+                    >
+                      ✕
+                    </button>
+                  )}
 
                   <div
                     className="ob-board-task-resize-handle"

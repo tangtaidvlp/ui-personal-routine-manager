@@ -17,10 +17,11 @@ export type TaskEditModalProps = {
   onClose: () => void
   onSubmitTask: (mode: 'create' | 'edit', task: TaskFormValue) => Promise<unknown>
   onSaved: () => void | Promise<void>
+  onDeleteTask?: (task: TaskFormValue) => void
   showColor?: boolean
 }
 
-function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved, showColor = true }: TaskEditModalProps) {
+function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved, onDeleteTask, showColor = true }: TaskEditModalProps) {
   const [name, setName] = useState('')
   const [startTime, setStartTime] = useState('09:00')
   const [durationMinutes, setDurationMinutes] = useState(30)
@@ -145,6 +146,16 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
           )}
 
           <div className="ob-modal-actions">
+            {mode === 'edit' && onDeleteTask && draftTask && (
+              <button
+                type="button"
+                className="ob-modal-btn ob-modal-btn-danger"
+                onClick={() => onDeleteTask(draftTask)}
+                disabled={isSaving}
+              >
+                Delete Task
+              </button>
+            )}
             <button type="button" className="ob-modal-btn ob-modal-btn-secondary" onClick={onClose} disabled={isSaving}>
               Cancel
             </button>
