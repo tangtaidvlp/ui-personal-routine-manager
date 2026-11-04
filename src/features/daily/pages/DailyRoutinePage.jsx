@@ -84,9 +84,6 @@ function DailyRoutinePage({ user, onLogout }) {
     if (!task?.id) {
       return
     }
-    if (!window.confirm('Remove this task?')) {
-      return
-    }
     try {
       await deleteDailyTasks([task.id])
       await refreshDailyRoutine()

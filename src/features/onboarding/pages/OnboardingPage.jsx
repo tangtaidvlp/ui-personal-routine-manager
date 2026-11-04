@@ -69,9 +69,6 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
     if (!task?.id) {
       return
     }
-    if (!window.confirm('Remove this task?')) {
-      return
-    }
     try {
       await deleteDefaultTasks([task.id])
       await refreshDefaultRoutine()

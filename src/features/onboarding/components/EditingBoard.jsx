@@ -1,5 +1,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 
 const MINUTES_PER_DAY = 1440
 const BASE_BOARD_HEIGHT_PX = 2400
@@ -63,6 +64,8 @@ function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersi
   const [hoveredTask, setHoveredTask] = useState(null)
   const [dragState, setDragState] = useState(null)
   const [zoomLevel, setZoomLevel] = useState(1.0)
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const containerRef = useRef(null)
   const trackRef = useRef(null)
 
@@ -340,7 +343,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                       className="ob-board-task-delete"
                       onClick={(event) => {
                         event.stopPropagation()
-                        onRequestDeleteTask(task)
+                        setDeleteConfirmTask(task)
                       }}
                       onPointerDown={(event) => event.stopPropagation()}
                       aria-label={`Delete ${task.name}`}
@@ -395,6 +398,25 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           </span>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirmTask !== null}
+        message={`Remove "${deleteConfirmTask?.name ?? 'this task'}" from your schedule?`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeleting}
+        onConfirm={async () => {
+          if (!deleteConfirmTask) return
+          setIsDeleting(true)
+          try {
+            await onRequestDeleteTask(deleteConfirmTask)
+          } finally {
+            setIsDeleting(false)
+            setDeleteConfirmTask(null)
+          }
+        }}
+        onCancel={() => setDeleteConfirmTask(null)}
+      />
     </section>
   )
 }

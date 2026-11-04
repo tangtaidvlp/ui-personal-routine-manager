@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ApiError } from '../../../lib/api.ts'
+import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 
 export type TaskFormValue = {
   id?: string
@@ -29,6 +30,7 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
   const [color, setColor] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     if (!isOpen) {
@@ -82,90 +84,105 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
   }
 
   return (
-    <div className="ob-modal-backdrop" onClick={onClose}>
-      <div className="ob-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-        <div className="ob-modal-header">
-          <h2>{mode === 'create' ? 'Add a task' : 'Edit task'}</h2>
-          <button type="button" className="ob-modal-close" onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </div>
+    <>
+      <div className="ob-modal-backdrop" onClick={onClose}>
+        <div className="ob-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+          <div className="ob-modal-header">
+            <h2>{mode === 'create' ? 'Add a task' : 'Edit task'}</h2>
+            <button type="button" className="ob-modal-close" onClick={onClose} aria-label="Close">
+              ×
+            </button>
+          </div>
 
-        <form className="ob-modal-body" onSubmit={handleSubmit}>
-          {error && (
-            <div className="ob-modal-error" role="alert">
-              {error}
-            </div>
-          )}
-
-          <label className="ob-modal-field">
-            <span>Name</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. Morning walk"
-              autoFocus
-            />
-          </label>
-
-          <div className="ob-modal-field-row">
-            <label className="ob-modal-field">
-              <span>Start time</span>
-              <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
-            </label>
+          <form className="ob-modal-body" onSubmit={handleSubmit}>
+            {error && (
+              <div className="ob-modal-error" role="alert">
+                {error}
+              </div>
+            )}
 
             <label className="ob-modal-field">
-              <span>Duration (min)</span>
+              <span>Name</span>
               <input
-                type="number"
-                min={5}
-                step={5}
-                max={1440}
-                value={durationMinutes}
-                onChange={(event) => setDurationMinutes(Number(event.target.value))}
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="e.g. Morning walk"
+                autoFocus
               />
             </label>
-          </div>
 
-          <label className="ob-modal-field">
-            <span>Notes</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Optional details"
-              rows={2}
-            />
-          </label>
+            <div className="ob-modal-field-row">
+              <label className="ob-modal-field">
+                <span>Start time</span>
+                <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+              </label>
 
-          {showColor && (
+              <label className="ob-modal-field">
+                <span>Duration (min)</span>
+                <input
+                  type="number"
+                  min={5}
+                  step={5}
+                  max={1440}
+                  value={durationMinutes}
+                  onChange={(event) => setDurationMinutes(Number(event.target.value))}
+                />
+              </label>
+            </div>
+
             <label className="ob-modal-field">
-              <span>Color</span>
-              <input type="color" value={color || '#2563eb'} onChange={(event) => setColor(event.target.value)} />
+              <span>Notes</span>
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Optional details"
+                rows={2}
+              />
             </label>
-          )}
 
-          <div className="ob-modal-actions">
-            {mode === 'edit' && onDeleteTask && draftTask && (
-              <button
-                type="button"
-                className="ob-modal-btn ob-modal-btn-danger"
-                onClick={() => onDeleteTask(draftTask)}
-                disabled={isSaving}
-              >
-                Delete Task
-              </button>
+            {showColor && (
+              <label className="ob-modal-field">
+                <span>Color</span>
+                <input type="color" value={color || '#2563eb'} onChange={(event) => setColor(event.target.value)} />
+              </label>
             )}
-            <button type="button" className="ob-modal-btn ob-modal-btn-secondary" onClick={onClose} disabled={isSaving}>
-              Cancel
-            </button>
-            <button type="submit" className="ob-modal-btn ob-modal-btn-primary" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save task'}
-            </button>
-          </div>
-        </form>
+
+            <div className="ob-modal-actions">
+              {mode === 'edit' && onDeleteTask && draftTask && (
+                <button
+                  type="button"
+                  className="ob-modal-btn ob-modal-btn-danger"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isSaving}
+                >
+                  Delete Task
+                </button>
+              )}
+              <button type="button" className="ob-modal-btn ob-modal-btn-secondary" onClick={onClose} disabled={isSaving}>
+                Cancel
+              </button>
+              <button type="submit" className="ob-modal-btn ob-modal-btn-primary" disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save task'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        message={`Remove "${draftTask?.name ?? 'this task'}" from your schedule?`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          onDeleteTask?.(draftTask!)
+          setShowDeleteConfirm(false)
+          onClose()
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    </>
   )
 }
 
