@@ -66,6 +66,7 @@ function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersi
   const [zoomLevel, setZoomLevel] = useState(1.0)
   const [deleteConfirmTask, setDeleteConfirmTask] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isToggling, setIsToggling] = useState(new Set())
   const containerRef = useRef(null)
   const trackRef = useRef(null)
 
@@ -110,10 +111,31 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     setCurrentTime(parseInt(event.target.value, 10))
   }
 
-  const toggleTaskCompletion = (task, index, event) => {
+  const toggleTaskCompletion = async (task, index, event) => {
     event.stopPropagation()
     if (onToggleComplete) {
-      onToggleComplete(task)
+      // Optimistic update: toggle immediately in local state for instant feedback
+      setCompletedTasks((current) => ({
+        ...current,
+        [index]: !Boolean(task.completed),
+      }))
+      setIsToggling((prev) => new Set(prev).add(task.id))
+      try {
+        await onToggleComplete(task)
+      } catch (err) {
+        // Revert on failure
+        setCompletedTasks((current) => ({
+          ...current,
+          [index]: Boolean(task.completed),
+        }))
+        console.error('Failed to toggle task completion:', err)
+      } finally {
+        setIsToggling((prev) => {
+          const next = new Set(prev)
+          next.delete(task.id)
+          return next
+        })
+      }
       return
     }
     setCompletedTasks((current) => ({
@@ -292,7 +314,10 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
               const top = (taskStartTime * 100) / MINUTES_PER_DAY
               const height = (taskDuration * 100) / MINUTES_PER_DAY
-              const isDone = onToggleComplete ? Boolean(task.completed) : Boolean(completedTasks[index])
+              const isTogglingThis = isToggling.has(task.id)
+              const isDone = onToggleComplete
+                ? (isTogglingThis ? Boolean(completedTasks[index]) : Boolean(task.completed))
+                : Boolean(completedTasks[index])
               const isActive = currentTime >= taskStartTime && currentTime < taskEndTime
 
               return (
@@ -329,12 +354,14 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     className={[
                       'ob-board-task-check',
                       isDone ? 'is-checked' : '',
+                      isTogglingThis ? 'is-toggling' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
                     aria-label={isDone ? 'Mark as incomplete' : 'Mark as done'}
+                    disabled={isTogglingThis}
                   >
-                    {isDone ? '✓' : ''}
+                    {isTogglingThis ? '…' : isDone ? '✓' : ''}
                   </button>
 
                   {onRequestDeleteTask && (
