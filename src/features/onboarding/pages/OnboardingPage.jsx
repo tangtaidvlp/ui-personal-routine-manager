@@ -147,7 +147,10 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             routine={currentDefaultRoutine}
             onRequestCreateTask={openCreateTaskModal}
             onRequestEditTask={openEditTaskModal}
-            onPersistTaskChange={(task) => updateDefaultTasks([task]).then(refreshDefaultRoutine)}
+            onPersistTaskChange={(tasks) => {
+              const taskArray = Array.isArray(tasks) ? tasks : [tasks]
+              return updateDefaultTasks(taskArray).then(refreshDefaultRoutine)
+            }}
             onRequestDeleteTask={handleDeleteTask}
           />
         </section>

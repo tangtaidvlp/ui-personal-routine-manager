@@ -67,6 +67,7 @@ function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersi
   const [deleteConfirmTask, setDeleteConfirmTask] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(new Set())
+  const [gapClearMode, setGapClearMode] = useState(false)
   const containerRef = useRef(null)
   const trackRef = useRef(null)
 
@@ -163,6 +164,12 @@ const [completedTasks, setCompletedTasks] = useState(() => {
   const beginDrag = (event, mode, task, originalStartMinutes, originalDurationMinutes) => {
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
+
+    // When in gap-clear mode, capture original positions of all tasks
+    const originalTaskPositions = gapClearMode && mode === 'move'
+      ? tasks.map(t => ({ id: t.id, originalStart: parseLocalTimeToMinutes(t.startTime) }))
+      : null
+
     setDragState({
       taskId: task.id,
       mode,
@@ -172,6 +179,8 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       originalDurationMinutes,
       liveStartMinutes: originalStartMinutes,
       liveDurationMinutes: originalDurationMinutes,
+      originalTaskPositions,
+      draggedTaskOriginalStart: originalStartMinutes,
     })
   }
 
@@ -215,18 +224,74 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       return
     }
 
-    const updatedTask = {
-      id: task.id,
-      name: task.name,
-      description: task.description,
-      color: task.color,
-      startTime: formatTime(finished.liveStartMinutes),
-      durationMinutes: finished.liveDurationMinutes,
+    // Calculate how far we moved the dragged task
+    const deltaMinutes = finished.liveStartMinutes - finished.originalStartMinutes
+
+    // Base updated tasks list
+    let tasksToUpdate = []
+
+    if (gapClearMode && finished.mode === 'move' && finished.originalTaskPositions) {
+      // Gap-clear mode: move all tasks that were originally below this one by the same delta
+      const draggedOriginalStart = finished.draggedTaskOriginalStart
+
+      // Create updates for every task affected
+      const updateMap = new Map()
+
+      // First, add the dragged task itself
+      updateMap.set(task.id, {
+        id: task.id,
+        name: task.name,
+        description: task.description,
+        color: task.color,
+        startTime: formatTime(finished.liveStartMinutes),
+        durationMinutes: finished.liveDurationMinutes,
+        completed: task.completed,
+      })
+
+      // Now find every task that was *originally* below the dragged one
+      finished.originalTaskPositions.forEach(origPos => {
+        if (origPos.id === task.id) return
+
+        if (origPos.originalStart >= draggedOriginalStart) {
+          // This task was below the dragged one — move it by the same delta
+          const existingTask = tasks.find(t => t.id === origPos.id)
+          if (existingTask) {
+            const newStart = snapMinutes(origPos.originalStart + deltaMinutes)
+            const clampedStart = clamp(newStart, 0, MINUTES_PER_DAY - existingTask.durationMinutes)
+
+            updateMap.set(existingTask.id, {
+              id: existingTask.id,
+              name: existingTask.name,
+              description: existingTask.description,
+              color: existingTask.color,
+              startTime: formatTime(clampedStart),
+              durationMinutes: existingTask.durationMinutes,
+              completed: existingTask.completed,
+            })
+          }
+        }
+      })
+
+      tasksToUpdate = Array.from(updateMap.values())
+    } else {
+      // Normal mode: only update the dragged task
+      tasksToUpdate = [{
+        id: task.id,
+        name: task.name,
+        description: task.description,
+        color: task.color,
+        startTime: formatTime(finished.liveStartMinutes),
+        durationMinutes: finished.liveDurationMinutes,
+        completed: task.completed,
+      }]
     }
 
-    Promise.resolve(onPersistTaskChange?.(updatedTask)).catch((error) =>
-      console.error('Failed to update task', error)
-    )
+    // Persist all changes
+    if (onPersistTaskChange) {
+      Promise.resolve(onPersistTaskChange(tasksToUpdate)).catch((error) =>
+        console.error('Failed to update tasks', error)
+      )
+    }
   }
 
   const handleDragPointerCancel = (event) => {
@@ -270,6 +335,17 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           <button type="button" className="ob-board-btn" onClick={() => setIsLive((current) => !current)}>
             {isLive ? 'Pause clock' : 'Resume live'}
           </button>
+          <button
+            type="button"
+            className={[
+              'ob-board-btn',
+              gapClearMode ? 'ob-board-btn-primary' : ''
+            ].filter(Boolean).join(' ')}
+            onClick={() => setGapClearMode(!gapClearMode)}
+            title="When enabled, dragging a task pulls all tasks below it with it"
+          >
+            {gapClearMode ? '✓ Gap Clear' : 'Gap Clear'}
+          </button>
           <button type="button" className="ob-board-btn ob-board-btn-reset" onClick={handleResetSchedule}>
             Reset day
           </button>
@@ -290,7 +366,15 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       </div>
 
       <div ref={containerRef} className="ob-board-scroll">
-        <div ref={trackRef} className="ob-board-track" style={{ height: `${boardHeightPx}px` }} onClick={handleTrackClick}>
+        <div
+          ref={trackRef}
+          className={[
+            'ob-board-track',
+            gapClearMode ? 'is-gap-clear-mode' : ''
+          ].filter(Boolean).join(' ')}
+          style={{ height: `${boardHeightPx}px` }}
+          onClick={handleTrackClick}
+        >
           {Array.from({ length: 25 }).map((_, index) => (
             <div
               key={`grid-${index}`}

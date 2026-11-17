@@ -116,9 +116,16 @@ function DailyRoutinePage({ user, onLogout }) {
     return updateDailyTasks([{ ...task, completed: existing?.completed ?? false }])
   }
 
-  const handlePersistTaskChange = async (updatedTask) => {
-    const existing = currentDailyRoutine?.tasks?.find((current) => current.id === updatedTask.id)
-    await updateDailyTasks([{ ...updatedTask, completed: existing?.completed ?? false }])
+  const handlePersistTaskChange = async (updatedTasks) => {
+    const tasks = Array.isArray(updatedTasks) ? updatedTasks : [updatedTasks]
+
+    // Preserve existing completed status for each task
+    const tasksToUpdate = tasks.map(task => {
+      const existing = currentDailyRoutine?.tasks?.find((current) => current.id === task.id)
+      return { ...task, completed: existing?.completed ?? false }
+    })
+
+    await updateDailyTasks(tasksToUpdate)
     await refreshDailyRoutine()
   }
 

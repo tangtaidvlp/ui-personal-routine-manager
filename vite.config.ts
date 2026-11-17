@@ -8,20 +8,10 @@ export default defineConfig({
   base: '/milos.github.io/',
   plugins: [react()],
   server: {
-    proxy: {
-      // Forward API calls to the backend running on localhost:8080.
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        configure: (proxy) => {
-          // Strip Basic-auth challenges so the browser doesn't pop its
-          // native "Sign in to access this site" dialog on a 401. The app
-          // handles 401s itself (falls back to the login form).
-          proxy.on('proxyRes', (proxyRes) => {
-            delete proxyRes.headers['www-authenticate']
-          })
-        },
-      },
-    },
+    // Allow all hosts for tunneling/ngrok access
+    allowedHosts: true,
+    host: '0.0.0.0',
+    // Disable HMR entirely for tunnels - it never works reliably
+    hmr: false
   },
 })

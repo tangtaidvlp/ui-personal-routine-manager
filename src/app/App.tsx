@@ -124,46 +124,27 @@ function App() {
     setSignInError(null)
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
+      const response = await apiRequest('/api/v1/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        json: {
           email: signInEmail,
           password: signInPassword,
-        }),
+        },
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setAccessToken(data.accessToken)
-        setUser(data.user)
-        setIsLoggedIn(true)
-        setOnboardingError(null)
-        setSignInEmail('')
-        setSignInPassword('')
+      const data = response as any
+      setAccessToken(data.accessToken)
+      setUser(data.user)
+      setIsLoggedIn(true)
+      setOnboardingError(null)
+      setSignInEmail('')
+      setSignInPassword('')
 
-        const onboardCompleted = data.user?.onboardCompleted ?? true
-        setIsOnboardCompleted(onboardCompleted)
+      const onboardCompleted = data.user?.onboardCompleted ?? true
+      setIsOnboardCompleted(onboardCompleted)
 
-        return
-      }
-
-      let errorMessage = 'Sign-in failed. Please check your credentials.'
- 
-      try {
-        const errorData = await response.json()
-        if (errorData.message) {
-          errorMessage = errorData.message
-        }
-      } catch {
-        // Response is not JSON.
-      }
-
-      setSignInError(errorMessage)
-    } catch {
-      setSignInError('A network error occurred. Please try again later.')
+    } catch (err: any) {
+      setSignInError(err.message)
     } finally {
       setIsLoggingIn(false)
     }
@@ -176,54 +157,35 @@ function App() {
     setSignUpSuccess(null)
 
     try {
-      const response = await fetch('/api/v1/auth/register', {
+      const response = await apiRequest('/api/v1/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        json: {
           email: signUpEmail,
           password: signUpPassword,
           username: signUpFullName,
-        }),
+        },
       })
 
-      if (response.status === 201) {
-        const data = await response.json()
-        const registeredEmail = signUpEmail
+      const data = response as any
+      const registeredEmail = signUpEmail
 
-        setSignUpSuccess(data.message || 'User registered successfully.')
-        setSignUpFullName('')
-        setSignUpEmail('')
-        setSignUpPassword('')
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name
-        })
+      setSignUpSuccess(data.message || 'User registered successfully.')
+      setSignUpFullName('')
+      setSignUpEmail('')
+      setSignUpPassword('')
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name
+      })
 
-        window.setTimeout(() => {
-          setMode('signin')
-          setSignInEmail(registeredEmail)
-        }, 1500)
+      window.setTimeout(() => {
+        setMode('signin')
+        setSignInEmail(registeredEmail)
+      }, 1500)
 
-        return
-      }
-
-      let errorMessage = 'Registration failed. Please try again.'
-
-      try {
-        const errorData = await response.json()
-        if (errorData.message) {
-          errorMessage = errorData.message
-        }
-      } catch {
-        // Response is not JSON.
-      }
-
-      setSignUpError(errorMessage)
-    } catch {
-      setSignUpError('A network error occurred. Please try again later.')
+    } catch (err: any) {
+      setSignUpError(err.message)
     } finally {
       setIsRegistering(false)
     }
@@ -231,7 +193,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/v1/auth/logout', {
+      await apiRequest('/api/v1/auth/logout', {
         method: 'POST',
       })
     } catch (error) {

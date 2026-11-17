@@ -41,6 +41,7 @@ export async function apiRequest<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {
+  console.log("Sending request to " + API_BASE_URL)
   const { json, token, headers, ...init } = options
 
   const finalHeaders = new Headers(headers)

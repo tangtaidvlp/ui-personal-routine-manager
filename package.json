@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "prod": "vite --mode production",
+    "build": "tsc -b && vite build --mode production",
     "build:milos": "pnpm build && rm -rf milos-ui-0.0.1 && cp -r dist milos-ui-0.0.1",
     "lint": "oxlint src",
     "preview": "vite preview"
