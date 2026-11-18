@@ -88,7 +88,7 @@ function App() {
           accessToken: string
           isOnboardCompleted?: boolean
           user?: { isOnboardCompleted?: boolean }
-        }>('/auth/refresh', {
+        }>('api/v1/auth/refresh', {
           method: 'POST',
         })
 
@@ -103,8 +103,10 @@ function App() {
           })
         }
 
-        const onboardCompleted =
-          data.isOnboardCompleted ?? data.user?.isOnboardCompleted ?? decoded?.isOnboardCompleted ?? true
+        // Get user
+        const user = await apiRequest<{onboardingCompleted: boolean}>(`api/users/${decoded.sub}/onboarding/complete`, { method: 'GET' })
+
+        const onboardCompleted = user.onboardingCompleted;
         setIsOnboardCompleted(onboardCompleted)
 
         setIsLoggedIn(true)
@@ -169,14 +171,14 @@ function App() {
       const data = response as any
       const registeredEmail = signUpEmail
 
-      setSignUpSuccess(data.message || 'User registered successfully.')
+      setSignUpSuccess('User registered successfully. Welcome ' + data.userName)
       setSignUpFullName('')
       setSignUpEmail('')
       setSignUpPassword('')
       setUser({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name
+        id: data.userId,
+        email: data.email,
+        name: data.name
       })
 
       window.setTimeout(() => {
