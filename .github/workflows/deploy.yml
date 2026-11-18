@@ -39,3 +39,4 @@ jobs:
           external_repository: tangtaidvlp/milos.github.io
           publish_branch: main
           publish_dir: ./dist
+          cname: milosbytomm.site
