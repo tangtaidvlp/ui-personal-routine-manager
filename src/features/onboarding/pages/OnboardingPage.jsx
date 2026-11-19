@@ -33,7 +33,7 @@ function LogoMark() {
 
 const fetchDefaultRoutine = async (userId) => {
   console.log("Fetching default routine for userId:", userId);
-  var result = await apiRequest(`/default-routine/users/${userId}`, {
+  var result = await apiRequest(`/api/v1/default-routine/users/${userId}`, {
     method: 'GET',
   })
   return result
