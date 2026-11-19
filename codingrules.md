@@ -16,13 +16,17 @@ src/
 │   └── [featureName]/
 │       ├── api/       # API requests specific to this feature
 │       ├── components/# UI components specific to this feature
-│       ├── hooks/     # Custom hooks containing business logic for this feature
+│       ├── pages/     # Route-level page components for this feature
 │       ├── types/     # TypeScript interfaces/types for this feature
-│       └── utils/     # Helper functions specific to this feature
+│       ├── hooks/     # (add when needed) Custom hooks with this feature's business logic
+│       └── utils/     # (add when needed) Helper functions specific to this feature
 ├── hooks/             # Global hooks (useAuth, useWindowSize, useClickOutside)
-├── lib/               # Pre-configured third-party libraries (axios instance, dayjs)
+├── lib/               # Shared wrappers (api.ts fetch wrapper)
 ├── types/             # Global TypeScript definitions
 └── utils/             # Global utility functions (formatters, regex)
+```
+
+Existing features use `api/`, `components/`, `pages/`, and `types/`. Create `hooks/` or `utils/` inside a feature only when it needs them.
 
 
 ### Libs usage

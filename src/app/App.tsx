@@ -105,7 +105,6 @@ function App() {
 
         // Get user
         const user = await apiRequest<{onboardingCompleted: boolean}>(`api/users/${decoded.sub}/onboarding/complete`, { method: 'GET' })
-
         const onboardCompleted = user.onboardingCompleted;
         setIsOnboardCompleted(onboardCompleted)
 
@@ -137,13 +136,17 @@ function App() {
       const data = response as any
       setAccessToken(data.accessToken)
       setUser(data.user)
+
+      // Get user onboarding status before marking logged in, so routing goes straight to the right page
+      const decoded = decodeJwt(data.accessToken)
+      const userId = decoded?.sub || data.user?.id
+      const onboarding = await apiRequest<{ onboardingCompleted: boolean }>(`api/users/${userId}/onboarding/complete`, { method: 'GET' })
+      setIsOnboardCompleted(onboarding.onboardingCompleted)
+
       setIsLoggedIn(true)
       setOnboardingError(null)
       setSignInEmail('')
       setSignInPassword('')
-
-      const onboardCompleted = data.user?.onboardCompleted ?? true
-      setIsOnboardCompleted(onboardCompleted)
 
     } catch (err: any) {
       setSignInError(err.message)

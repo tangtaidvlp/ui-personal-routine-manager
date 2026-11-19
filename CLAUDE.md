@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Coding rules for this repo (loaded automatically):
+@codingrules.md
+
 ## Commands
 
 ```bash
@@ -46,13 +49,10 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
   - Onboarding API modules use relative paths like `/default-routine/...` (goes through Vite proxy in dev).
   - Daily routine API modules use `toAbsoluteApiUrl(path)` which builds `new URL(path, window.location.origin)` — this avoids proxy issues in production where the backend is on a different origin. Prefer this pattern for new API code.
 
-### Feature structure (follows [codingrules.md](codingrules.md))
+### Feature behavior (structure rules are in `codingrules.md`)
 
-Each feature under `src/features/<name>/` has: `api/`, `components/`, `pages/`, `types/`. Global shared code lives in `src/components/`, `src/hooks/`, `src/lib/`, `src/types/`.
-
-- **auth** — `AuthPage` with sign-in/sign-up toggle, decorative hero panel with illustration.
-- **onboarding** — `OnboardingPage` with weekday/weekend toggle (visual only — both tabs share the same data), `EditingBoard` timeline, `BuddyChat` AI assistant, `TaskEditModal`. Communicates with `/default-routine/` and `/api/ai/chat/default-routine/` endpoints. On completion, `POST /api/users/{userId}/onboarding/complete` marks the user as onboarded.
-- **daily** — `DailyRoutinePage` with date navigation (prev/next day buttons + native date picker), same `EditingBoard` + `BuddyChat` pattern. Communicates with `/api/routine-manager/daily-routine/` and `/api/ai/chat/daily-routine/` endpoints. Includes a **"Clean up" button** that deletes all tasks for the current date. On first access to a non-today date, `ensureDailyRoutine` lazily creates the routine (cloning from the user's default routine).
+- **onboarding** — weekday/weekend toggle is visual only (both tabs share the same data). On completion, `POST /api/users/{userId}/onboarding/complete` marks the user as onboarded.
+- **daily** — "Clean up" deletes all tasks for the current date. On first access to a non-today date, `ensureDailyRoutine` lazily creates the routine (cloning from the user's default routine).
 
 ### Shared components (quirks)
 
@@ -61,11 +61,7 @@ The four shared components — `EditingBoard`, `BuddyChat`, `TaskEditModal`, `Fa
 - Continue importing from `onboarding/components/` (pragmatic, matches existing pattern), or
 - Move them to `src/components/` (cleaner, but requires updating all imports).
 
-**Component details:**
-- `EditingBoard` — the core timeline view: 24-hour vertical track with draggable/resizable task blocks, live clock, scroll-to-current-time, task completion toggling (daily page only). Shared between onboarding and daily pages.
-- `BuddyChat` — AI chat sidebar using `react-markdown` for rendering bot replies. Both pages export `SendIcon` from BuddyChat for the mobile chat toggle button.
-- `TaskEditModal` — create/edit task form (name, start time, duration, notes, color). Accepts a `showColor` prop — the daily page passes `showColor={false}` since daily tasks don't have colors.
-- `FabButton` — floating action button ("+") for adding tasks.
+`TaskEditModal` takes a `showColor` prop; the daily page passes `showColor={false}` because daily tasks have no color.
 
 ### Mobile view toggle pattern
 
@@ -95,7 +91,7 @@ Two deploy targets exist:
 - **File extensions:** `.tsx` for React components with TypeScript, `.ts` for pure logic, `.jsx` for React components without types. The onboarding and daily feature pages use `.jsx` (no types), while the auth page uses `.tsx`. New work should use `.tsx`/`.ts`.
 - **`verbatimModuleSyntax: true`** — use `import type` for type-only imports.
 - **oxlint** enforces React rules-of-hooks (error) and warns on non-constant exports. Config in [`.oxlintrc.json`](.oxlintrc.json).
-- The backend is a separate service (not in this repo) expected at `localhost:8080`.
+- The backend is a separate repo (`../ms-personal-routine-manager`) expected at `localhost:8080`.
 - **URL construction for API calls:** Use `toAbsoluteApiUrl(path)` (as done in `features/daily/api/`) for production safety — it builds full URLs from `window.location.origin`. Avoid bare relative paths like `/default-routine/...` in new code.
 - **Auth state:** Only `AuthContext` (from `src/context/AuthContext.ts`) is active. `src/context/Auth.ts` is a stale duplicate — don't import from it.
 - **`pnpm`** is the package manager — don't use `npm` or `yarn`.
