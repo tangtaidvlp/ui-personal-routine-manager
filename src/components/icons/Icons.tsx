@@ -107,3 +107,31 @@ export function BarChartIcon(props: IconProps) {
     </Icon>
   )
 }
+
+/** Open the sidebar on narrow screens (burger). */
+export function MenuIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </Icon>
+  )
+}
+
+/** Hide / show the sidebar on wide screens. */
+export function PanelLeftIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+    </Icon>
+  )
+}
+
+/** Close (mobile sidebar). */
+export function XIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M18 6L6 18M6 6l12 12" />
+    </Icon>
+  )
+}

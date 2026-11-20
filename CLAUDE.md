@@ -20,17 +20,22 @@ Tests cover pure logic only (no DOM setup). UI behaviour is checked by hand with
 
 ## Architecture
 
-React 19 SPA with TypeScript, Vite 8, and React Router 7. Three-page app: **Auth → Onboarding → Daily Routine dashboard**.
+React 19 SPA with TypeScript, Vite 8, and React Router 7. Flow: **Auth → Onboarding → app shell** (sidebar with Today, Default routine, Analytics). Spec: `specs/F002-ui-refactoring/`.
 
 ### Route table ([src/app/App.tsx](src/app/App.tsx))
 
-| Route        | Page               | Guard |
-|-------       |------              |-------|
-| `/`          | Redirect           | → `/auth` if logged out, else → `/dashboard` or `/onboarding` |
-| `/auth`      | `AuthPage`         | Redirects to `/dashboard` or `/onboarding` if already logged in |
-| `/onboarding`| `OnboardingPage`   | Requires login; redirects to `/dashboard` if onboarded |
-| `/dashboard` | `DailyRoutinePage` | Requires login + onboarded; redirects to `/onboarding` or `/auth` |
-| `*`          | Redirect           | Same logic as `/` |
+| Route              | Page                 | Guard |
+|-------             |------                |-------|
+| `/`                | Redirect             | → `/auth` if logged out, else → `/today` or `/onboarding` |
+| `/auth`            | `AuthPage`           | Redirects to `/today` or `/onboarding` if already logged in |
+| `/onboarding`      | `OnboardingPage`     | Requires login; redirects to `/today` if onboarded |
+| `/today`           | `DailyRoutinePage`   | Shell route (see below) |
+| `/default-routine` | `DefaultRoutinePage` | Shell route |
+| `/analytics`       | `AnalyticsPage` (placeholder) | Shell route |
+| `/dashboard`       | Redirect             | Old bookmarks → `/today` (same guard) |
+| `*`                | Redirect             | Same logic as `/` |
+
+The three shell routes are children of one layout route: `RequireOnboarded` (→ `/auth` or `/onboarding`) wrapping `AppShell` (`src/components/layout/`). `AppShell` renders the sidebar, the page `<Outlet>`, and the "Replay tour" intro slides; pages read `user`, `onLogout`, `isMobile`, etc. with `useShellContext()` and start with `<PageHeader>` (burger on narrow screens, title, actions, Sign out).
 
 Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHub Pages always serves `index.html`.
 
@@ -53,9 +58,11 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
 ### Feature behavior (structure rules are in `codingrules.md`)
 
 - **onboarding** — the Weekday/Weekend tabs are two separate default routines, loaded with `fetchDefaultRoutine(userId, 'DAILY' | 'WEEKEND')` (`features/onboarding/api/defaultRoutine.ts`; the server creates an empty weekend routine on first request). Each tab has its own `BuddyChat` (the inactive one is hidden), because the server keeps one AI conversation per routine. Load/save failures show an error banner instead of an empty board. On completion, `POST /api/users/{userId}/onboarding/complete` marks the user as onboarded; the GET of that path returns the User, whose flag is `onboardCompleted`.
-- **Board live clock** — `EditingBoard` has a `liveClock` prop (default `true`). The setup screen passes `liveClock={false}`: no clock readout, Pause/Resume, slider, now-line, current-task highlight or "Now: …" line, and the board opens at 06:00 (again on each Weekday/Weekend switch; zoom keeps the top time in place). The dashboard keeps the live clock. Spec `specs/003-onboarding-time-live-off/`.
-- **walkthrough** — intro slides + guided tour (`features/walkthrough/`, spec `specs/002-onboarding-instruction/`). `OnboardingPage` opens it on every visit until onboarding is done; "How it works" replays it (slides only on the dashboard). Text lives in `content/walkthroughContent.ts`, mirrored from `walkthrough-script.md`. The tour finds its targets by `data-tour="…"` attributes on the setup screen; search for `data-tour=` before renaming or restructuring those elements.
-- **daily** — "Clean up" deletes all tasks for the current date. On first access to a non-today date, `ensureDailyRoutine` lazily creates the routine (cloning from the user's default routine).
+- **Board live clock** — `EditingBoard` has a `liveClock` prop (default `true`). The setup screen passes `liveClock={false}`: no clock readout, Pause/Resume, slider, now-line, current-task highlight or Now/Next footer, and the board opens at 06:00 (again on each Weekday/Weekend switch; zoom keeps the top time in place). The Today page keeps the live clock. Spec `specs/003-onboarding-time-live-off/`.
+- **walkthrough** — intro slides + guided tour (`features/walkthrough/`, spec `specs/002-onboarding-instruction/`). `OnboardingPage` opens it on every visit until onboarding is done; "How it works" replays it there. After onboarding, "Replay tour" in the sidebar replays the slides only. Text lives in `content/walkthroughContent.ts`, mirrored from `walkthrough-script.md`. The tour finds its targets by `data-tour="…"` attributes on the setup screen (it uses the first *visible* match, so `add-task` sits on both the "+ Add task" header button and the phone FAB); search for `data-tour=` before renaming or restructuring those elements.
+- **default routine editor** — `features/onboarding/components/DefaultRoutineEditor.tsx` + `hooks/useDefaultRoutines.ts` hold the Weekday/Weekend editing (load/save errors, task modal). `OnboardingPage` adds Buddy chat, "Ready to roll" and the tour; `features/default-routine/pages/DefaultRoutinePage.tsx` adds Buddy chat (one per tab, `features/default-routine/api/defaultRoutineChat.ts`) without the finish step.
+- **sidebar** — shown on wide screens by default; the hidden/shown choice is stored in `localStorage["milos.sidebar.collapsed"]` (`components/layout/sidebarPreference.ts`). At ≤ 760px it opens from a burger as an overlay (closes on pick, backdrop, Escape).
+- **daily** — "Clean up" and "+ Add task" sit in the board toolbar (`EditingBoard` `toolbarActions` prop); the board footer shows Now/Next (`features/daily/utils/nowAndNext.ts`). "Clean up" deletes all tasks for the current date. On first access to a non-today date, `ensureDailyRoutine` lazily creates the routine (cloning from the user's default routine).
 
 ### Shared components (quirks)
 
@@ -68,7 +75,7 @@ The four shared components — `EditingBoard`, `BuddyChat`, `TaskEditModal`, `Fa
 
 ### Mobile view toggle pattern
 
-Both `OnboardingPage` and `DailyRoutinePage` use a `mobileView` state (`'board'` | `'chat'`) to swap between the timeline and the AI chat sidebar on narrow screens. The root div carries `data-mobile-view={mobileView}` which CSS uses to show/hide sections. A floating chat button (with `SendIcon`) switches to `'chat'`, and a "View schedule" button switches back to `'board'`.
+Both `OnboardingPage` and `DailyRoutinePage` use a `mobileView` state (`'board'` | `'chat'`) to swap between the timeline and the AI chat on phones (≤ 760px; from 761px up the chat is always beside the board). `DefaultRoutinePage` uses the same pattern. The root div carries `data-mobile-view={mobileView}` which CSS uses to show/hide sections. A floating chat button (with `SendIcon`) switches to `'chat'`, and a "View schedule" button switches back to `'board'`.
 
 ### Type differences between features
 
@@ -81,7 +88,9 @@ Vite proxies `/api` → `http://localhost:8080` and strips `www-authenticate` he
 
 ### Styling
 
-Plain CSS in `src/index.css` and `src/App.css` — no CSS framework. Uses CSS custom properties (e.g., `--blue-primary`). Font: Poppins from Google Fonts. CSS class naming is loose (mix of BEM-like `.ob-*` for onboarding, `.dr-*` for daily routine, and generic `.page`/`.btn` classes).
+Plain CSS, no framework. **All colours, spacing, radius, shadow and type values come from `src/styles/tokens.css`** (primitives + semantic tokens; spec `specs/F002-ui-refactoring/contracts/style-tokens.md`). Use semantic tokens (`var(--color-accent)`, `var(--color-text-secondary)`, …) everywhere else — **never a raw hex/rgb value**. `src/styles/noRawColors.test.ts` fails on any literal outside `tokens.css` (allowlist: brand logos in `AuthPage.tsx`, the `<input type="color">` default); `src/styles/contrast.test.ts` checks WCAG contrast of the token pairs. Shared classes live in `src/styles/base.css` with a `ui-` prefix (`.ui-btn`, `.ui-btn-primary`, `.ui-icon-btn`, `.ui-card`, `.ui-pill`, `.ui-segmented`). Page CSS: `src/App.css` (`.ob-*` onboarding/board/buddy, `.drt-*` default routine, `.dr-*` daily, `.wt-*` walkthrough) and `src/components/layout/AppShell.css` (shell, sidebar, page header). Font: Poppins.
+
+Test files are type-checked by `tsconfig.test.json` (adds Node types); `tsconfig.app.json` excludes `*.test.ts`.
 
 ## Deployment
 

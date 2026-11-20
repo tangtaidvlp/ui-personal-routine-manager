@@ -6,10 +6,13 @@ export {
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  MenuIcon,
   MinusIcon,
+  PanelLeftIcon,
   PlusIcon,
   RepeatIcon,
   SendIcon,
   SparkIcon,
   SparklesIcon,
+  XIcon,
 } from './Icons'

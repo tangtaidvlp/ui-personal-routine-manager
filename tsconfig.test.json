@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    /* Unit tests run in Node (Vitest) and may read files, e.g. src/styles/noRawColors.test.ts */
+    "types": ["vite/client", "node"]
+  },
+  "include": ["src/**/*.test.ts"],
+  "exclude": []
+}

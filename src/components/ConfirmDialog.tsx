@@ -32,7 +32,7 @@ function ConfirmDialog({
         </div>
 
         <div className="ob-modal-body">
-          <p style={{ margin: 0, color: '#445470', fontSize: '15px', lineHeight: 1.5 }}>{message}</p>
+          <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '15px', lineHeight: 1.5 }}>{message}</p>
 
           <div className="ob-modal-actions">
             <button

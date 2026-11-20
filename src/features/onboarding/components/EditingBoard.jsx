@@ -1,6 +1,8 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
+import { CheckIcon, MinusIcon, PlusIcon } from '../../../components/icons/index.ts'
+import { formatMinutesLeft, nowAndNext } from '../../daily/utils/nowAndNext.ts'
 import {
   minutesForScrollTop,
   scrollTopForMinutes,
@@ -17,7 +19,25 @@ const SNAP_MINUTES = 5
 const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
 
-const basePalette = ['#0f172a', '#047857', '#0e7490', '#2563eb', '#c2410c', '#6d28d9', '#be123c', '#334155']
+const TASK_TINT_COUNT = 8
+
+/**
+ * Card colours as CSS variables (specs/F002-ui-refactoring data-model §6): a task's own colour
+ * when it has one, otherwise the next of the 8 tint tokens.
+ */
+const taskTintStyle = (task, index) => {
+  if (task.color) {
+    return {
+      '--task-accent': task.color,
+      '--task-bg': `color-mix(in srgb, ${task.color} 14%, var(--color-bg-surface))`,
+    }
+  }
+  const slot = (index % TASK_TINT_COUNT) + 1
+  return {
+    '--task-accent': `var(--color-task-${slot}-accent)`,
+    '--task-bg': `var(--color-task-${slot}-bg)`,
+  }
+}
 
 const getCurrentMinutes = () => {
   const now = new Date()
@@ -65,11 +85,38 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
 
 /**
  * `liveClock` (default true): the clock readout, Pause/Resume, slider, now-line, current-task
- * highlight and "Now: …" line, with the board following the current time. The setup screen
+ * highlight and Now/Next footer, with the board following the current time. The setup screen
  * passes false: a default routine is a template with no "now", so the board opens at 06:00
  * instead (spec 003).
+ *
+ * `toolbarActions` (F002): page actions shown at the right end of the toolbar.
+ * `showFooter` (F002, default = liveClock): the "Now … · N min left / Next: … at HH:MM" footer.
+ *
+ * @param {{
+ *   routine: any,
+ *   liveClock?: boolean,
+ *   toolbarActions?: import('react').ReactNode,
+ *   showFooter?: boolean,
+ *   onRequestCreateTask?: (draft: any) => void,
+ *   onRequestEditTask?: (task: any) => void,
+ *   onPersistTaskChange?: (tasks: any[]) => unknown,
+ *   onPersistError?: (error: unknown) => void,
+ *   onToggleComplete?: (task: any) => Promise<unknown>,
+ *   onRequestDeleteTask?: (task: any) => Promise<unknown> | void,
+ * }} props
  */
-function EditingBoard({ routine, liveClock = true, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onPersistError, onToggleComplete, onRequestDeleteTask }) {
+function EditingBoard({
+  routine,
+  liveClock = true,
+  toolbarActions = null,
+  showFooter = liveClock,
+  onRequestCreateTask,
+  onRequestEditTask,
+  onPersistTaskChange,
+  onPersistError,
+  onToggleComplete,
+  onRequestDeleteTask,
+}) {
 
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
@@ -142,9 +189,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
   }, [liveClock, isLive])
 
 
-  const activeTask =
-    liveClock &&
-    (tasks.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || tasks[tasks.length - 1])
+  const footer = liveClock && showFooter ? nowAndNext(tasks, currentTime) : null
 
   const handleSliderChange = (event) => {
     setIsLive(false)
@@ -346,52 +391,56 @@ const [completedTasks, setCompletedTasks] = useState(() => {
         {liveClock && (
           <div className="ob-board-time">
             <strong>{formatTime(currentTime)}</strong>
-            <span>{isLive ? 'Live' : 'Manual'}</span>
+            {isLive ? <span className="ui-pill ui-pill-success">Live</span> : <span className="ui-pill">Paused</span>}
           </div>
         )}
-        <div className="ob-board-zoom">
-          <button
-            type="button"
-            className="ob-board-btn ob-board-zoom-btn"
-            onClick={() => setZoomLevel((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP))}
-            disabled={zoomLevel <= ZOOM_MIN}
-            aria-label="Zoom out"
-            title="Zoom out"
-          >
-            −
-          </button>
-          <span className="ob-board-zoom-label">{Math.round(zoomLevel * 100)}%</span>
-          <button
-            type="button"
-            className="ob-board-btn ob-board-zoom-btn"
-            onClick={() => setZoomLevel((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP))}
-            disabled={zoomLevel >= ZOOM_MAX}
-            aria-label="Zoom in"
-            title="Zoom in"
-          >
-            +
-          </button>
-        </div>
-        <div className="ob-board-actions">
+        <div className="ob-board-toolbar-controls">
+          <div className="ob-board-zoom">
+            <button
+              type="button"
+              className="ui-icon-btn"
+              onClick={() => setZoomLevel((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP))}
+              disabled={zoomLevel <= ZOOM_MIN}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <MinusIcon size={16} />
+            </button>
+            <span className="ob-board-zoom-label">{Math.round(zoomLevel * 100)}%</span>
+            <button
+              type="button"
+              className="ui-icon-btn"
+              onClick={() => setZoomLevel((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP))}
+              disabled={zoomLevel >= ZOOM_MAX}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <PlusIcon size={16} />
+            </button>
+          </div>
           {liveClock && (
-            <button type="button" className="ob-board-btn" onClick={() => setIsLive((current) => !current)}>
+            <button type="button" className="ui-btn ui-btn-ghost" onClick={() => setIsLive((current) => !current)}>
               {isLive ? 'Pause clock' : 'Resume live'}
             </button>
           )}
           <button
             type="button"
-            className={[
-              'ob-board-btn',
-              gapClearMode ? 'ob-board-btn-primary' : ''
-            ].filter(Boolean).join(' ')}
+            className={['ui-btn', 'ui-btn-ghost', gapClearMode ? 'is-active' : ''].filter(Boolean).join(' ')}
             onClick={() => setGapClearMode(!gapClearMode)}
+            aria-pressed={gapClearMode}
             title="When enabled, dragging a task pulls all tasks below it with it"
           >
-            {gapClearMode ? '✓ Gap Clear' : 'Gap Clear'}
+            {gapClearMode ? '✓ Gap clear' : 'Gap clear'}
           </button>
-          <button type="button" className="ob-board-btn ob-board-btn-reset" onClick={handleResetSchedule}>
+          <button type="button" className="ui-btn ui-btn-ghost ob-board-btn-secondary" onClick={handleResetSchedule}>
             Reset day
           </button>
+          {toolbarActions ? (
+            <>
+              <span className="ob-board-toolbar-divider" aria-hidden="true" />
+              {toolbarActions}
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -462,17 +511,17 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   className={[
                     'ob-board-task',
                     isDone ? 'is-done' : '',
-                    isActive ? 'is-active' : '',
+                    isActive ? 'is-active is-current' : '',
                     isDragging ? 'is-dragging' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={{ top: `${top}%`, height: `${height}%`, backgroundColor: task.color ? task.color : basePalette[index % basePalette.length] }}
+                  style={{ top: `${top}%`, height: `${height}%`, ...taskTintStyle(task, index) }}
                 >
                   <div className="ob-board-task-content">
                     <span className="ob-board-task-name">{task.name}</span>
                     <span className="ob-board-task-time">
-                      {formatTime(taskStartTime)} - {formatTime(taskEndTime)} | {showTaskDuration(taskDuration)}
+                      {formatTime(taskStartTime)} – {formatTime(taskEndTime)} · {showTaskDuration(taskDuration)}
                     </span>
                   </div>
 
@@ -490,7 +539,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     aria-label={isDone ? 'Mark as incomplete' : 'Mark as done'}
                     disabled={isTogglingThis}
                   >
-                    {isTogglingThis ? '…' : isDone ? '✓' : ''}
+                    {isTogglingThis ? '…' : isDone ? <CheckIcon size={14} strokeWidth={3} /> : null}
                   </button>
 
                   {onRequestDeleteTask && (
@@ -538,14 +587,30 @@ const [completedTasks, setCompletedTasks] = useState(() => {
               style={{ top: `${(currentTime * 100) / MINUTES_PER_DAY}%` }}
               aria-hidden="true"
             >
-              <span className="ob-board-now-dot" />
+              <span className="ob-board-now-pill">{formatTime(currentTime)}</span>
             </div>
           )}
         </div>
       </div>
 
-      {activeTask && (
-        <div className="ob-board-status">Now: {activeTask.name}</div>
+      {footer && (
+        <div className="ob-board-footer" aria-live="polite">
+          <span className="ob-board-footer-now">
+            {footer.now ? (
+              <>
+                <span className="ob-board-footer-label">Now</span>
+                <strong>{footer.now.name}</strong> · {formatMinutesLeft(footer.now.minutesLeft)}
+              </>
+            ) : (
+              <span className="ob-board-footer-label">Nothing scheduled right now</span>
+            )}
+          </span>
+          {footer.next ? (
+            <span className="ob-board-footer-next">
+              Next: {footer.next.name} at {footer.next.startTime}
+            </span>
+          ) : null}
+        </div>
       )}
 
       {hoveredTask && (

@@ -28,11 +28,10 @@ function Logo({ size = 'md' }: { size?: 'sm' | 'md' }) {
   return (
     <div className={`logo ${size}`}>
       <div className="logo-icon" aria-hidden="true">
-        <span className="logo-r">R</span>
+        <span className="logo-r">M</span>
       </div>
       <span className="logo-text">
-        <span className="logo-routine">Routine</span>{' '}
-        <span className="logo-manager">Manager</span>
+        <span className="logo-routine">Milos</span>
       </span>
     </div>
   )
@@ -79,30 +78,30 @@ function CalendarIcon() {
 function HeroIllustration() {
   return (
     <svg className="hero-illustration" viewBox="0 0 320 280" fill="none" aria-hidden="true">
-      <circle cx="160" cy="130" r="80" fill="#d4ecff" opacity="0.5" />
-      <ellipse cx="160" cy="200" rx="60" ry="8" fill="#b8d4f0" opacity="0.4" />
-      <rect x="60" y="60" width="48" height="56" rx="6" fill="#fff" stroke="#4db8ff" strokeWidth="2" />
-      <line x1="72" y1="78" x2="96" y2="78" stroke="#4db8ff" strokeWidth="2" />
-      <line x1="72" y1="90" x2="96" y2="90" stroke="#e8f4fd" strokeWidth="2" />
-      <line x1="72" y1="102" x2="88" y2="102" stroke="#e8f4fd" strokeWidth="2" />
-      <circle cx="220" cy="70" r="28" fill="#fff" stroke="#4db8ff" strokeWidth="2" />
-      <line x1="220" y1="58" x2="220" y2="82" stroke="#4db8ff" strokeWidth="2" strokeLinecap="round" />
-      <line x1="208" y1="70" x2="232" y2="70" stroke="#4db8ff" strokeWidth="2" strokeLinecap="round" />
-      <rect x="230" y="130" width="44" height="52" rx="4" fill="#fff" stroke="#4db8ff" strokeWidth="2" />
-      <text x="242" y="155" fontSize="10" fill="#4db8ff" fontWeight="600">Daily</text>
-      <line x1="238" y1="162" x2="266" y2="162" stroke="#e8f4fd" strokeWidth="2" />
-      <line x1="238" y1="172" x2="258" y2="172" stroke="#e8f4fd" strokeWidth="2" />
-      <rect x="50" y="150" width="36" height="44" rx="4" fill="#7ecfff" />
-      <rect x="56" y="158" width="24" height="6" rx="2" fill="#fff" />
-      <rect x="56" y="170" width="24" height="6" rx="2" fill="#fff" opacity="0.7" />
-      <circle cx="160" cy="115" r="22" fill="#f5c6a0" />
-      <rect x="143" y="136" width="34" height="40" rx="8" fill="#e85d5d" />
-      <rect x="138" y="148" width="12" height="28" rx="6" fill="#e85d5d" />
-      <rect x="170" y="148" width="12" height="28" rx="6" fill="#e85d5d" />
-      <rect x="150" y="174" width="10" height="30" rx="4" fill="#1a6fd4" />
-      <rect x="160" y="174" width="10" height="30" rx="4" fill="#1a6fd4" />
-      <ellipse cx="270" cy="210" rx="16" ry="20" fill="#7ecfff" />
-      <rect x="262" y="210" width="16" height="14" fill="#4db8ff" rx="2" />
+      <circle cx="160" cy="130" r="80" opacity="0.5" style={{ fill: 'var(--color-illustration-sky)' }} />
+      <ellipse cx="160" cy="200" rx="60" ry="8" opacity="0.4" style={{ fill: 'var(--color-border-strong)' }} />
+      <rect x="60" y="60" width="48" height="56" rx="6" strokeWidth="2" style={{ fill: 'var(--color-bg-surface)', stroke: 'var(--color-illustration-line)' }} />
+      <line x1="72" y1="78" x2="96" y2="78" strokeWidth="2" style={{ stroke: 'var(--color-illustration-line)' }} />
+      <line x1="72" y1="90" x2="96" y2="90" strokeWidth="2" style={{ stroke: 'var(--color-accent-soft)' }} />
+      <line x1="72" y1="102" x2="88" y2="102" strokeWidth="2" style={{ stroke: 'var(--color-accent-soft)' }} />
+      <circle cx="220" cy="70" r="28" strokeWidth="2" style={{ fill: 'var(--color-bg-surface)', stroke: 'var(--color-illustration-line)' }} />
+      <line x1="220" y1="58" x2="220" y2="82" strokeWidth="2" strokeLinecap="round" style={{ stroke: 'var(--color-illustration-line)' }} />
+      <line x1="208" y1="70" x2="232" y2="70" strokeWidth="2" strokeLinecap="round" style={{ stroke: 'var(--color-illustration-line)' }} />
+      <rect x="230" y="130" width="44" height="52" rx="4" strokeWidth="2" style={{ fill: 'var(--color-bg-surface)', stroke: 'var(--color-illustration-line)' }} />
+      <text x="242" y="155" fontSize="10" fontWeight="600" style={{ fill: 'var(--color-illustration-line)' }}>Daily</text>
+      <line x1="238" y1="162" x2="266" y2="162" strokeWidth="2" style={{ stroke: 'var(--color-accent-soft)' }} />
+      <line x1="238" y1="172" x2="258" y2="172" strokeWidth="2" style={{ stroke: 'var(--color-accent-soft)' }} />
+      <rect x="50" y="150" width="36" height="44" rx="4" style={{ fill: 'var(--color-accent-bright)' }} />
+      <rect x="56" y="158" width="24" height="6" rx="2" style={{ fill: 'var(--color-bg-surface)' }} />
+      <rect x="56" y="170" width="24" height="6" rx="2" opacity="0.7" style={{ fill: 'var(--color-bg-surface)' }} />
+      <circle cx="160" cy="115" r="22" style={{ fill: 'var(--color-illustration-skin)' }} />
+      <rect x="143" y="136" width="34" height="40" rx="8" style={{ fill: 'var(--color-illustration-shirt)' }} />
+      <rect x="138" y="148" width="12" height="28" rx="6" style={{ fill: 'var(--color-illustration-shirt)' }} />
+      <rect x="170" y="148" width="12" height="28" rx="6" style={{ fill: 'var(--color-illustration-shirt)' }} />
+      <rect x="150" y="174" width="10" height="30" rx="4" style={{ fill: 'var(--color-illustration-trousers)' }} />
+      <rect x="160" y="174" width="10" height="30" rx="4" style={{ fill: 'var(--color-illustration-trousers)' }} />
+      <ellipse cx="270" cy="210" rx="16" ry="20" style={{ fill: 'var(--color-accent-bright)' }} />
+      <rect x="262" y="210" width="16" height="14" rx="2" style={{ fill: 'var(--color-illustration-line)' }} />
     </svg>
   )
 }
@@ -210,7 +209,7 @@ function AuthPage({
                 Manage Your Day
                 <CalendarIcon />
               </h2>
-              <p>Welcome to Routine Manager! Organize your life effortlessly.</p>
+              <p>Welcome to Milos! Organize your life effortlessly.</p>
             </div>
           </div>
 

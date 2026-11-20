@@ -20,8 +20,21 @@ const SHEET_MARGIN = 16
 
 const isPhone = () => typeof window !== 'undefined' && window.matchMedia(PHONE_QUERY).matches
 
+/**
+ * The first visible element for a tour target. A target can exist twice when each screen size
+ * has its own control (F002: "+ Add task" in the board header on wide screens, the round add
+ * button on phones); the hidden one has an empty box.
+ */
+function findTarget(target: string): HTMLElement | null {
+  const all = Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${target}"]`))
+  return all.find((el) => {
+    const r = el.getBoundingClientRect()
+    return r.width > 0 || r.height > 0
+  }) ?? all[0] ?? null
+}
+
 function measure(target: string): Rect | null {
-  const el = document.querySelector<HTMLElement>(`[data-tour="${target}"]`)
+  const el = findTarget(target)
   if (!el) return null
   const r = el.getBoundingClientRect()
   if (r.width === 0 && r.height === 0) return null // hidden (e.g. display:none on phones)
@@ -101,7 +114,7 @@ function GuidedTour({ state, dispatch, mobileView, onMobileViewChange }: GuidedT
     window.addEventListener('resize', reposition)
     window.addEventListener('scroll', reposition, true)
 
-    const el = document.querySelector(`[data-tour="${step.target}"]`)
+    const el = findTarget(step.target)
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => reposition()) : null
     if (el) observer?.observe(el)
     if (cardRef.current) observer?.observe(cardRef.current)

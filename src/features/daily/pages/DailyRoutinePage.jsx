@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import EditingBoard from '../../onboarding/components/EditingBoard.jsx'
 import TaskEditModal from '../../onboarding/components/TaskEditModal.tsx'
 import FabButton from '../../onboarding/components/FabButton.tsx'
 import BuddyChat, { SendIcon } from '../../onboarding/components/BuddyChat.jsx'
-import { useWalkthrough } from '../../walkthrough/hooks/useWalkthrough.ts'
-import IntroSlides from '../../walkthrough/components/IntroSlides.tsx'
-import HowItWorksButton from '../../walkthrough/components/HowItWorksButton.tsx'
+import PageHeader from '../../../components/layout/PageHeader.tsx'
+import { useShellContext } from '../../../components/layout/shellContext.ts'
+import { ChevronLeftIcon, ChevronRightIcon } from '../../../components/icons/index.ts'
+import { routineTypeForDate, routineTypeLabel } from '../../onboarding/utils/routineTypeForDate.ts'
 import {
   fetchDailyRoutine,
   ensureDailyRoutine,
@@ -42,21 +43,16 @@ function parseDateInputValue(value) {
   return new Date(year, month - 1, day)
 }
 
-function LogoMark() {
-  return (
-    <div className="ob-brand-mark" aria-hidden="true">
-      <span>R</span>
-    </div>
-  )
-}
+const HEADING_DATE = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }
+const SHORT_DATE = { weekday: 'short', day: 'numeric', month: 'short' }
 
-function DailyRoutinePage({ user, onLogout }) {
+function DailyRoutinePage() {
+  const { user } = useShellContext()
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
+  const dateInputRef = useRef(null)
   const [currentDailyRoutine, setCurrentDailyRoutine] = useState(null)
   const [taskModalState, setTaskModalState] = useState(null)
   const [mobileView, setMobileView] = useState('board')
-  // No auto-open here: after onboarding the instructions only appear on request (FR-002, FR-012).
-  const walkthrough = useWalkthrough()
 
   const refreshDailyRoutine = async () => {
     if (!user?.id) {
@@ -158,46 +154,60 @@ function DailyRoutinePage({ user, onLogout }) {
   }
 
   const hasTasks = (currentDailyRoutine?.tasks ?? []).length > 0
+  const todayValue = toDateInputValue(new Date())
+  const isToday = selectedDate === todayValue
+  const selectedDay = parseDateInputValue(selectedDate)
+  const routineLabel = routineTypeLabel(routineTypeForDate(selectedDay))
+
+  const openDatePicker = () => {
+    const input = dateInputRef.current
+    if (!input) return
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker()
+        return
+      } catch {
+        // Some browsers refuse showPicker outside a direct gesture; fall back to focus.
+      }
+    }
+    input.focus()
+  }
 
   return (
     <div className="dr-page" data-mobile-view={mobileView}>
-      <header className="dr-topbar">
-        <div className="ob-brand">
-          <LogoMark />
-          <span className="ob-brand-name">
-            Routine <strong>Canvas</strong>
-          </span>
-        </div>
-        <div className="dr-top-actions">
-          <HowItWorksButton onClick={() => walkthrough.open('app')} />
-          <button type="button" className="dr-logout-btn" onClick={onLogout}>
-            Sign Out
+      <PageHeader>
+        <p className="dr-breadcrumb">
+          {isToday ? 'Today' : selectedDay.toLocaleDateString('en-GB', { weekday: 'long' })} · {routineLabel}
+        </p>
+        <div className="dr-date-row">
+          <button type="button" className="ui-icon-btn" onClick={() => shiftDate(-1)} aria-label="Previous day">
+            <ChevronLeftIcon size={16} />
+          </button>
+          <div className="dr-date-heading">
+            <h1>
+              <button type="button" className="dr-date-trigger" onClick={openDatePicker} aria-label="Pick a date">
+                <span className="dr-date-long">{selectedDay.toLocaleDateString('en-GB', HEADING_DATE)}</span>
+                <span className="dr-date-short">{selectedDay.toLocaleDateString('en-GB', SHORT_DATE)}</span>
+              </button>
+            </h1>
+            <input
+              ref={dateInputRef}
+              type="date"
+              className="dr-date-input"
+              value={selectedDate}
+              onChange={(event) => event.target.value && setSelectedDate(event.target.value)}
+              tabIndex={-1}
+              aria-hidden="true"
+            />
+          </div>
+          <button type="button" className="ui-icon-btn" onClick={() => shiftDate(1)} aria-label="Next day">
+            <ChevronRightIcon size={16} />
+          </button>
+          <button type="button" className="ui-btn" onClick={() => setSelectedDate(todayValue)} disabled={isToday}>
+            Today
           </button>
         </div>
-      </header>
-
-      <div className="dr-date-bar">
-        <button type="button" className="dr-date-nav-btn" onClick={() => shiftDate(-1)} aria-label="Previous day">
-          ‹
-        </button>
-        <input
-          type="date"
-          className="dr-date-input"
-          value={selectedDate}
-          onChange={(event) => setSelectedDate(event.target.value)}
-        />
-        <button type="button" className="dr-date-nav-btn" onClick={() => shiftDate(1)} aria-label="Next day">
-          ›
-        </button>
-        <button
-          type="button"
-          className="dr-cleanup-btn"
-          onClick={handleCleanUp}
-          disabled={!hasTasks}
-        >
-          Clean up
-        </button>
-      </div>
+      </PageHeader>
 
       <main className="dr-main">
         <section className="dr-canvas-card">
@@ -208,12 +218,26 @@ function DailyRoutinePage({ user, onLogout }) {
             onPersistTaskChange={handlePersistTaskChange}
             onToggleComplete={handleToggleComplete}
             onRequestDeleteTask={handleDeleteTask}
+            toolbarActions={
+              <>
+                <button type="button" className="ui-btn ui-btn-danger-text" onClick={handleCleanUp} disabled={!hasTasks}>
+                  Clean up
+                </button>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn-primary dr-add-task-btn"
+                  onClick={() => openCreateTaskModal(nextDefaultDraftTask())}
+                >
+                  + Add task
+                </button>
+              </>
+            }
           />
         </section>
 
         <BuddyChat
           title="Routine Buddy"
-          subtitle={`Here to help with ${selectedDate}`}
+          subtitle={`Here to help with ${selectedDay.toLocaleDateString('en-GB', SHORT_DATE)}`}
           initialMessage="Hi! Ask me to add, adjust, or check off tasks for this day."
           placeholder='Try: "Mark my workout as done"'
           onSend={(message) => submitDailyRoutineChat(user.id, currentDailyRoutine, selectedDate, message)}
@@ -251,8 +275,6 @@ function DailyRoutinePage({ user, onLogout }) {
         showColor={false}
       />
 
-      {/* Replay only: slides end with "Close" and there is no tour here (FR-013). */}
-      <IntroSlides state={walkthrough.state} dispatch={walkthrough.dispatch} />
     </div>
   )
 }
