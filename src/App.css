@@ -2047,3 +2047,387 @@
     display: block;
   }
 }
+
+/* ── Walkthrough: intro slides (specs/002-onboarding-instruction, mockups D · Slide 1–4) ── */
+.wt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.wt-slide-card {
+  width: min(560px, 100%);
+  background: var(--white);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  outline: none;
+  touch-action: pan-y;
+}
+
+.wt-slide-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.wt-icon-tile {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #e8f1fc;
+  color: var(--blue-primary);
+}
+
+.wt-eyebrow {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue-primary);
+}
+
+.wt-title {
+  margin: 0 0 12px;
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.wt-body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.wt-callout {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #e8f1fc;
+}
+
+.wt-callout-heading {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--blue-primary);
+}
+
+.wt-callout-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-dark);
+}
+
+.wt-slide-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.wt-footer-start,
+.wt-footer-end {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wt-footer-end {
+  justify-content: flex-end;
+}
+
+.wt-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wt-dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--gray-200);
+  cursor: pointer;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.wt-dot--active {
+  width: 20px;
+  background: var(--blue-primary);
+}
+
+.wt-btn-primary {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  background: var(--blue-primary);
+  color: var(--white);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wt-btn-primary:hover {
+  background: var(--blue-dark);
+}
+
+.wt-btn-text {
+  border: none;
+  background: none;
+  padding: 8px 6px;
+  color: #475569;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wt-btn-text:hover {
+  color: var(--blue-primary);
+}
+
+.wt-btn-primary:focus-visible,
+.wt-btn-text:focus-visible,
+.wt-dot:focus-visible,
+.wt-btn-outline:focus-visible {
+  outline: 2px solid var(--blue-mid);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .wt-slide-card {
+    padding: 24px 20px;
+  }
+
+  .wt-title {
+    font-size: 22px;
+  }
+
+  .wt-slide-footer {
+    flex-wrap: wrap;
+  }
+
+  .wt-dots {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── Walkthrough: guided tour (mockups D · Tour 1–5 of 5) ── */
+.wt-tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.wt-tour-blocker {
+  position: absolute;
+  inset: 0;
+}
+
+.wt-spotlight {
+  position: fixed;
+  border-radius: 14px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 3px #8cc8ff,
+    0 0 18px 4px rgba(26, 111, 212, 0.35),
+    0 0 0 9999px rgba(15, 23, 42, 0.45);
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.wt-spotlight--none {
+  inset: 50% auto auto 50%;
+  width: 0;
+  height: 0;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+}
+
+.wt-tour-card {
+  position: fixed;
+  width: min(320px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-dark);
+  outline: none;
+}
+
+.wt-tour-arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--white);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.wt-tour-card[data-side='bottom'] .wt-tour-arrow {
+  top: 0;
+}
+
+.wt-tour-card[data-side='top'] .wt-tour-arrow {
+  top: 100%;
+}
+
+.wt-tour-card[data-side='right'] .wt-tour-arrow {
+  left: 0;
+}
+
+.wt-tour-card[data-side='left'] .wt-tour-arrow {
+  left: 100%;
+}
+
+.wt-tour-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.wt-tour-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--blue-primary);
+}
+
+.wt-tour-segs {
+  display: flex;
+  gap: 3px;
+}
+
+.wt-tour-seg {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gray-200);
+}
+
+.wt-tour-seg--done {
+  background: var(--blue-primary);
+}
+
+.wt-tour-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.wt-tour-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.wt-tour-end {
+  padding-left: 0;
+}
+
+.wt-tour-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.wt-btn-outline {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  padding: 7px 13px;
+  background: var(--white);
+  color: var(--text-dark);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.wt-btn-outline:hover {
+  border-color: var(--gray-400);
+}
+
+.wt-tour-sheet {
+  left: 16px;
+  right: 16px;
+  width: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-spotlight,
+  .wt-dot {
+    transition: none;
+  }
+}
+
+/* ── Onboarding: board subtitle + routine load/save error (specs/002-onboarding-instruction) ── */
+.ob-card-subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ob-routine-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ob-routine-retry {
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* ── Walkthrough: "How it works" top-bar link ── */
+.wt-how-btn {
+  border: none;
+  background: none;
+  padding: 8px 6px;
+  color: #475569;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wt-how-btn:hover {
+  color: var(--blue-primary);
+}
+
+.wt-how-btn:focus-visible {
+  outline: 2px solid var(--blue-mid);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.dr-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

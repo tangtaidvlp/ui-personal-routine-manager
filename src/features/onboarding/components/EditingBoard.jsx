@@ -57,7 +57,7 @@ const snapMinutes = (minutes, step = SNAP_MINUTES) => Math.round(minutes / step)
 
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
 
-function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onToggleComplete, onRequestDeleteTask }) {
+function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onPersistError, onToggleComplete, onRequestDeleteTask }) {
 
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
@@ -289,7 +289,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     // Persist all changes
     if (onPersistTaskChange) {
       Promise.resolve(onPersistTaskChange(tasksToUpdate)).catch((error) =>
-        console.error('Failed to update tasks', error)
+        onPersistError ? onPersistError(error) : console.error('Failed to update tasks', error)
       )
     }
   }

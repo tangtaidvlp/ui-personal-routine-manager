@@ -13,9 +13,10 @@ pnpm build            # Type-check (tsc -b) then bundle with Vite → dist/
 pnpm build:milos      # Build then copy dist/ → milos-ui-0.0.1/ (for external deploy)
 pnpm lint             # Run oxlint on src/
 pnpm preview          # Preview production build locally
+pnpm test             # Vitest unit tests (pure logic: *.test.ts next to the code)
 ```
 
-No test framework is configured.
+Tests cover pure logic only (no DOM setup). UI behaviour is checked by hand with the feature's `quickstart.md`.
 
 ## Architecture
 
@@ -51,7 +52,8 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
 
 ### Feature behavior (structure rules are in `codingrules.md`)
 
-- **onboarding** — weekday/weekend toggle is visual only (both tabs share the same data). On completion, `POST /api/users/{userId}/onboarding/complete` marks the user as onboarded.
+- **onboarding** — the Weekday/Weekend tabs are two separate default routines, loaded with `fetchDefaultRoutine(userId, 'DAILY' | 'WEEKEND')` (`features/onboarding/api/defaultRoutine.ts`; the server creates an empty weekend routine on first request). Each tab has its own `BuddyChat` (the inactive one is hidden), because the server keeps one AI conversation per routine. Load/save failures show an error banner instead of an empty board. On completion, `POST /api/users/{userId}/onboarding/complete` marks the user as onboarded; the GET of that path returns the User, whose flag is `onboardCompleted`.
+- **walkthrough** — intro slides + guided tour (`features/walkthrough/`, spec `specs/002-onboarding-instruction/`). `OnboardingPage` opens it on every visit until onboarding is done; "How it works" replays it (slides only on the dashboard). Text lives in `content/walkthroughContent.ts`, mirrored from `walkthrough-script.md`. The tour finds its targets by `data-tour="…"` attributes on the setup screen; search for `data-tour=` before renaming or restructuring those elements.
 - **daily** — "Clean up" deletes all tasks for the current date. On first access to a non-today date, `ensureDailyRoutine` lazily creates the routine (cloning from the user's default routine).
 
 ### Shared components (quirks)

@@ -35,6 +35,8 @@ function createChatMessage(role, text, isError = false) {
  *   placeholder?: string,
  *   onSend: (message: string) => Promise<string>,
  *   onAfterSend?: () => void,
+ *   tourId?: string,
+ *   isHidden?: boolean,
  * }} props
  */
 function BuddyChat({
@@ -44,6 +46,8 @@ function BuddyChat({
   placeholder = 'Type a message…',
   onSend,
   onAfterSend,
+  tourId,
+  isHidden = false,
 }) {
   const [prompt, setPrompt] = useState('')
   const inputRef = useRef(null)
@@ -86,7 +90,7 @@ function BuddyChat({
   }
 
   return (
-    <aside className="ob-buddy-card">
+    <aside className="ob-buddy-card" data-tour={tourId} style={isHidden ? { display: 'none' } : undefined}>
       <div className="ob-buddy-head">
         <div className="ob-buddy-icon">
           <SparkIcon />

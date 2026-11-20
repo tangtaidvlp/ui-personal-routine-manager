@@ -12,6 +12,6 @@ export type RoutineTask = {
 export type DefaultRoutine = {
   id: string
   name?: string
-  routineType?: 'DAILY' | 'WEEKEND'
+  routineType?: 'DAILY' | 'WEEKEND' // DAILY = weekday routine
   tasks: RoutineTask[]
 }

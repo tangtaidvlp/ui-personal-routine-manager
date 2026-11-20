@@ -3,6 +3,9 @@ import EditingBoard from '../../onboarding/components/EditingBoard.jsx'
 import TaskEditModal from '../../onboarding/components/TaskEditModal.tsx'
 import FabButton from '../../onboarding/components/FabButton.tsx'
 import BuddyChat, { SendIcon } from '../../onboarding/components/BuddyChat.jsx'
+import { useWalkthrough } from '../../walkthrough/hooks/useWalkthrough.ts'
+import IntroSlides from '../../walkthrough/components/IntroSlides.tsx'
+import HowItWorksButton from '../../walkthrough/components/HowItWorksButton.tsx'
 import {
   fetchDailyRoutine,
   ensureDailyRoutine,
@@ -52,6 +55,8 @@ function DailyRoutinePage({ user, onLogout }) {
   const [currentDailyRoutine, setCurrentDailyRoutine] = useState(null)
   const [taskModalState, setTaskModalState] = useState(null)
   const [mobileView, setMobileView] = useState('board')
+  // No auto-open here: after onboarding the instructions only appear on request (FR-002, FR-012).
+  const walkthrough = useWalkthrough()
 
   const refreshDailyRoutine = async () => {
     if (!user?.id) {
@@ -163,9 +168,12 @@ function DailyRoutinePage({ user, onLogout }) {
             Routine <strong>Canvas</strong>
           </span>
         </div>
-        <button type="button" className="dr-logout-btn" onClick={onLogout}>
-          Sign Out
-        </button>
+        <div className="dr-top-actions">
+          <HowItWorksButton onClick={() => walkthrough.open('app')} />
+          <button type="button" className="dr-logout-btn" onClick={onLogout}>
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <div className="dr-date-bar">
@@ -242,6 +250,9 @@ function DailyRoutinePage({ user, onLogout }) {
         onDeleteTask={handleDeleteTask}
         showColor={false}
       />
+
+      {/* Replay only: slides end with "Close" and there is no tour here (FR-013). */}
+      <IntroSlides state={walkthrough.state} dispatch={walkthrough.dispatch} />
     </div>
   )
 }

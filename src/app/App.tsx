@@ -10,6 +10,11 @@ import OnboardingPage from '../features/onboarding/pages/OnboardingPage.jsx'
 import { completeOnboarding } from '../features/onboarding/api/completeOnboarding.ts'
 import AuthContext from '../context/AuthContext.ts'
 
+// GET /api/users/{id}/onboarding/complete returns the User entity, whose flag is `onboardCompleted`.
+// Older code read `onboardingCompleted` (always undefined), which sent onboarded users back to /onboarding.
+type OnboardingStatus = { onboardCompleted?: boolean; onboardingCompleted?: boolean }
+const isOnboarded = (status: OnboardingStatus | null) => Boolean(status?.onboardCompleted ?? status?.onboardingCompleted)
+
 function LoadingScreen() {
   return (
     <div className="page" style={{ justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -104,9 +109,8 @@ function App() {
         }
 
         // Get user
-        const user = await apiRequest<{onboardingCompleted: boolean}>(`api/users/${decoded.sub}/onboarding/complete`, { method: 'GET' })
-        const onboardCompleted = user.onboardingCompleted;
-        setIsOnboardCompleted(onboardCompleted)
+        const user = await apiRequest<OnboardingStatus>(`api/users/${decoded.sub}/onboarding/complete`, { method: 'GET' })
+        setIsOnboardCompleted(isOnboarded(user))
 
         setIsLoggedIn(true)
       } catch (error) {
@@ -140,8 +144,8 @@ function App() {
       // Get user onboarding status before marking logged in, so routing goes straight to the right page
       const decoded = decodeJwt(data.accessToken)
       const userId = decoded?.sub || data.user?.id
-      const onboarding = await apiRequest<{ onboardingCompleted: boolean }>(`api/users/${userId}/onboarding/complete`, { method: 'GET' })
-      setIsOnboardCompleted(onboarding.onboardingCompleted)
+      const onboarding = await apiRequest<OnboardingStatus>(`api/users/${userId}/onboarding/complete`, { method: 'GET' })
+      setIsOnboardCompleted(isOnboarded(onboarding))
 
       setIsLoggedIn(true)
       setOnboardingError(null)
