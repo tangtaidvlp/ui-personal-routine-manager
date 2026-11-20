@@ -186,6 +186,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
 
           <EditingBoard
             routine={activeRoutine}
+            liveClock={false}
             onRequestCreateTask={openCreateTaskModal}
             onRequestEditTask={openEditTaskModal}
             onPersistTaskChange={(tasks) => {

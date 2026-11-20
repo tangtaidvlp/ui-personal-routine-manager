@@ -1,6 +1,12 @@
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
+import {
+  minutesForScrollTop,
+  scrollTopForMinutes,
+  SETUP_SCROLL_ANCHOR_MINUTES,
+  SETUP_SCROLL_OFFSET_PX,
+} from '../utils/boardScroll.ts'
 
 const MINUTES_PER_DAY = 1440
 const BASE_BOARD_HEIGHT_PX = 2400
@@ -57,7 +63,13 @@ const snapMinutes = (minutes, step = SNAP_MINUTES) => Math.round(minutes / step)
 
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
 
-function EditingBoard({ routine, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onPersistError, onToggleComplete, onRequestDeleteTask }) {
+/**
+ * `liveClock` (default true): the clock readout, Pause/Resume, slider, now-line, current-task
+ * highlight and "Now: …" line, with the board following the current time. The setup screen
+ * passes false: a default routine is a template with no "now", so the board opens at 06:00
+ * instead (spec 003).
+ */
+function EditingBoard({ routine, liveClock = true, onRequestCreateTask, onRequestEditTask, onPersistTaskChange, onPersistError, onToggleComplete, onRequestDeleteTask }) {
 
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
@@ -81,16 +93,42 @@ const [completedTasks, setCompletedTasks] = useState(() => {
   })
 
   useEffect(() => {
-    if (!containerRef.current) {
+    if (!liveClock || !containerRef.current) {
       return
     }
     const scrollPosition = (currentTime / MINUTES_PER_DAY) * boardHeightPx - 260
     containerRef.current.scrollTop = Math.max(0, scrollPosition)
-  }, [currentTime, boardHeightPx])
+  }, [liveClock, currentTime, boardHeightPx])
+
+  // Without the live clock: open at 06:00, and again when another routine is shown
+  // (Weekday/Weekend switch). A save keeps the same id, so it doesn't move the board.
+  const boardHeightRef = useRef(boardHeightPx)
+  const routineId = routine?.id
+  useEffect(() => {
+    if (liveClock || !routineId || !containerRef.current) {
+      return
+    }
+    containerRef.current.scrollTop = scrollTopForMinutes(
+      SETUP_SCROLL_ANCHOR_MINUTES,
+      boardHeightRef.current,
+      SETUP_SCROLL_OFFSET_PX,
+    )
+  }, [liveClock, routineId])
+
+  // Without the live clock: zooming keeps the time of day at the top of the view in place.
+  useLayoutEffect(() => {
+    const previousHeight = boardHeightRef.current
+    boardHeightRef.current = boardHeightPx
+    if (liveClock || previousHeight === boardHeightPx || !containerRef.current) {
+      return
+    }
+    const topMinutes = minutesForScrollTop(containerRef.current.scrollTop, previousHeight)
+    containerRef.current.scrollTop = scrollTopForMinutes(topMinutes, boardHeightPx)
+  }, [liveClock, boardHeightPx])
 
   useEffect(() => {
     let intervalId
-    if (isLive) {
+    if (liveClock && isLive) {
       setCurrentTime(getCurrentMinutes())
       intervalId = setInterval(() => {
         setCurrentTime(getCurrentMinutes())
@@ -101,11 +139,12 @@ const [completedTasks, setCompletedTasks] = useState(() => {
         clearInterval(intervalId)
       }
     }
-  }, [isLive])
+  }, [liveClock, isLive])
 
 
   const activeTask =
-    tasks.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || tasks[tasks.length - 1]
+    liveClock &&
+    (tasks.find((task) => currentTime >= parseLocalTimeToMinutes(task.startTime) && currentTime < parseLocalTimeToMinutes(task.endTime)) || tasks[tasks.length - 1])
 
   const handleSliderChange = (event) => {
     setIsLive(false)
@@ -304,10 +343,12 @@ const [completedTasks, setCompletedTasks] = useState(() => {
   return (
     <section className="ob-timeline-board" aria-label="Timeline board">
       <div className="ob-board-toolbar">
-        <div className="ob-board-time">
-          <strong>{formatTime(currentTime)}</strong>
-          <span>{isLive ? 'Live' : 'Manual'}</span>
-        </div>
+        {liveClock && (
+          <div className="ob-board-time">
+            <strong>{formatTime(currentTime)}</strong>
+            <span>{isLive ? 'Live' : 'Manual'}</span>
+          </div>
+        )}
         <div className="ob-board-zoom">
           <button
             type="button"
@@ -332,9 +373,11 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           </button>
         </div>
         <div className="ob-board-actions">
-          <button type="button" className="ob-board-btn" onClick={() => setIsLive((current) => !current)}>
-            {isLive ? 'Pause clock' : 'Resume live'}
-          </button>
+          {liveClock && (
+            <button type="button" className="ob-board-btn" onClick={() => setIsLive((current) => !current)}>
+              {isLive ? 'Pause clock' : 'Resume live'}
+            </button>
+          )}
           <button
             type="button"
             className={[
@@ -352,18 +395,20 @@ const [completedTasks, setCompletedTasks] = useState(() => {
         </div>
       </div>
 
-      <div className="ob-board-slider-wrap">
-        <input
-          type="range"
-          min="0"
-          max="1439"
-          step="1"
-          value={currentTime}
-          onChange={handleSliderChange}
-          className="ob-board-slider"
-          aria-label="Timeline current time"
-        />
-      </div>
+      {liveClock && (
+        <div className="ob-board-slider-wrap">
+          <input
+            type="range"
+            min="0"
+            max="1439"
+            step="1"
+            value={currentTime}
+            onChange={handleSliderChange}
+            className="ob-board-slider"
+            aria-label="Timeline current time"
+          />
+        </div>
+      )}
 
       <div ref={containerRef} className="ob-board-scroll">
         <div
@@ -402,7 +447,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
               const isDone = onToggleComplete
                 ? (isTogglingThis ? Boolean(completedTasks[index]) : Boolean(task.completed))
                 : Boolean(completedTasks[index])
-              const isActive = currentTime >= taskStartTime && currentTime < taskEndTime
+              const isActive = liveClock && currentTime >= taskStartTime && currentTime < taskEndTime
 
               return (
                 <div
@@ -487,13 +532,15 @@ const [completedTasks, setCompletedTasks] = useState(() => {
             })}
           </div>
 
-          <div
-            className="ob-board-now-line"
-            style={{ top: `${(currentTime * 100) / MINUTES_PER_DAY}%` }}
-            aria-hidden="true"
-          >
-            <span className="ob-board-now-dot" />
-          </div>
+          {liveClock && (
+            <div
+              className="ob-board-now-line"
+              style={{ top: `${(currentTime * 100) / MINUTES_PER_DAY}%` }}
+              aria-hidden="true"
+            >
+              <span className="ob-board-now-dot" />
+            </div>
+          )}
         </div>
       </div>
 
