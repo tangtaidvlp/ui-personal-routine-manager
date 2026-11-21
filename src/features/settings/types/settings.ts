@@ -1,4 +1,4 @@
-/** Account-level UI settings (specs/F006-user-profile-configuration-store, data-model §2–3). */
+/** Account-level UI settings (specs/.done.F006-user-profile-configuration-store, data-model §2–3). */
 
 /** 'system' = follow the operating system's light/dark setting. */
 export type ThemePreference = 'light' | 'dark' | 'system'

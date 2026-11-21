@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Headless browser checks for F006 (specs/F006-user-profile-configuration-store/quickstart.md).
+ * Headless browser checks for F006 (specs/.done.F006-user-profile-configuration-store/quickstart.md).
  * Start both servers first:
  *   backend:  cd ../ms-personal-routine-manager && SPRING_PROFILES_ACTIVE=fast ./gradlew bootRun
  *   frontend: pnpm dev

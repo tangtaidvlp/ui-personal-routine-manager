@@ -1,6 +1,6 @@
 /**
  * Light/dark/system theme preference: device cache of the account theme
- * (specs/F006-user-profile-configuration-store research R3, R4).
+ * (specs/.done.F006-user-profile-configuration-store research R3, R4).
  *
  * The account value is the source of truth once loaded; this cache lets the boot script in
  * index.html paint the right theme before the app starts, and is the only store on signed-out

@@ -2,7 +2,7 @@ import type { ApiTheme, SettingKey, ThemePreference, UserSettings } from '../typ
 
 /*
  * Known account settings, mirrored from the backend UserSettingsRegistry
- * (specs/F006-user-profile-configuration-store, data-model §2).
+ * (specs/.done.F006-user-profile-configuration-store, data-model §2).
  * To add a preference: add one entry to SETTING_DEFINITIONS here and one definition in the backend
  * registry. No database change is needed (FR-016).
  */
