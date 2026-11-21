@@ -109,7 +109,9 @@ export function useDefaultRoutines(userId: string | undefined) {
     submitTask,
     persistTaskChange,
     taskModalState,
-    openCreateTaskModal: (draft: RoutineTask) => setTaskModalState({ mode: 'create', draft }),
+    // Pre-select the routine's next round-robin colour (specs/F005 FR-004); the server assigns it if kept.
+    openCreateTaskModal: (draft: RoutineTask) =>
+      setTaskModalState({ mode: 'create', draft: { ...draft, color: draft.color ?? activeRoutine?.nextColor } }),
     openEditTaskModal: (task: RoutineTask) => setTaskModalState({ mode: 'edit', draft: task }),
     closeTaskModal: () => setTaskModalState(null),
   }

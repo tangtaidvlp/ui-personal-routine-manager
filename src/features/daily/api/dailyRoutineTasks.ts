@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
 import type { DailyRoutine, DailyTask } from '../types/dailyRoutine.ts'
+import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
 
 type ChatResponse = {
   reply?: unknown
@@ -55,4 +56,22 @@ export async function submitDailyRoutineChat(
   }
 
   return data.reply
+}
+
+/** One page of the stored Buddy conversation for a day (F004). Omit `before` for the newest page. */
+export async function fetchDailyRoutineChatHistory(
+  userId: string,
+  date: string,
+  before?: number | null,
+): Promise<ChatHistoryPage> {
+  const query = before != null ? `?before=${before}` : ''
+  const data = await apiRequest<unknown>(`/api/ai/chat/daily-routine/${userId}/${date}/messages${query}`, {
+    method: 'GET',
+  })
+  try {
+    assertChatHistoryPage(data)
+  } catch {
+    throw new ApiError(502, 'Invalid chat history payload')
+  }
+  return data
 }

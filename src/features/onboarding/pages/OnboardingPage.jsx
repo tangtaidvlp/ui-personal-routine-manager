@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
 import DefaultRoutineEditor from '../components/DefaultRoutineEditor.tsx'
 import { SCHEDULE_TABS } from '../hooks/useDefaultRoutines.ts'
+import { fetchDefaultRoutineChatHistory } from '../../default-routine/api/defaultRoutineChat.ts'
 import BuddyChat, { SendIcon } from '../components/BuddyChat.jsx'
 import { useWalkthrough } from '../../walkthrough/hooks/useWalkthrough.ts'
 import IntroSlides from '../../walkthrough/components/IntroSlides.tsx'
 import GuidedTour from '../../walkthrough/components/GuidedTour.tsx'
 import HowItWorksButton from '../../walkthrough/components/HowItWorksButton.tsx'
+import ThemeToggle from '../../../components/ThemeToggle.tsx'
 
 const BUDDY_GREETING =
   'Hi! I\'m your Routine Buddy. Tell me about your day, like "I wake up at 7:00 and work 9 to 5", and I\'ll build the routine. Or tap + to add tasks yourself.'
@@ -43,6 +45,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
           <BrandMark />
           <div className="ob-top-actions">
             <HowItWorksButton onClick={() => walkthrough.open('onboarding')} />
+            <ThemeToggle />
             {switcher}
             <button type="button" className="ui-btn ui-btn-primary ob-ready-btn" onClick={onComplete} data-tour="finish">
               {isCompleting ? 'Saving...' : 'Ready to roll'}
@@ -61,9 +64,13 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
       }
       renderAside={({ scheduleMode, routines, refreshRoutine }) =>
         // One chat per routine: the server keeps a separate conversation per routine (research R5).
-        SCHEDULE_TABS.map((tab) => (
+        // Keyed by routine id so the stored history (F004) loads once the routine is known.
+        SCHEDULE_TABS.map((tab) => {
+          const routineId = routines[tab]?.id
+          return (
           <BuddyChat
-            key={tab}
+            key={`${tab}-${routineId ?? 'none'}`}
+            loadHistory={routineId && user?.id ? (before) => fetchDefaultRoutineChatHistory(user.id, routineId, before) : undefined}
             title="Routine Buddy"
             tourId={tab === scheduleMode ? 'routine-buddy' : undefined}
             isHidden={tab !== scheduleMode}
@@ -76,7 +83,8 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
               setMobileView('board')
             }}
           />
-        ))
+          )
+        })
       }
       extraFabs={
         <button

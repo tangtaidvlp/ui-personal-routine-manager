@@ -6,9 +6,16 @@
  * text contrast is checked by src/styles/contrast.test.ts.
  *
  * Values sampled from specs/F002-ui-refactoring/resources/Sidebar-Design.png.
+ *
+ * Dark theme (specs/F005-i-want-color-to-be-persisted): the :root[data-theme="dark"] block
+ * below redefines tier-2 semantic tokens only; values from that spec's
+ * resources/dark-theme-palette.md. <html data-theme> is set by src/theme/ and index.html.
+ * Task-card colours are not tokens: they come from the backend palette.
  */
 
 :root {
+  color-scheme: light;
+
   /* ── Tier 1: primitives ─────────────────────────────────────────────── */
   --color-white: #FFFFFF;
   --color-black: #000000;
@@ -61,6 +68,34 @@
   --color-alpha-blue-12: rgba(26, 111, 212, 0.12);
   --color-alpha-red-25: rgba(229, 72, 77, 0.25);
 
+  /* Dark theme primitives (F005) */
+  --color-ink-950: #0E131A;
+  --color-ink-925: #121821;
+  --color-ink-900: #161C25;
+  --color-ink-875: #1A2331;
+  --color-ink-850: #1B222C;
+  --color-ink-800: #202834;
+  --color-ink-750: #2A3340;
+  --color-ink-700: #3A4555;
+  --color-mist-100: #E6EBF2;
+  --color-mist-300: #A3B0C2;
+  --color-mist-400: #8A97AA;
+  --color-mist-500: #7A879B;
+  --color-blue-dark-600: #1F74D8;
+  --color-blue-dark-700: #1A66C2;
+  --color-blue-dark-soft: #213145;
+  --color-blue-dark-text: #8CBBF5;
+  --color-red-dark-400: #F0686C;
+  --color-red-dark-soft: #392830;
+  --color-green-dark-400: #34C98E;
+  --color-green-dark-soft: #1B3836;
+  --color-green-dark-muted: #2F7A5E;
+  --color-purple-dark-400: #9D84EA;
+  --color-purple-dark-soft: #2C2D45;
+  --color-alpha-black-35: rgba(0, 0, 0, 0.35);
+  --color-alpha-black-50: rgba(0, 0, 0, 0.5);
+  --color-alpha-black-60: rgba(0, 0, 0, 0.6);
+
   /* ── Tier 2: semantic tokens ────────────────────────────────────────── */
 
   /* Surfaces */
@@ -104,22 +139,6 @@
   --color-now-line: var(--color-red-500);
   --color-task-current: var(--color-purple-500);
   --color-task-current-bg: var(--color-purple-50);
-  --color-task-1-accent: var(--color-green-500);
-  --color-task-1-bg: var(--color-green-50);
-  --color-task-2-accent: var(--color-orange-500);
-  --color-task-2-bg: var(--color-orange-50);
-  --color-task-3-accent: var(--color-blue-600);
-  --color-task-3-bg: var(--color-blue-50);
-  --color-task-4-accent: var(--color-grey-300);
-  --color-task-4-bg: var(--color-grey-50);
-  --color-task-5-accent: var(--color-slate-450);
-  --color-task-5-bg: var(--color-slate-100);
-  --color-task-6-accent: var(--color-peach-300);
-  --color-task-6-bg: var(--color-peach-50);
-  --color-task-7-accent: var(--color-pink-500);
-  --color-task-7-bg: var(--color-pink-50);
-  --color-task-8-accent: var(--color-purple-500);
-  --color-task-8-bg: var(--color-purple-50);
 
   /* Chat */
   --color-chat-bot-bg: var(--color-slate-25);
@@ -183,4 +202,59 @@
   --z-backdrop: 35;
   --z-modal: 100;
   --z-tour: 200;
+}
+
+/* ── Dark theme: tier-2 overrides only (specs/F005, resources/dark-theme-palette.md) ── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --color-bg-app: var(--color-ink-950);
+  --color-bg-surface: var(--color-ink-900);
+  --color-bg-subtle: var(--color-ink-850);
+  --color-bg-muted: var(--color-ink-800);
+  --color-bg-sidebar: var(--color-ink-925);
+  --color-bg-overlay: var(--color-alpha-black-60);
+
+  /* Borders */
+  --color-border: var(--color-ink-750);
+  --color-border-strong: var(--color-ink-700);
+
+  /* Text */
+  --color-text-primary: var(--color-mist-100);
+  --color-text-secondary: var(--color-mist-300);
+  --color-text-muted: var(--color-mist-400);
+  --color-text-placeholder: var(--color-mist-500);
+  --color-text-on-accent: var(--color-white);
+
+  /* Accent (stays deep so white button text keeps 4.5:1) */
+  --color-accent: var(--color-blue-dark-600);
+  --color-accent-hover: var(--color-blue-dark-700);
+  --color-accent-soft: var(--color-blue-dark-soft);
+  --color-accent-text: var(--color-blue-dark-text);
+  --color-accent-subtle: var(--color-ink-875);
+
+  /* Status */
+  --color-danger: var(--color-red-dark-400);
+  --color-danger-strong: var(--color-red-dark-400);
+  --color-danger-soft: var(--color-red-dark-soft);
+  --color-success: var(--color-green-dark-400);
+  --color-success-soft: var(--color-green-dark-soft);
+  --color-success-muted: var(--color-green-dark-muted);
+
+  /* Board */
+  --color-now-line: var(--color-red-dark-400);
+  --color-task-current: var(--color-purple-dark-400);
+  --color-task-current-bg: var(--color-purple-dark-soft);
+
+  /* Chat */
+  --color-chat-bot-bg: var(--color-ink-850);
+
+  /* Illustration (auth hero) */
+  --color-illustration-sky: var(--color-blue-dark-soft);
+
+  /* Shadow: stronger so it shows on dark backgrounds */
+  --shadow-sm: 0 1px 2px var(--color-alpha-black-35);
+  --shadow-md: 0 8px 24px var(--color-alpha-black-35);
+  --shadow-lg: 0 16px 48px var(--color-alpha-black-50);
 }

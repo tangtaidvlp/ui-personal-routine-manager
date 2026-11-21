@@ -7,6 +7,8 @@ export type DailyTask = {
   description?: string
   durationMinutes: number
   completed: boolean
+  /** Palette id or #RRGGBB; server-assigned when omitted on create (specs/F005). */
+  color?: string | null
 }
 
 export type DailyRoutine = {
@@ -14,4 +16,6 @@ export type DailyRoutine = {
   id?: string
   date: string
   tasks: DailyTask[]
+  /** Palette id the next auto-assigned task gets. */
+  nextColor?: string
 }

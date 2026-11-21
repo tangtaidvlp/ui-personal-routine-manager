@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
 import type { DefaultRoutine } from '../../onboarding/types/routine.ts'
+import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
 
 type ChatResponse = { reply?: unknown }
 
@@ -19,4 +20,25 @@ export async function submitDefaultRoutineChat(userId: string, defaultRoutine: D
   }
 
   return data.reply
+}
+
+/**
+ * One page of the stored Buddy conversation for a default routine (F004).
+ * Includes onboarding messages, which share the conversation. Omit `before` for the newest page.
+ */
+export async function fetchDefaultRoutineChatHistory(
+  userId: string,
+  routineId: string,
+  before?: number | null,
+): Promise<ChatHistoryPage> {
+  const query = before != null ? `?before=${before}` : ''
+  const data = await apiRequest<unknown>(`/api/ai/chat/default-routine/${userId}/${routineId}/messages${query}`, {
+    method: 'GET',
+  })
+  try {
+    assertChatHistoryPage(data)
+  } catch {
+    throw new ApiError(502, 'Invalid chat history payload')
+  }
+  return data
 }

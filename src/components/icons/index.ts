@@ -8,11 +8,13 @@ export {
   ChevronRightIcon,
   MenuIcon,
   MinusIcon,
+  MoonIcon,
   PanelLeftIcon,
   PlusIcon,
   RepeatIcon,
   SendIcon,
   SparkIcon,
   SparklesIcon,
+  SunIcon,
   XIcon,
 } from './Icons'

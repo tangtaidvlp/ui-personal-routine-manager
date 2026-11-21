@@ -50,3 +50,18 @@ export function readTokens(cssText: string): Record<string, string> {
 
   return Object.fromEntries(Object.keys(raw).map((name) => [name, resolve(name, new Set([name]))]))
 }
+
+const DARK_BLOCK = /:root\[data-theme="dark"\]\s*\{([^}]*)\}/
+
+/**
+ * Tokens as a theme sees them (specs/F005): 'light' is everything outside the
+ * `:root[data-theme="dark"]` block; 'dark' is the same with that block's overrides
+ * on top, so `var()` chains resolve the way the browser does on <html>.
+ */
+export function readThemeTokens(cssText: string, theme: 'light' | 'dark'): Record<string, string> {
+  const withoutComments = cssText.replace(/\/\*[\s\S]*?\*\//g, '')
+  const dark = DARK_BLOCK.exec(withoutComments)
+  const base = withoutComments.replace(DARK_BLOCK, '')
+  if (theme === 'light' || !dark) return readTokens(base)
+  return readTokens(`${base}\n:root {${dark[1]}}`)
+}

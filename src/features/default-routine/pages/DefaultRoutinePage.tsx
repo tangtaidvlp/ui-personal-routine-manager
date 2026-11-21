@@ -5,7 +5,7 @@ import { SendIcon } from '../../../components/icons/index.ts'
 import DefaultRoutineEditor from '../../onboarding/components/DefaultRoutineEditor.tsx'
 import BuddyChat from '../../onboarding/components/BuddyChat.jsx'
 import { SCHEDULE_TABS } from '../../onboarding/hooks/useDefaultRoutines.ts'
-import { submitDefaultRoutineChat } from '../api/defaultRoutineChat.ts'
+import { fetchDefaultRoutineChatHistory, submitDefaultRoutineChat } from '../api/defaultRoutineChat.ts'
 
 const GREETING = {
   weekday: 'Hi! Ask me to add, move or remove tasks in your weekday routine.',
@@ -35,9 +35,13 @@ function DefaultRoutinePage() {
       )}
       renderAside={({ scheduleMode, routines, refreshRoutine }) =>
         // One chat per routine: the server keeps a separate conversation per routine.
-        SCHEDULE_TABS.map((tab) => (
+        // Keyed by routine id so the stored history (F004) loads once the routine is known.
+        SCHEDULE_TABS.map((tab) => {
+          const routineId = routines[tab]?.id
+          return (
           <BuddyChat
-            key={tab}
+            key={`${tab}-${routineId ?? 'none'}`}
+            loadHistory={routineId ? (before?: number | null) => fetchDefaultRoutineChatHistory(userId, routineId, before) : undefined}
             title="Routine Buddy"
             isHidden={tab !== scheduleMode}
             subtitle={tab === 'weekday' ? 'Here to help with your weekday routine' : 'Here to help with your weekend routine'}
@@ -49,7 +53,8 @@ function DefaultRoutinePage() {
               setMobileView('board')
             }}
           />
-        ))
+          )
+        })
       }
       extraFabs={
         <button type="button" className="ob-fab-btn-chat" aria-label="Chat with Routine Buddy" onClick={() => setMobileView('chat')}>

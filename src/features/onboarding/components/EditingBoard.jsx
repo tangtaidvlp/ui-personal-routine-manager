@@ -9,6 +9,8 @@ import {
   SETUP_SCROLL_ANCHOR_MINUTES,
   SETUP_SCROLL_OFFSET_PX,
 } from '../utils/boardScroll.ts'
+import { usePalette } from '../../palette/hooks/usePalette.ts'
+import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
 
 const MINUTES_PER_DAY = 1440
 const BASE_BOARD_HEIGHT_PX = 2400
@@ -18,26 +20,8 @@ const ZOOM_STEP = 0.25
 const SNAP_MINUTES = 5
 const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
-
-const TASK_TINT_COUNT = 8
-
-/**
- * Card colours as CSS variables (specs/F002-ui-refactoring data-model §6): a task's own colour
- * when it has one, otherwise the next of the 8 tint tokens.
- */
-const taskTintStyle = (task, index) => {
-  if (task.color) {
-    return {
-      '--task-accent': task.color,
-      '--task-bg': `color-mix(in srgb, ${task.color} 14%, var(--color-bg-surface))`,
-    }
-  }
-  const slot = (index % TASK_TINT_COUNT) + 1
-  return {
-    '--task-accent': `var(--color-task-${slot}-accent)`,
-    '--task-bg': `var(--color-task-${slot}-bg)`,
-  }
-}
+// The live board opens with "now" this far below the top of the view.
+const LIVE_SCROLL_OFFSET_PX = 260
 
 const getCurrentMinutes = () => {
   const now = new Date()
@@ -118,6 +102,8 @@ function EditingBoard({
   onRequestDeleteTask,
 }) {
 
+  // Task colours come from the backend palette; the stylesheet picks the light/dark pair (specs/F005).
+  const { palette } = usePalette()
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
   const [isLive, setIsLive] = useState(true)
   const [hoveredTask, setHoveredTask] = useState(null)
@@ -139,14 +125,6 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     return {}
   })
 
-  useEffect(() => {
-    if (!liveClock || !containerRef.current) {
-      return
-    }
-    const scrollPosition = (currentTime / MINUTES_PER_DAY) * boardHeightPx - 260
-    containerRef.current.scrollTop = Math.max(0, scrollPosition)
-  }, [liveClock, currentTime, boardHeightPx])
-
   // Without the live clock: open at 06:00, and again when another routine is shown
   // (Weekday/Weekend switch). A save keeps the same id, so it doesn't move the board.
   const boardHeightRef = useRef(boardHeightPx)
@@ -162,16 +140,28 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     )
   }, [liveClock, routineId])
 
-  // Without the live clock: zooming keeps the time of day at the top of the view in place.
+  // Live clock: show "now" once when the board mounts (specs/F005 FR-014). Clock ticks, Resume,
+  // the slider, zoom, saves and date changes never move the view again (FR-015) — the board
+  // isn't remounted on a date change, so don't key it by date.
+  const hasCenteredRef = useRef(false)
+  useLayoutEffect(() => {
+    if (!liveClock || hasCenteredRef.current || !containerRef.current) {
+      return
+    }
+    hasCenteredRef.current = true
+    containerRef.current.scrollTop = scrollTopForMinutes(getCurrentMinutes(), boardHeightRef.current, LIVE_SCROLL_OFFSET_PX)
+  }, [liveClock])
+
+  // Zooming keeps the time of day at the top of the view in place (setup board and live clock).
   useLayoutEffect(() => {
     const previousHeight = boardHeightRef.current
     boardHeightRef.current = boardHeightPx
-    if (liveClock || previousHeight === boardHeightPx || !containerRef.current) {
+    if (previousHeight === boardHeightPx || !containerRef.current) {
       return
     }
     const topMinutes = minutesForScrollTop(containerRef.current.scrollTop, previousHeight)
     containerRef.current.scrollTop = scrollTopForMinutes(topMinutes, boardHeightPx)
-  }, [liveClock, boardHeightPx])
+  }, [boardHeightPx])
 
   useEffect(() => {
     let intervalId
@@ -516,7 +506,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={{ top: `${top}%`, height: `${height}%`, ...taskTintStyle(task, index) }}
+                  style={{ top: `${top}%`, height: `${height}%`, ...resolveTaskColor(task.color, palette) }}
                 >
                   <div className="ob-board-task-content">
                     <span className="ob-board-task-name">{task.name}</span>

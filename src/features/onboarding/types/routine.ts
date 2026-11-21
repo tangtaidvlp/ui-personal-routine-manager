@@ -6,7 +6,8 @@ export type RoutineTask = {
   endTime?: string
   description?: string
   durationMinutes: number
-  color?: string
+  /** Palette id or #RRGGBB; server-assigned when omitted on create (specs/F005). */
+  color?: string | null
 }
 
 export type DefaultRoutine = {
@@ -14,4 +15,6 @@ export type DefaultRoutine = {
   name?: string
   routineType?: 'DAILY' | 'WEEKEND' // DAILY = weekday routine
   tasks: RoutineTask[]
+  /** Palette id the next auto-assigned task gets; pre-selected in the create dialog. */
+  nextColor?: string
 }

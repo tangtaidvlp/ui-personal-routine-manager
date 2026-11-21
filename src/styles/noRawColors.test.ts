@@ -16,9 +16,9 @@ const SKIP = new Set(['styles/tokens.css'])
 /** Third-party brand marks keep their official colours (Google, Facebook, Apple logos). */
 const ALLOWED: Record<string, (line: string) => boolean> = {
   'features/auth/pages/AuthPage.tsx': (line) =>
-    /fill="#(4285F4|34A853|FBBC05|EA4335|1877F2|000)"/.test(line),
-  // <input type="color"> only accepts a literal #rrggbb value; this is task data, not styling.
-  'features/onboarding/components/TaskEditModal.tsx': (line) => /type="color"/.test(line),
+    /fill="#(4285F4|34A853|FBBC05|EA4335|1877F2)"/.test(line),
+  // <input type="color"> only accepts a literal #rrggbb value; this is task data, not styling (specs/F005).
+  'features/palette/components/PaletteSwatches.tsx': (line) => /const CUSTOM_DEFAULT = '#[0-9A-F]{6}'/.test(line),
 }
 
 function listFiles(dir: string): string[] {

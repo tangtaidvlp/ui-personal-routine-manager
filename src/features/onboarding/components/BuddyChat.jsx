@@ -1,5 +1,9 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { nextCursor, prependOlder, toChatItems } from './chatHistory.ts'
+
+// Load older history when the thread is scrolled to within this many px of the top.
+const LOAD_OLDER_THRESHOLD_PX = 40
 
 export function SparkIcon() {
   return (
@@ -37,7 +41,11 @@ function createChatMessage(role, text, isError = false) {
  *   onAfterSend?: () => void,
  *   tourId?: string,
  *   isHidden?: boolean,
+ *   loadHistory?: (before?: number | null) => Promise<import('../types/chatHistory.ts').ChatHistoryPage>,
  * }} props
+ *
+ * `loadHistory` (F004): when given, the stored conversation is shown under the greeting
+ * (newest page first) and older pages load when the thread is scrolled to the top.
  */
 function BuddyChat({
   title = 'Routine Buddy',
@@ -48,19 +56,93 @@ function BuddyChat({
   onAfterSend,
   tourId,
   isHidden = false,
+  loadHistory,
 }) {
   const [prompt, setPrompt] = useState('')
   const inputRef = useRef(null)
   const [messages, setMessages] = useState([createChatMessage('bot', initialMessage)])
   const [isSendingChat, setIsSendingChat] = useState(false)
   const threadRef = useRef(null)
+  // History paging (F004). status: 'idle' | 'loading' | 'error'
+  const [history, setHistory] = useState({ status: 'idle', hasMore: false, nextBefore: null })
+  const loadHistoryRef = useRef(loadHistory)
+  loadHistoryRef.current = loadHistory
+  const loadingRef = useRef(false)
+  const mountedRef = useRef(true)
+  // scrollHeight before an older page is prepended, so the reading position can be kept.
+  const prependAnchorRef = useRef(null)
 
+  const lastMessageId = messages[messages.length - 1]?.id
+
+  // Scroll to the bottom when a message is added at the end (not when older ones are prepended).
   useEffect(() => {
     if (!threadRef.current) {
       return
     }
     threadRef.current.scrollTop = threadRef.current.scrollHeight
-  }, [messages.length, isSendingChat])
+  }, [lastMessageId, isSendingChat, isHidden])
+
+  // Keep the reading position after older messages are prepended.
+  useLayoutEffect(() => {
+    const thread = threadRef.current
+    const prevHeight = prependAnchorRef.current
+    if (!thread || prevHeight === null) {
+      return
+    }
+    prependAnchorRef.current = null
+    thread.scrollTop += thread.scrollHeight - prevHeight
+  }, [messages])
+
+  const loadPage = useCallback(async (before) => {
+    const load = loadHistoryRef.current
+    if (!load || loadingRef.current) {
+      return
+    }
+    loadingRef.current = true
+    setHistory((current) => ({ ...current, status: 'loading' }))
+    try {
+      const page = await load(before)
+      if (!mountedRef.current) {
+        return
+      }
+      if (before != null && threadRef.current) {
+        prependAnchorRef.current = threadRef.current.scrollHeight
+      }
+      setMessages((current) => prependOlder(current, toChatItems(page.messages)))
+      const cursor = nextCursor(page)
+      setHistory({ status: 'idle', hasMore: cursor !== null, nextBefore: cursor })
+    } catch {
+      if (mountedRef.current) {
+        // Keep hasMore/nextBefore so the next scroll-up retries (FR-013: chat stays usable).
+        setHistory((current) => ({ ...current, status: 'error' }))
+      }
+    } finally {
+      loadingRef.current = false
+    }
+  }, [])
+
+  // Load the newest page once on mount.
+  useEffect(() => {
+    mountedRef.current = true
+    if (loadHistoryRef.current) {
+      void loadPage(null)
+    }
+    return () => {
+      mountedRef.current = false
+    }
+  }, [loadPage])
+
+  const loadOlder = () => {
+    if (history.hasMore && history.nextBefore !== null) {
+      void loadPage(history.nextBefore)
+    }
+  }
+
+  const handleThreadScroll = (event) => {
+    if (event.currentTarget.scrollTop <= LOAD_OLDER_THRESHOLD_PX && history.status !== 'loading') {
+      loadOlder()
+    }
+  }
 
   const handleSubmitChat = async (event) => {
     event.preventDefault()
@@ -101,7 +183,18 @@ function BuddyChat({
         </div>
       </div>
 
-      <div className="ob-buddy-thread" ref={threadRef}>
+      <div className="ob-buddy-thread" ref={threadRef} onScroll={loadHistory ? handleThreadScroll : undefined}>
+        {history.status === 'loading' && (
+          <p className="ob-history-status" role="status">Loading earlier messages…</p>
+        )}
+        {history.status === 'error' && (
+          <p className="ob-history-status ob-history-notice" role="status">Couldn&apos;t load earlier messages.</p>
+        )}
+        {history.status !== 'loading' && history.hasMore && (
+          <button type="button" className="ob-history-more" onClick={loadOlder}>
+            Show earlier messages
+          </button>
+        )}
         {messages.map((chat) => (
           <div key={chat.id}>
             <div className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>

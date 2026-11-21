@@ -14,6 +14,7 @@ import {
   updateDailyTasks,
   deleteDailyTasks,
   submitDailyRoutineChat,
+  fetchDailyRoutineChatHistory,
 } from '../api/dailyRoutineTasks.ts'
 
 const MINUTES_PER_DAY = 1440
@@ -236,6 +237,9 @@ function DailyRoutinePage() {
         </section>
 
         <BuddyChat
+          // One conversation per day (F004): remount on date change to load that day's history.
+          key={selectedDate}
+          loadHistory={(before) => fetchDailyRoutineChatHistory(user.id, selectedDate, before)}
           title="Routine Buddy"
           subtitle={`Here to help with ${selectedDay.toLocaleDateString('en-GB', SHORT_DATE)}`}
           initialMessage="Hi! Ask me to add, adjust, or check off tasks for this day."

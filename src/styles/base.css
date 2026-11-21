@@ -35,6 +35,19 @@ textarea {
   font-family: inherit;
 }
 
+/* Form fields follow the theme instead of the browser's default field colours (specs/F005).
+   Low specificity, so any class that sets its own background still wins. */
+:where(input:not([type='range'], [type='checkbox'], [type='radio'], [type='color'])),
+select,
+textarea {
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+::placeholder {
+  color: var(--color-text-placeholder);
+}
+
 a {
   color: inherit;
 }

@@ -5,6 +5,7 @@ import { routineTypeForDate, routineTypeLabel } from '../../features/onboarding/
 import { PanelLeftIcon, SparkIcon, XIcon } from '../icons/index.ts'
 import { NAV_ENTRIES } from './navEntries.ts'
 import { SIDEBAR_ID } from './shellContext.ts'
+import ThemeToggle from '../ThemeToggle.tsx'
 
 type SidebarProps = {
   user: AuthUser
@@ -99,6 +100,7 @@ function Sidebar({ user, isCollapsed, isMobile, isMobileOpen, onToggleCollapsed,
           <SparkIcon size={16} />
           <span className="app-nav-label">Replay tour</span>
         </button>
+        <ThemeToggle variant="sidebar" />
         <div className="app-user">
           <span className="app-user-avatar" aria-hidden="true">{initial}</span>
           <span className="app-user-text">

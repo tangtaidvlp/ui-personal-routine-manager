@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ApiError } from '../../../lib/api.ts'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
+import PaletteSwatches from '../../palette/components/PaletteSwatches.tsx'
+import { usePalette } from '../../palette/hooks/usePalette.ts'
 
 export type TaskFormValue = {
   id?: string
@@ -8,7 +10,8 @@ export type TaskFormValue = {
   startTime: string
   durationMinutes: number
   description?: string
-  color?: string
+  /** Palette id or #RRGGBB (specs/F005). */
+  color?: string | null
 }
 
 export type TaskEditModalProps = {
@@ -27,7 +30,8 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
   const [startTime, setStartTime] = useState('09:00')
   const [durationMinutes, setDurationMinutes] = useState(30)
   const [description, setDescription] = useState('')
-  const [color, setColor] = useState('')
+  const [color, setColor] = useState<string | null>(null)
+  const { palette } = usePalette()
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -40,7 +44,8 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
     setStartTime(draftTask?.startTime ?? '09:00')
     setDurationMinutes(draftTask?.durationMinutes ?? 30)
     setDescription(draftTask?.description ?? '')
-    setColor(draftTask?.color ?? '')
+    // Create drafts arrive with the routine's next round-robin colour pre-selected (FR-004).
+    setColor(draftTask?.color ?? null)
     setError(null)
   }, [isOpen, draftTask])
 
@@ -67,7 +72,7 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
       startTime,
       durationMinutes,
       description: description.trim() || undefined,
-      color: color || undefined,
+      color: color ?? undefined,
     }
 
     setIsSaving(true)
@@ -142,10 +147,10 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
             </label>
 
             {showColor && (
-              <label className="ob-modal-field">
+              <div className="ob-modal-field">
                 <span>Color</span>
-                <input type="color" value={color || '#2563eb'} onChange={(event) => setColor(event.target.value)} />
-              </label>
+                <PaletteSwatches value={color} onChange={setColor} palette={palette} />
+              </div>
             )}
 
             <div className="ob-modal-actions">
