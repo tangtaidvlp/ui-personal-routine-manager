@@ -1,7 +1,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
-import { CheckIcon, MinusIcon, PlusIcon } from '../../../components/icons/index.ts'
+import { CheckIcon } from '../../../components/icons/index.ts'
 import { formatMinutesLeft, nowAndNext } from '../../daily/utils/nowAndNext.ts'
 import {
   minutesForScrollTop,
@@ -12,6 +12,8 @@ import {
 import { usePalette } from '../../palette/hooks/usePalette.ts'
 import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
 import { useBoardZoom } from '../../settings/hooks/useUserSettings.ts'
+import { getCurrentMinutes, useBoardClock } from '../hooks/useBoardClock.ts'
+import BoardToolbar from './BoardToolbar.jsx'
 
 const MINUTES_PER_DAY = 1440
 const BASE_BOARD_HEIGHT_PX = 2400
@@ -20,11 +22,6 @@ const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
 // The live board opens with "now" this far below the top of the view.
 const LIVE_SCROLL_OFFSET_PX = 260
-
-const getCurrentMinutes = () => {
-  const now = new Date()
-  return now.getHours() * 60 + now.getMinutes()
-}
 
 const parseLocalTimeToMinutes = (value, fallback = 0) => {
   if (typeof value === 'string') {
@@ -74,6 +71,13 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
  * `toolbarActions` (F002): page actions shown at the right end of the toolbar.
  * `showFooter` (F002, default = liveClock): the "Now … · N min left / Next: … at HH:MM" footer.
  *
+ * Side by side (F007 R11/R12), a parent can share one toolbar between boards:
+ * `showToolbar` false hides this board's toolbar and slider; `clock` (from useBoardClock) replaces
+ * the board's own clock; `gapClearMode` replaces its own Gap clear state; `resetSignal` clears the
+ * local completion state whenever it changes (the shared "Reset day"); `scrollContainerRef`
+ * receives the scrolling element (for scroll sync).
+ * `showCompletion` (default true) false hides the "Mark as done" checks (F007 Reality board).
+ *
  * @param {{
  *   routine: any,
  *   liveClock?: boolean,
@@ -85,6 +89,12 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
  *   onPersistError?: (error: unknown) => void,
  *   onToggleComplete?: (task: any) => Promise<unknown>,
  *   onRequestDeleteTask?: (task: any) => Promise<unknown> | void,
+ *   showToolbar?: boolean,
+ *   clock?: import('../hooks/useBoardClock.ts').BoardClock,
+ *   gapClearMode?: boolean,
+ *   resetSignal?: number,
+ *   scrollContainerRef?: (element: HTMLElement | null) => void,
+ *   showCompletion?: boolean,
  * }} props
  */
 function EditingBoard({
@@ -98,21 +108,36 @@ function EditingBoard({
   onPersistError,
   onToggleComplete,
   onRequestDeleteTask,
+  showToolbar = true,
+  clock: sharedClock,
+  gapClearMode: sharedGapClearMode,
+  resetSignal,
+  scrollContainerRef,
+  showCompletion = true,
 }) {
 
   // Task colours come from the backend palette; the stylesheet picks the light/dark pair (specs/F005).
   const { palette } = usePalette()
-  const [currentTime, setCurrentTime] = useState(getCurrentMinutes())
-  const [isLive, setIsLive] = useState(true)
+  // The board's own clock ticks only when no shared clock is passed.
+  const ownClock = useBoardClock(liveClock && !sharedClock)
+  const clock = sharedClock ?? ownClock
+  const { currentTime } = clock
   const [hoveredTask, setHoveredTask] = useState(null)
   const [dragState, setDragState] = useState(null)
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
-  const { zoom: zoomLevel, zoomIn, zoomOut, canZoomIn, canZoomOut } = useBoardZoom()
+  const { zoom: zoomLevel } = useBoardZoom()
   const [deleteConfirmTask, setDeleteConfirmTask] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(new Set())
-  const [gapClearMode, setGapClearMode] = useState(false)
+  const [ownGapClearMode, setGapClearMode] = useState(false)
+  const gapClearMode = sharedGapClearMode ?? ownGapClearMode
   const containerRef = useRef(null)
+  const scrollContainerRefRef = useRef(scrollContainerRef)
+  scrollContainerRefRef.current = scrollContainerRef
+  const setScrollContainer = (element) => {
+    containerRef.current = element
+    scrollContainerRefRef.current?.(element)
+  }
   const trackRef = useRef(null)
 
   const boardHeightPx = useMemo(() => BASE_BOARD_HEIGHT_PX * zoomLevel, [zoomLevel])
@@ -162,28 +187,9 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     containerRef.current.scrollTop = scrollTopForMinutes(topMinutes, boardHeightPx)
   }, [boardHeightPx])
 
-  useEffect(() => {
-    let intervalId
-    if (liveClock && isLive) {
-      setCurrentTime(getCurrentMinutes())
-      intervalId = setInterval(() => {
-        setCurrentTime(getCurrentMinutes())
-      }, 60000)
-    }
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId)
-      }
-    }
-  }, [liveClock, isLive])
 
 
   const footer = liveClock && showFooter ? nowAndNext(tasks, currentTime) : null
-
-  const handleSliderChange = (event) => {
-    setIsLive(false)
-    setCurrentTime(parseInt(event.target.value, 10))
-  }
 
   const toggleTaskCompletion = async (task, index, event) => {
     event.stopPropagation()
@@ -221,6 +227,16 @@ const [completedTasks, setCompletedTasks] = useState(() => {
   const handleResetSchedule = () => {
     setCompletedTasks({})
   }
+
+  // Shared "Reset day" (side by side): clear local completion state when the signal changes.
+  const lastResetSignalRef = useRef(resetSignal)
+  useEffect(() => {
+    if (lastResetSignalRef.current === resetSignal) {
+      return
+    }
+    lastResetSignalRef.current = resetSignal
+    setCompletedTasks({})
+  }, [resetSignal])
 
   const handleTrackClick = (event) => {
     if (!trackRef.current || !onRequestCreateTask) {
@@ -376,79 +392,17 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
   return (
     <section className="ob-timeline-board" aria-label="Timeline board">
-      <div className="ob-board-toolbar">
-        {liveClock && (
-          <div className="ob-board-time">
-            <strong>{formatTime(currentTime)}</strong>
-            {isLive ? <span className="ui-pill ui-pill-success">Live</span> : <span className="ui-pill">Paused</span>}
-          </div>
-        )}
-        <div className="ob-board-toolbar-controls">
-          <div className="ob-board-zoom">
-            <button
-              type="button"
-              className="ui-icon-btn"
-              onClick={zoomOut}
-              disabled={!canZoomOut}
-              aria-label="Zoom out"
-              title="Zoom out"
-            >
-              <MinusIcon size={16} />
-            </button>
-            <span className="ob-board-zoom-label">{Math.round(zoomLevel * 100)}%</span>
-            <button
-              type="button"
-              className="ui-icon-btn"
-              onClick={zoomIn}
-              disabled={!canZoomIn}
-              aria-label="Zoom in"
-              title="Zoom in"
-            >
-              <PlusIcon size={16} />
-            </button>
-          </div>
-          {liveClock && (
-            <button type="button" className="ui-btn ui-btn-ghost" onClick={() => setIsLive((current) => !current)}>
-              {isLive ? 'Pause clock' : 'Resume live'}
-            </button>
-          )}
-          <button
-            type="button"
-            className={['ui-btn', 'ui-btn-ghost', gapClearMode ? 'is-active' : ''].filter(Boolean).join(' ')}
-            onClick={() => setGapClearMode(!gapClearMode)}
-            aria-pressed={gapClearMode}
-            title="When enabled, dragging a task pulls all tasks below it with it"
-          >
-            {gapClearMode ? '✓ Gap clear' : 'Gap clear'}
-          </button>
-          <button type="button" className="ui-btn ui-btn-ghost ob-board-btn-secondary" onClick={handleResetSchedule}>
-            Reset day
-          </button>
-          {toolbarActions ? (
-            <>
-              <span className="ob-board-toolbar-divider" aria-hidden="true" />
-              {toolbarActions}
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      {liveClock && (
-        <div className="ob-board-slider-wrap">
-          <input
-            type="range"
-            min="0"
-            max="1439"
-            step="1"
-            value={currentTime}
-            onChange={handleSliderChange}
-            className="ob-board-slider"
-            aria-label="Timeline current time"
-          />
-        </div>
+      {showToolbar && (
+        <BoardToolbar
+          clock={liveClock ? clock : null}
+          gapClearMode={gapClearMode}
+          onToggleGapClear={() => setGapClearMode(!gapClearMode)}
+          onResetDay={handleResetSchedule}
+          actions={toolbarActions}
+        />
       )}
 
-      <div ref={containerRef} className="ob-board-scroll">
+      <div ref={setScrollContainer} className="ob-board-scroll">
         <div
           ref={trackRef}
           className={[
@@ -514,6 +468,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     </span>
                   </div>
 
+                  {showCompletion && (
                   <button
                     type="button"
                     onClick={(event) => toggleTaskCompletion(task, index, event)}
@@ -530,6 +485,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   >
                     {isTogglingThis ? '…' : isDone ? <CheckIcon size={14} strokeWidth={3} /> : null}
                   </button>
+                  )}
 
                   {onRequestDeleteTask && (
                     <button

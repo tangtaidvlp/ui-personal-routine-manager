@@ -2377,3 +2377,378 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
+
+/* ── Daily reflection (F007): Reflection toggle, summary strip, side-by-side boards, Buddy's note ── */
+
+/* Compact on/off toggle in the board toolbar (FR-001). */
+.rf-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rf-toggle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  flex-shrink: 0;
+}
+
+.rf-toggle[aria-pressed='true'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+}
+
+.rf-toggle[aria-pressed='true'] .rf-toggle-dot {
+  background: currentColor;
+}
+
+.rf-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.rf-mode-hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.rf-badge {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Reality is visibly different from the plan (FR-011): the single Reality board, or the Reality column. */
+.dr-page[data-reflection='on'][data-layout='single'] .dr-canvas-card > .ob-timeline-board,
+.rf-compare-col-reality .ob-timeline-board {
+  outline: 2px dashed var(--color-accent-bright);
+  outline-offset: -2px;
+}
+
+.rf-intro {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.rf-intro:empty {
+  display: none;
+}
+
+.rf-start {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* One-line plan vs reality summary (FR-012b). */
+.rf-strip {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+}
+
+.rf-strip-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  flex-wrap: wrap;
+}
+
+.rf-strip-totals {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.rf-strip-arrow {
+  margin: 0 var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.rf-total-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.rf-total-sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.rf-details[open] {
+  flex-basis: 100%;
+}
+
+.rf-counts,
+.rf-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rf-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rf-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.rf-chip-as-planned {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.rf-chip-changed {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+}
+
+.rf-chip-skipped {
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+}
+
+.rf-chip-unplanned {
+  background: var(--color-task-current-bg);
+  color: var(--color-task-current);
+}
+
+.rf-details summary {
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.rf-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.rf-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-2);
+  row-gap: 2px;
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.rf-item-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+}
+
+.rf-item-sub {
+  color: var(--color-text-muted);
+}
+
+.rf-item-times {
+  grid-column: 2;
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Buddy's note at the top of the Buddy chat (FR-017a). */
+.ob-buddy-head-compact {
+  padding: var(--space-3) var(--space-4);
+}
+
+.ob-buddy-head-compact .ob-buddy-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.ob-buddy-head-compact .ob-buddy-subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ob-buddy-top-slot {
+  flex-shrink: 0;
+  max-height: 35%;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+}
+
+.rf-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.rf-note-text,
+.rf-note-empty,
+.rf-note-hint,
+.rf-note-error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.rf-note-text {
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+.rf-note-empty,
+.rf-note-hint {
+  color: var(--color-text-secondary);
+}
+
+.rf-note-error {
+  color: var(--color-danger);
+}
+
+/* Plan | Reality side by side under one toolbar (FR-012, ≥ 1280px). */
+.rf-compare {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rf-compare-toolbar {
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.rf-compare-toolbar .ob-board-toolbar:last-child,
+.rf-compare-toolbar .ob-board-slider-wrap {
+  border-bottom: 0;
+}
+
+.rf-compare-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.rf-compare-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rf-compare-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.rf-compare-title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rf-compare-col-reality .rf-compare-title {
+  color: var(--color-accent-text);
+}
+
+.rf-compare-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Task status pop-up on narrow screens (FR-012a). */
+.rf-popup .ob-modal-header {
+  gap: var(--space-3);
+}
+
+.rf-popup .ob-modal-header h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rf-popup-sub {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.rf-popup-grid {
+  margin: 0 0 var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rf-popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.rf-popup-row dt {
+  color: var(--color-text-muted);
+}
+
+.rf-popup-row dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+@media (max-width: 760px) {
+  .rf-intro {
+    max-height: 35vh;
+  }
+
+  .rf-strip-totals {
+    white-space: normal;
+    flex-wrap: wrap;
+  }
+}

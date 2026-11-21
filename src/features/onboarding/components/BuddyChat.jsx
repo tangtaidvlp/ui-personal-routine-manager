@@ -42,10 +42,14 @@ function createChatMessage(role, text, isError = false) {
  *   tourId?: string,
  *   isHidden?: boolean,
  *   loadHistory?: (before?: number | null) => Promise<import('../types/chatHistory.ts').ChatHistoryPage>,
+ *   topSlot?: import('react').ReactNode,
+ *   compactHeader?: boolean,
  * }} props
  *
  * `loadHistory` (F004): when given, the stored conversation is shown under the greeting
  * (newest page first) and older pages load when the thread is scrolled to the top.
+ * `topSlot` (F007): content pinned between the header and the thread (Buddy's reflection note).
+ * `compactHeader` (F007): a shorter header, to leave room for `topSlot`.
  */
 function BuddyChat({
   title = 'Routine Buddy',
@@ -57,6 +61,8 @@ function BuddyChat({
   tourId,
   isHidden = false,
   loadHistory,
+  topSlot = null,
+  compactHeader = false,
 }) {
   const [prompt, setPrompt] = useState('')
   const inputRef = useRef(null)
@@ -173,7 +179,7 @@ function BuddyChat({
 
   return (
     <aside className="ob-buddy-card" data-tour={tourId} style={isHidden ? { display: 'none' } : undefined}>
-      <div className="ob-buddy-head">
+      <div className={compactHeader ? 'ob-buddy-head ob-buddy-head-compact' : 'ob-buddy-head'}>
         <div className="ob-buddy-icon">
           <SparkIcon />
         </div>
@@ -183,6 +189,7 @@ function BuddyChat({
         </div>
       </div>
 
+      {topSlot ? <div className="ob-buddy-top-slot">{topSlot}</div> : null}
       <div className="ob-buddy-thread" ref={threadRef} onScroll={loadHistory ? handleThreadScroll : undefined}>
         {history.status === 'loading' && (
           <p className="ob-history-status" role="status">Loading earlier messages…</p>
