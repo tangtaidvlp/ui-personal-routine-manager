@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { AuthMode } from '../types/auth.ts'
-import ThemeToggle from '../../../components/ThemeToggle.tsx'
+import ThemeControl from '../../../components/ThemeControl.tsx'
 
 type AuthPageProps = {
   mode: AuthMode
@@ -197,7 +197,7 @@ function AuthPage({
           <Link to="/auth">Home</Link>
           <a href="#about">About</a>
           <a href="#contact">Contact</a>
-          <ThemeToggle />
+          <ThemeControl variant="compact" />
         </nav>
       </header>
 

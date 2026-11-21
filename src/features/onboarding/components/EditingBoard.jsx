@@ -11,12 +11,10 @@ import {
 } from '../utils/boardScroll.ts'
 import { usePalette } from '../../palette/hooks/usePalette.ts'
 import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
+import { useBoardZoom } from '../../settings/hooks/useUserSettings.ts'
 
 const MINUTES_PER_DAY = 1440
 const BASE_BOARD_HEIGHT_PX = 2400
-const ZOOM_MIN = 0.5
-const ZOOM_MAX = 3.0
-const ZOOM_STEP = 0.25
 const SNAP_MINUTES = 5
 const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
@@ -108,7 +106,8 @@ function EditingBoard({
   const [isLive, setIsLive] = useState(true)
   const [hoveredTask, setHoveredTask] = useState(null)
   const [dragState, setDragState] = useState(null)
-  const [zoomLevel, setZoomLevel] = useState(1.0)
+  // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
+  const { zoom: zoomLevel, zoomIn, zoomOut, canZoomIn, canZoomOut } = useBoardZoom()
   const [deleteConfirmTask, setDeleteConfirmTask] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(new Set())
@@ -389,8 +388,8 @@ const [completedTasks, setCompletedTasks] = useState(() => {
             <button
               type="button"
               className="ui-icon-btn"
-              onClick={() => setZoomLevel((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP))}
-              disabled={zoomLevel <= ZOOM_MIN}
+              onClick={zoomOut}
+              disabled={!canZoomOut}
               aria-label="Zoom out"
               title="Zoom out"
             >
@@ -400,8 +399,8 @@ const [completedTasks, setCompletedTasks] = useState(() => {
             <button
               type="button"
               className="ui-icon-btn"
-              onClick={() => setZoomLevel((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP))}
-              disabled={zoomLevel >= ZOOM_MAX}
+              onClick={zoomIn}
+              disabled={!canZoomIn}
               aria-label="Zoom in"
               title="Zoom in"
             >

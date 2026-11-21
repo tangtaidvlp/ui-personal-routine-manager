@@ -8,6 +8,7 @@ export {
   ChevronRightIcon,
   MenuIcon,
   MinusIcon,
+  MonitorIcon,
   MoonIcon,
   PanelLeftIcon,
   PlusIcon,

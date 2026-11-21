@@ -13,6 +13,16 @@ import AppShell from '../components/layout/AppShell.tsx'
 import OnboardingPage from '../features/onboarding/pages/OnboardingPage.jsx'
 import { completeOnboarding } from '../features/onboarding/api/completeOnboarding.ts'
 import AuthContext from '../context/AuthContext.ts'
+import ProfilePage from '../features/profile/pages/ProfilePage.tsx'
+import SettingsSaveNotice from '../features/settings/components/SettingsSaveNotice.tsx'
+import { loadUserSettings, resetUserSettings } from '../features/settings/hooks/useUserSettings.ts'
+
+/** Loads the account's UI settings (theme, board zoom) in the background after any sign-in (specs/F006). */
+function startUserSession(userId: string | undefined) {
+  if (userId) {
+    void loadUserSettings(userId)
+  }
+}
 
 // GET /api/users/{id}/onboarding/complete returns the User entity, whose flag is `onboardCompleted`.
 // Older code read `onboardingCompleted` (always undefined), which sent onboarded users back to /onboarding.
@@ -115,8 +125,10 @@ function App() {
           setUser({
             id: decoded.sub || decoded.userId || decoded.id || '',
             email: decoded.email || decoded.sub || '',
-            name: decoded.name || decoded.username || '',
+            // Display name = username (the JWT `name` claim), else the email (specs/F006 FR-003).
+            name: decoded.name || decoded.email || '',
           })
+          startUserSession(decoded.sub)
         }
 
         // Get user
@@ -150,11 +162,13 @@ function App() {
 
       const data = response as any
       setAccessToken(data.accessToken)
-      setUser(data.user)
+      // Display name = username (`user.name` from the server), else the email (specs/F006 FR-003).
+      setUser(data.user ? { ...data.user, name: data.user.name || data.user.email || '' } : data.user)
 
       // Get user onboarding status before marking logged in, so routing goes straight to the right page
       const decoded = decodeJwt(data.accessToken)
       const userId = decoded?.sub || data.user?.id
+      startUserSession(userId)
       const onboarding = await apiRequest<OnboardingStatus>(`api/users/${userId}/onboarding/complete`, { method: 'GET' })
       setIsOnboardCompleted(isOnboarded(onboarding))
 
@@ -212,6 +226,8 @@ function App() {
   }
 
   const handleLogout = async () => {
+    // Send a pending settings save while the session is still valid, then forget the user (specs/F006 U5).
+    await resetUserSettings()
     try {
       await apiRequest('/api/v1/auth/logout', {
         method: 'POST',
@@ -321,6 +337,7 @@ function App() {
             <Route path="/today" element={<DailyRoutinePage />} />
             <Route path="/default-routine" element={<DefaultRoutinePage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
           {/* Old bookmarks (before F002) */}
           <Route
@@ -333,6 +350,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to={isLoggedIn ? authenticatedTarget : '/auth'} replace />} />
       </Routes>
+      <SettingsSaveNotice />
     </AuthContext.Provider>
   )
 }

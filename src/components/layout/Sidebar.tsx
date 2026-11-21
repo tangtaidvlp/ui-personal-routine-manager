@@ -5,7 +5,7 @@ import { routineTypeForDate, routineTypeLabel } from '../../features/onboarding/
 import { PanelLeftIcon, SparkIcon, XIcon } from '../icons/index.ts'
 import { NAV_ENTRIES } from './navEntries.ts'
 import { SIDEBAR_ID } from './shellContext.ts'
-import ThemeToggle from '../ThemeToggle.tsx'
+import ThemeControl from '../ThemeControl.tsx'
 
 type SidebarProps = {
   user: AuthUser
@@ -26,6 +26,10 @@ function Sidebar({ user, isCollapsed, isMobile, isMobileOpen, onToggleCollapsed,
     if (isMobile && isMobileOpen) firstLinkRef.current?.focus()
   }, [isMobile, isMobileOpen])
 
+  // Display name = username, else email (specs/F006 FR-003).
+  const displayName = user?.name || user?.email || 'You'
+  const initial = displayName.trim().charAt(0).toUpperCase() || '?'
+
   if (isCollapsed && !isMobile) {
     return (
       <aside id={SIDEBAR_ID} className="app-sidebar is-rail">
@@ -39,12 +43,19 @@ function Sidebar({ user, isCollapsed, isMobile, isMobileOpen, onToggleCollapsed,
         >
           <PanelLeftIcon />
         </button>
+        {/* The profile stays one click away with the sidebar collapsed (specs/F006 FR-001, SC-004). */}
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `app-rail-user${isActive ? ' is-active' : ''}`}
+          aria-label="Open profile"
+          title={displayName}
+        >
+          <span className="app-user-avatar" aria-hidden="true">{initial}</span>
+        </NavLink>
       </aside>
     )
   }
 
-  const displayName = user?.name || user?.email || 'You'
-  const initial = displayName.trim().charAt(0).toUpperCase() || '?'
   const todayLabel = routineTypeLabel(routineTypeForDate(new Date()))
   const hiddenOverlay = isMobile && !isMobileOpen
 
@@ -100,14 +111,19 @@ function Sidebar({ user, isCollapsed, isMobile, isMobileOpen, onToggleCollapsed,
           <SparkIcon size={16} />
           <span className="app-nav-label">Replay tour</span>
         </button>
-        <ThemeToggle variant="sidebar" />
-        <div className="app-user">
+        <ThemeControl variant="sidebar" />
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `app-user${isActive ? ' is-active' : ''}`}
+          aria-label="Open profile"
+          onClick={isMobile ? onCloseMobile : undefined}
+        >
           <span className="app-user-avatar" aria-hidden="true">{initial}</span>
           <span className="app-user-text">
             <span className="app-user-name" title={displayName}>{displayName}</span>
             <span className="app-user-sub">{todayLabel}</span>
           </span>
-        </div>
+        </NavLink>
       </div>
     </aside>
   )

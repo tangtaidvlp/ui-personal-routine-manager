@@ -146,6 +146,16 @@ export function SunIcon(props: IconProps) {
   )
 }
 
+/** Follow the device's light/dark setting (theme control "System", F006). */
+export function MonitorIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </Icon>
+  )
+}
+
 /** Dark theme on (theme toggle, shown while light). */
 export function MoonIcon(props: IconProps) {
   return (

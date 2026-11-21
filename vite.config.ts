@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -13,5 +14,12 @@ export default defineConfig({
     host: '0.0.0.0',
     // Disable HMR entirely for tunnels - it never works reliably
     hmr: false
+  },
+  test: {
+    // Logic tests (*.test.ts) run in Node; component tests (*.test.tsx) opt into jsdom
+    // per file with `// @vitest-environment jsdom`. Playwright specs live in e2e/ (pnpm test:e2e).
+    include: ['src/**/*.test.{ts,tsx}'],
+    exclude: ['e2e/**', 'node_modules/**'],
+    setupFiles: ['src/test/setupDom.ts'],
   },
 })

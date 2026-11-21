@@ -8,19 +8,25 @@ Coding rules for this repo (loaded automatically):
 ## Commands
 
 ```bash
-pnpm dev              # Start Vite dev server (HMR, proxy /api → localhost:8080)
+pnpm dev              # Start Vite dev server (calls the backend at localhost:8080 via .env.development)
 pnpm build            # Type-check (tsc -b) then bundle with Vite → dist/
 pnpm build:milos      # Build then copy dist/ → milos-ui-0.0.1/ (for external deploy)
 pnpm lint             # Run oxlint on src/
 pnpm preview          # Preview production build locally
-pnpm test             # Vitest unit tests (pure logic: *.test.ts next to the code)
+pnpm test             # Vitest: logic tests (*.test.ts, Node) + React component tests (*.test.tsx, jsdom)
+pnpm test:e2e         # Playwright, headless Chromium (e2e/); needs backend + `pnpm dev` running
 ```
 
-Tests cover pure logic only (no DOM setup). UI behaviour is checked by hand with the feature's `quickstart.md`.
+Testing has three layers (specs F006, research R9):
+- **Logic** — `*.test.ts` next to the code, run in Node.
+- **React components** — `*.test.tsx` with Testing Library; each file opts into jsdom with `// @vitest-environment jsdom`. `src/test/setupDom.ts` adds jest-dom matchers and cleanup only when a DOM exists.
+- **E2E** — `e2e/*.spec.ts` (Playwright). Start `SPRING_PROFILES_ACTIVE=fast ./gradlew bootRun` in the backend and `pnpm dev`, then `pnpm test:e2e`. First time: `pnpm exec playwright install chromium`. Helpers (`registerAndOnboard`, `signIn`) are in `e2e/helpers.ts`; every run registers a fresh user.
+
+Visual polish is still checked by hand with the feature's `quickstart.md`.
 
 ## Architecture
 
-React 19 SPA with TypeScript, Vite 8, and React Router 7. Flow: **Auth → Onboarding → app shell** (sidebar with Today, Default routine, Analytics). Spec: `specs/.done.F002-ui-refactoring/`.
+React 19 SPA with TypeScript, Vite 8, and React Router 7. Flow: **Auth → Onboarding → app shell** (sidebar with Today, Default routine, Analytics; the user block opens Profile). Spec: `specs/.done.F002-ui-refactoring/`.
 
 ### Route table ([src/app/App.tsx](src/app/App.tsx))
 
@@ -32,10 +38,11 @@ React 19 SPA with TypeScript, Vite 8, and React Router 7. Flow: **Auth → Onboa
 | `/today`           | `DailyRoutinePage`   | Shell route (see below) |
 | `/default-routine` | `DefaultRoutinePage` | Shell route |
 | `/analytics`       | `AnalyticsPage` (placeholder) | Shell route |
+| `/profile`         | `ProfilePage` (`features/profile/`) | Shell route; opened from the sidebar user block, not in `NAV_ENTRIES` |
 | `/dashboard`       | Redirect             | Old bookmarks → `/today` (same guard) |
 | `*`                | Redirect             | Same logic as `/` |
 
-The three shell routes are children of one layout route: `RequireOnboarded` (→ `/auth` or `/onboarding`) wrapping `AppShell` (`src/components/layout/`). `AppShell` renders the sidebar, the page `<Outlet>`, and the "Replay tour" intro slides; pages read `user`, `onLogout`, `isMobile`, etc. with `useShellContext()` and start with `<PageHeader>` (burger on narrow screens, title, actions, Sign out).
+The shell routes are children of one layout route: `RequireOnboarded` (→ `/auth` or `/onboarding`) wrapping `AppShell` (`src/components/layout/`). `AppShell` renders the sidebar, the page `<Outlet>`, and the "Replay tour" intro slides; pages read `user`, `onLogout`, `isMobile`, etc. with `useShellContext()` and start with `<PageHeader>` (burger on narrow screens, title, actions, Sign out).
 
 Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHub Pages always serves `index.html`.
 
@@ -61,6 +68,8 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
 - **Board live clock** — `EditingBoard` has a `liveClock` prop (default `true`). The setup screen passes `liveClock={false}`: no clock readout, Pause/Resume, slider, now-line, current-task highlight or Now/Next footer, and the board opens at 06:00 (again on each Weekday/Weekend switch; zoom keeps the top time in place). The Today page keeps the live clock: the board scrolls to now **once per mount**; clock ticks, Pause/Resume, the slider, zoom, saves and date changes never move the view (zoom keeps the top time in place in both modes; specs F005). Spec `specs/.done.003-onboarding-time-live-off/`.
 - **walkthrough** — intro slides + guided tour (`features/walkthrough/`, spec `specs/.done.002-onboarding-instruction/`). `OnboardingPage` opens it on every visit until onboarding is done; "How it works" replays it there. After onboarding, "Replay tour" in the sidebar replays the slides only. Text lives in `content/walkthroughContent.ts`, mirrored from `walkthrough-script.md`. The tour finds its targets by `data-tour="…"` attributes on the setup screen (it uses the first *visible* match, so `add-task` sits on both the "+ Add task" header button and the phone FAB); search for `data-tour=` before renaming or restructuring those elements.
 - **default routine editor** — `features/onboarding/components/DefaultRoutineEditor.tsx` + `hooks/useDefaultRoutines.ts` hold the Weekday/Weekend editing (load/save errors, task modal). `OnboardingPage` adds Buddy chat, "Ready to roll" and the tour; `features/default-routine/pages/DefaultRoutinePage.tsx` adds Buddy chat (one per tab, `features/default-routine/api/defaultRoutineChat.ts`) without the finish step.
+- **profile (F006)** — `features/profile/pages/ProfilePage.tsx`: Account (name = username, else email; read-only), Plan (`GET /api/v1/users/{id}/profile`; everyone is "Free plan"), Preferences (`ThemeControl variant="full"` + board zoom stepper) and Sign out. A failed profile load still shows what sign-in knew. The sidebar user block is a `NavLink` to `/profile` ("Open profile"), and the collapsed rail shows the avatar as the same link.
+- **account settings (F006)** — `features/settings/`: `hooks/useUserSettings.ts` is a module-level store. `App.tsx` calls `loadUserSettings(userId)` after login and after the silent refresh (`startUserSession`), and `await resetUserSettings()` first in logout (sends a pending save while the session is valid). Theme and the **one shared board zoom** (`useBoardZoom()`, used by `EditingBoard` on Today, Default routine and Onboarding) are saved via `PATCH /api/v1/users/{id}/settings`; theme saves at once, zoom after 500 ms (pending zoom is also sent on `pagehide` with `keepalive`). Changes made while settings load win over the loaded values. A failed save keeps the value and shows `SettingsSaveNotice` (rendered once in `App.tsx`); a failed load falls back quietly. Known keys and defaults live in `utils/settingsSchema.ts` (mirror of the backend registry) — add a preference there and in the backend, no DB change.
 - **sidebar** — shown on wide screens by default; the hidden/shown choice is stored in `localStorage["milos.sidebar.collapsed"]` (`components/layout/sidebarPreference.ts`). At ≤ 760px it opens from a burger as an overlay (closes on pick, backdrop, Escape).
 - **daily** — "Clean up" and "+ Add task" sit in the board toolbar (`EditingBoard` `toolbarActions` prop); the board footer shows Now/Next (`features/daily/utils/nowAndNext.ts`). "Clean up" deletes all tasks for the current date. On first access to a non-today date, `ensureDailyRoutine` lazily creates the routine (cloning from the user's default routine).
 
@@ -84,15 +93,15 @@ Both `OnboardingPage` and `DailyRoutinePage` use a `mobileView` state (`'board'`
 - `RoutineTask` (onboarding) and `DailyTask` (daily) both have `color?: string | null` — a backend palette id (e.g. `green`, follows the theme) or an exact `#RRGGBB`. Omit it on create and the server assigns the next round-robin palette color; routines expose that as `nextColor`. A null color on update keeps the stored one (specs F005).
 - `DailyTask` adds `completed: boolean` — tasks track completion state. The server computes `endTime` from `startTime + durationMinutes` in both types; never send it in create/update requests.
 
-### Dev proxy ([vite.config.ts](vite.config.ts))
+### Dev server ([vite.config.ts](vite.config.ts))
 
-Vite proxies `/api` → `http://localhost:8080` and strips `www-authenticate` headers on 401 responses to prevent browser native auth dialogs. The `base` path is set to `/milos.github.io/` for GitHub Pages asset URLs.
+There is no `/api` proxy: `.env.development` sets `VITE_API_BASE_URL=http://localhost:8080`, so `apiRequest('/api/v1/...')` calls the backend directly (the backend's `fast`/`local` CORS config allows `localhost:5173`). `base` is `/`. `vite.config.ts` also holds the Vitest config (`test.include`, `setupFiles`).
 
 ### Styling
 
-Plain CSS, no framework. **All colours, spacing, radius, shadow and type values come from `src/styles/tokens.css`** (primitives + semantic tokens; spec `specs/.done.F002-ui-refactoring/contracts/style-tokens.md`). Use semantic tokens (`var(--color-accent)`, `var(--color-text-secondary)`, …) everywhere else — **never a raw hex/rgb value**. `src/styles/noRawColors.test.ts` fails on any literal outside `tokens.css` (allowlist: brand logos in `AuthPage.tsx`, the `<input type="color">` default in `PaletteSwatches.tsx`); `src/styles/contrast.test.ts` checks WCAG contrast of the token pairs in **both themes**. Shared classes live in `src/styles/base.css` with a `ui-` prefix (`.ui-btn`, `.ui-btn-primary`, `.ui-icon-btn`, `.ui-card`, `.ui-pill`, `.ui-segmented`). **Light/dark theme (F005)**: `tokens.css` holds light values in `:root` and a `:root[data-theme="dark"]` block that overrides tier-2 semantic tokens only — never style per theme anywhere else except task-card/swatch palette variables. `<html data-theme>` is set before first paint by the inline script in `index.html` and kept in sync by `src/theme/useTheme.ts` (module-level store); the per-device choice is `localStorage["milos.theme"]` (`src/theme/themePreference.ts`; absent = follow the OS). `components/ThemeToggle.tsx` sits in the sidebar footer, the auth header and the onboarding top bar. **Task colors** come from the backend palette (`features/palette/`: `usePalette()` fetches `GET /api/v1/task-palette` once per session; `resolveTaskColor()` turns a task's `color` into `--task-accent-light/-dark` and `--task-bg-light/-dark` inline variables, and `.ob-board-task` / `.ob-swatch` pick the pair for the current theme). There are no `--color-task-N-*` tokens any more; an unresolved color falls back to the neutral card style. Page CSS: `src/App.css` (`.ob-*` onboarding/board/buddy, `.drt-*` default routine, `.dr-*` daily, `.wt-*` walkthrough) and `src/components/layout/AppShell.css` (shell, sidebar, page header). Font: Poppins.
+Plain CSS, no framework. **All colours, spacing, radius, shadow and type values come from `src/styles/tokens.css`** (primitives + semantic tokens; spec `specs/.done.F002-ui-refactoring/contracts/style-tokens.md`). Use semantic tokens (`var(--color-accent)`, `var(--color-text-secondary)`, …) everywhere else — **never a raw hex/rgb value**. `src/styles/noRawColors.test.ts` fails on any literal outside `tokens.css` (allowlist: brand logos in `AuthPage.tsx`, the `<input type="color">` default in `PaletteSwatches.tsx`); `src/styles/contrast.test.ts` checks WCAG contrast of the token pairs in **both themes**. Shared classes live in `src/styles/base.css` with a `ui-` prefix (`.ui-btn`, `.ui-btn-primary`, `.ui-icon-btn`, `.ui-card`, `.ui-pill`, `.ui-segmented`). **Light/dark theme (F005)**: `tokens.css` holds light values in `:root` and a `:root[data-theme="dark"]` block that overrides tier-2 semantic tokens only — never style per theme anywhere else except task-card/swatch palette variables. `<html data-theme>` is set before first paint by the inline script in `index.html` and kept in sync by `src/theme/useTheme.ts` (module-level store: `setThemePreference` = user choice, saved to the account when signed in; `applyThemeFromAccount` = loaded value, not saved back). **Theme is account-level (F006)**: `light` / `dark` / `system`. `localStorage["milos.theme"]` is only the device cache for the boot script and signed-out screens (`light`/`dark`, absent = system; encoding unchanged, so `index.html` needs no change). `localStorage["milos.theme.migrated"]` marks that this device already did its one-time copy of a pre-F006 theme to the first account that signed in (`shouldMigrateDeviceTheme`). `components/ThemeControl.tsx` (Light / Dark / System radiogroup; variants `sidebar`, `compact`, `full`) sits in the sidebar footer, the auth header, the onboarding top bar and Profile. **Task colors** come from the backend palette (`features/palette/`: `usePalette()` fetches `GET /api/v1/task-palette` once per session; `resolveTaskColor()` turns a task's `color` into `--task-accent-light/-dark` and `--task-bg-light/-dark` inline variables, and `.ob-board-task` / `.ob-swatch` pick the pair for the current theme). There are no `--color-task-N-*` tokens any more; an unresolved color falls back to the neutral card style. Page CSS: `src/App.css` (`.ob-*` onboarding/board/buddy, `.drt-*` default routine, `.dr-*` daily, `.wt-*` walkthrough) and `src/components/layout/AppShell.css` (shell, sidebar, page header). Font: Poppins.
 
-Test files are type-checked by `tsconfig.test.json` (adds Node types); `tsconfig.app.json` excludes `*.test.ts`.
+Test files are type-checked by `tsconfig.test.json` (adds Node + jest-dom types; includes `*.test.tsx`, `src/test/`, `e2e/`); `tsconfig.app.json` excludes them.
 
 ## Deployment
 

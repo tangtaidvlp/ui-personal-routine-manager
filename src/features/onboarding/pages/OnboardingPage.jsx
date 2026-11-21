@@ -8,7 +8,7 @@ import { useWalkthrough } from '../../walkthrough/hooks/useWalkthrough.ts'
 import IntroSlides from '../../walkthrough/components/IntroSlides.tsx'
 import GuidedTour from '../../walkthrough/components/GuidedTour.tsx'
 import HowItWorksButton from '../../walkthrough/components/HowItWorksButton.tsx'
-import ThemeToggle from '../../../components/ThemeToggle.tsx'
+import ThemeControl from '../../../components/ThemeControl.tsx'
 
 const BUDDY_GREETING =
   'Hi! I\'m your Routine Buddy. Tell me about your day, like "I wake up at 7:00 and work 9 to 5", and I\'ll build the routine. Or tap + to add tasks yourself.'
@@ -45,7 +45,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
           <BrandMark />
           <div className="ob-top-actions">
             <HowItWorksButton onClick={() => walkthrough.open('onboarding')} />
-            <ThemeToggle />
+            <ThemeControl variant="compact" />
             {switcher}
             <button type="button" className="ui-btn ui-btn-primary ob-ready-btn" onClick={onComplete} data-tour="finish">
               {isCompleting ? 'Saving...' : 'Ready to roll'}
