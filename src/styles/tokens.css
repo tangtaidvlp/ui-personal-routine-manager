@@ -1,11 +1,11 @@
 /*
- * Milos design tokens (specs/F002-ui-refactoring/contracts/style-tokens.md).
+ * Milos design tokens (specs/.done.F002-ui-refactoring/contracts/style-tokens.md).
  *
  * The ONLY file allowed to contain raw colour values. Everything else uses the
  * semantic tier (tier 2) through var(--…). Enforced by src/styles/noRawColors.test.ts;
  * text contrast is checked by src/styles/contrast.test.ts.
  *
- * Values sampled from specs/F002-ui-refactoring/resources/Sidebar-Design.png.
+ * Values sampled from specs/.done.F002-ui-refactoring/resources/Sidebar-Design.png.
  *
  * Dark theme (specs/F005-i-want-color-to-be-persisted): the :root[data-theme="dark"] block
  * below redefines tier-2 semantic tokens only; values from that spec's
@@ -60,6 +60,7 @@
   --color-grey-50: #F6F7F9;
   --color-grey-300: #AAB3BF;
   --color-yellow-400: #FFC94A;
+  --color-yellow-500: #E9AE2C;
 
   --color-alpha-ink-08: rgba(17, 24, 39, 0.08);
   --color-alpha-ink-12: rgba(17, 24, 39, 0.12);
@@ -126,6 +127,8 @@
   --color-accent-subtle: var(--color-blue-75);
   --color-accent-bright: var(--color-blue-300);
   --color-highlight: var(--color-yellow-400);
+  /* Text on --color-highlight: always dark, in both themes (white on yellow is ~1.6:1). */
+  --color-text-on-highlight: var(--color-ink-950);
 
   /* Status */
   --color-danger: var(--color-red-600);
@@ -233,6 +236,8 @@
   --color-accent-soft: var(--color-blue-dark-soft);
   --color-accent-text: var(--color-blue-dark-text);
   --color-accent-subtle: var(--color-ink-875);
+  /* Deeper amber so the yellow doesn't glare on the dark surfaces */
+  --color-highlight: var(--color-yellow-500);
 
   /* Status */
   --color-danger: var(--color-red-dark-400);

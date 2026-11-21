@@ -1,6 +1,6 @@
 /**
  * Types for the onboarding walkthrough (intro slides + guided tour).
- * Spec: specs/002-onboarding-instruction/data-model.md §3–§4.
+ * Spec: specs/.done.002-onboarding-instruction/data-model.md §3–§4.
  */
 
 /** Where the walkthrough was opened: the setup screen (slides + tour) or the main app (slides only). */

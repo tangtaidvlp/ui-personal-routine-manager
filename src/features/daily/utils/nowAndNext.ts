@@ -1,4 +1,4 @@
-/** "Now … / Next …" footer of the live board (specs/F002-ui-refactoring data-model §5). */
+/** "Now … / Next …" footer of the live board (specs/.done.F002-ui-refactoring data-model §5). */
 
 const MINUTES_PER_DAY = 1440
 

@@ -18,7 +18,7 @@ export type SidebarState = {
   closeMobile: () => void
 }
 
-/** Sidebar state machine (specs/F002-ui-refactoring data-model §3). */
+/** Sidebar state machine (specs/.done.F002-ui-refactoring data-model §3). */
 export function useSidebar(): SidebarState {
   const [isMobile, setIsMobile] = useState(matchesMobile)
   const [isCollapsed, setIsCollapsed] = useState(() => readSidebarCollapsed(safeLocalStorage()))

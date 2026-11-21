@@ -344,6 +344,16 @@
   outline: none;
 }
 
+/* Browser autofill paints its own field colour inside the wrapper (a lighter box with a gap on the right).
+   Keep the field transparent and the text themed; the long transition stops the autofill background showing. */
+.input-field input:-webkit-autofill,
+.input-field input:-webkit-autofill:hover,
+.input-field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text-primary);
+  caret-color: var(--color-text-primary);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
 .input-field input::placeholder {
   color: var(--color-text-placeholder);
 }
@@ -403,7 +413,7 @@
 .link-signup {
   display: inline-block;
   background: var(--color-highlight);
-  color: var(--color-text-primary);
+  color: var(--color-text-on-highlight);
   border: none;
   border-radius: var(--radius-sm);
   padding: 4px 14px;
@@ -414,8 +424,7 @@
 }
 
 .link-signup:hover {
-  background: var(--color-highlight);
-  color: var(--color-text-on-accent);
+  background: color-mix(in srgb, var(--color-highlight) 88%, var(--color-text-on-highlight));
 }
 
 .link-inline {
@@ -1859,7 +1868,7 @@
 
 }
 
-/* ── Walkthrough: intro slides (specs/002-onboarding-instruction, mockups D · Slide 1–4) ── */
+/* ── Walkthrough: intro slides (specs/.done.002-onboarding-instruction, mockups D · Slide 1–4) ── */
 .wt-backdrop {
   position: fixed;
   inset: 0;
@@ -2190,7 +2199,7 @@
   }
 }
 
-/* ── Onboarding: board subtitle + routine load/save error (specs/002-onboarding-instruction) ── */
+/* ── Onboarding: board subtitle + routine load/save error (specs/.done.002-onboarding-instruction) ── */
 .ob-card-subtitle {
   margin: 4px 0 0;
   font-size: 12px;

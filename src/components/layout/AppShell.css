@@ -1,4 +1,4 @@
-/* ── App shell + sidebar (specs/F002-ui-refactoring, contracts/ui-shell.md). Tokens only. ── */
+/* ── App shell + sidebar (specs/.done.F002-ui-refactoring, contracts/ui-shell.md). Tokens only. ── */
 
 .app-shell {
   display: grid;

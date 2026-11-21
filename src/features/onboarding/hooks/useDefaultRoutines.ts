@@ -16,8 +16,8 @@ type Routines = Record<ScheduleTab, DefaultRoutine | null>
 
 /**
  * Weekday + Weekend default routines with load/save error handling (extracted from the
- * onboarding page for reuse on the Default Routine page — specs/F002-ui-refactoring R6).
- * Weekday and Weekend are separate default routines (specs/002-onboarding-instruction, decision D2).
+ * onboarding page for reuse on the Default Routine page — specs/.done.F002-ui-refactoring R6).
+ * Weekday and Weekend are separate default routines (specs/.done.002-onboarding-instruction, decision D2).
  */
 export function useDefaultRoutines(userId: string | undefined) {
   const [scheduleMode, setScheduleMode] = useState<ScheduleTab>('weekday')

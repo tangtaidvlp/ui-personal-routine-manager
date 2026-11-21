@@ -1,4 +1,4 @@
-/** WCAG 2.x contrast helpers used to check the design tokens (specs/F002-ui-refactoring, R3). */
+/** WCAG 2.x contrast helpers used to check the design tokens (specs/.done.F002-ui-refactoring, R3). */
 
 export type Rgb = [number, number, number]
 

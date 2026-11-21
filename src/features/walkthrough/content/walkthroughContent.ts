@@ -1,6 +1,6 @@
 /**
- * Mirrors specs/002-onboarding-instruction/walkthrough-script.md; edit the script first.
- * Layout reference: specs/002-onboarding-instruction/resources/ (D · Slide 1–4, D · Tour 1–5).
+ * Mirrors specs/.done.002-onboarding-instruction/walkthrough-script.md; edit the script first.
+ * Layout reference: specs/.done.002-onboarding-instruction/resources/ (D · Slide 1–4, D · Tour 1–5).
  */
 import type { SlideContent, TourStepContent } from '../types/walkthrough.ts'
 

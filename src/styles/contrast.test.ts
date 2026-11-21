@@ -20,7 +20,7 @@ describe('contrast maths', () => {
   })
 })
 
-// Pairs from specs/F002-ui-refactoring/contracts/style-tokens.md "Contrast pairs" (FR-019).
+// Pairs from specs/.done.F002-ui-refactoring/contracts/style-tokens.md "Contrast pairs" (FR-019).
 const css = readFileSync(fileURLToPath(new URL('./tokens.css', import.meta.url)), 'utf8')
 const THEMES = { light: readThemeTokens(css, 'light'), dark: readThemeTokens(css, 'dark') }
 
@@ -30,6 +30,7 @@ const AA_PAIRS: [string, string][] = [
   ['--color-text-on-accent', '--color-accent'],
   ['--color-accent-text', '--color-accent-soft'],
   ['--color-danger', '--color-bg-surface'],
+  ['--color-text-on-highlight', '--color-highlight'],
   // Task-card backgrounds come from the backend palette (specs/F005); their contrast is checked by
   // TaskPaletteContrastTest in ms-personal-routine-manager.
 ]

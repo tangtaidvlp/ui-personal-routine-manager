@@ -3,7 +3,7 @@ import type { RoutineType } from '../api/defaultRoutine.ts'
 /**
  * Which default routine a calendar date uses: Saturday and Sunday → WEEKEND, every other day → DAILY.
  * Mirrors the server rule in ms-personal-routine-manager `DefaultRoutineService` (the
- * `date.getDayOfWeek() >= SATURDAY` check) — keep the two in step (specs/F002-ui-refactoring, R9).
+ * `date.getDayOfWeek() >= SATURDAY` check) — keep the two in step (specs/.done.F002-ui-refactoring, R9).
  */
 export function routineTypeForDate(date: Date): RoutineType {
   const day = date.getDay() // 0 = Sunday … 6 = Saturday

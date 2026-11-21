@@ -1,4 +1,4 @@
-/** Wide-screen sidebar shown/hidden choice, kept per device (specs/F002-ui-refactoring data-model §2). */
+/** Wide-screen sidebar shown/hidden choice, kept per device (specs/.done.F002-ui-refactoring data-model §2). */
 
 export const SIDEBAR_COLLAPSED_KEY = 'milos.sidebar.collapsed'
 

@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { BarChartIcon, CalendarIcon, RepeatIcon, type IconProps } from '../icons/index.ts'
 
-/** One sidebar item (specs/F002-ui-refactoring data-model §1). Order is fixed (FR-002). */
+/** One sidebar item (specs/.done.F002-ui-refactoring data-model §1). Order is fixed (FR-002). */
 export type NavEntry = {
   id: 'today' | 'default-routine' | 'analytics'
   label: string

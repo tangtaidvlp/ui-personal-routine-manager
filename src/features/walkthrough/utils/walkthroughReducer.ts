@@ -14,7 +14,7 @@ const LAST_STEP = (TOUR_STEP_COUNT - 1) as TourIndex
 /**
  * Every navigation rule for the intro slides and guided tour.
  * Pure: no side effects, no storage, no API calls (FR-014).
- * Transition table: specs/002-onboarding-instruction/data-model.md §3.
+ * Transition table: specs/.done.002-onboarding-instruction/data-model.md §3.
  */
 export function walkthroughReducer(state: WalkthroughState, event: WalkthroughEvent): WalkthroughState {
   if (event.type === 'OPEN') {
