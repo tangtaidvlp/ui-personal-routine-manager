@@ -31,3 +31,24 @@ Existing features use `api/`, `components/`, `pages/`, and `types/`. Create `hoo
 
 ### Libs usage
 Always use the lib/api.ts
+
+## 2. React 19 & TypeScript
+- New files are `.tsx`/`.ts` with strict types; no `any` without a comment saying why. Convert a `.jsx` file when you substantially change it.
+- Keep state where it's used. Compute derived values during render instead of storing them in `useState`.
+- Use `useEffect` only to sync with something outside React (timers, subscriptions, DOM APIs), not to derive state or chain updates.
+- For forms and mutations, prefer React 19 Actions / `useTransition` / `useActionState` so pending and error states are explicit.
+- Server data is fetched through the feature's `api/` module; show loading and error states, never a silent empty state.
+- Never put tokens in `localStorage`/`sessionStorage`; the access token lives in memory only.
+- Render AI (Buddy) output as text or sanitised markdown; never use `dangerouslySetInnerHTML` with it.
+
+## 3. Accessibility (WCAG 2.2 AA)
+- Use semantic elements (`button`, `nav`, `main`, `label`) before ARIA; every control has an accessible name.
+- Everything works with the keyboard, and focus is always visible and not hidden behind sticky headers or overlays.
+- Anything done by dragging also has a non-drag way (button or form).
+- Click/tap targets are at least 24×24 CSS px.
+- Colours come from tokens only; the contrast tests must pass in both themes.
+- Layouts work from 320px wide without horizontal scrolling.
+
+## 4. Tests
+- Test what the user sees: query by role, label or text (Testing Library), not by class names or internals.
+- Every bug fix starts with a failing test.
