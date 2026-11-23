@@ -19,6 +19,14 @@ export async function ensureDailyRoutine(userId: string, date: string): Promise<
   )
 }
 
+/** Reset day (specs/F012): replace the day's tasks with a fresh copy of its default routine. Past days → 400. */
+export async function resetDailyRoutine(userId: string, date: string): Promise<void> {
+  await apiRequest<void>(
+    `/api/routine-manager/daily-routine/${userId}/${date}/reset`,
+    { method: 'POST' },
+  )
+}
+
 export async function createDailyTasks(routineId: string, tasks: DailyTask[]): Promise<DailyTask[]> {
   return apiRequest<DailyTask[]>(
     `/api/routine-manager/daily-routine/${routineId}/tasks`,

@@ -101,3 +101,65 @@ test('today board: an overnight task is one task in two parts', async ({ page })
   await expect(page.getByRole('dialog')).toHaveCount(1)
   await expect(page.getByRole('dialog').getByPlaceholder('e.g. Morning walk')).toHaveValue('Sleep')
 })
+
+// F012 (specs/F012-make-reset-day-reset-to-default-routine): Reset day replaces the plan with the default routine.
+test('today board: Reset day replaces the day with the default routine after confirming', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+
+  // Give the Weekday routine one task and copy it to the Weekend, so Today resets to it on any day
+  // of the week. Today was already created from the empty routine.
+  await page.goto('#/default-routine')
+  const routineCard = page.locator('.ob-canvas-card')
+  await routineCard.locator('.ob-card-header').getByRole('button', { name: '+ Add task' }).click()
+  let dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Template walk')
+  await dialog.locator('input[type="time"]').fill('07:00')
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog).toBeHidden()
+  // No Reset day on setup boards (FR-009).
+  await expect(page.getByRole('button', { name: 'Reset day' })).toHaveCount(0)
+
+  // Copy Weekday to Weekend (US2): confirm, then the Weekend tab shows the Weekday task.
+  await routineCard.locator('.ob-board-tools-inline').getByRole('button', { name: 'Copy Weekday to Weekend' }).click()
+  const copyConfirm = page.getByRole('alertdialog')
+  await copyConfirm.getByRole('button', { name: 'Copy' }).click()
+  await expect(copyConfirm).toBeHidden()
+  await page.getByRole('tab', { name: 'Weekend' }).click()
+  await expect(routineCard.getByText('Template walk').first()).toBeVisible()
+
+  await page.goto('#/today')
+  const board = page.locator('.dr-canvas-card')
+  const toolbar = board.locator('.ob-board-toolbar')
+  await board.getByRole('button', { name: '+ Add task' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Day only')
+  await dialog.locator('input[type="time"]').fill('12:00')
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog).toBeHidden()
+  await expect(board.getByText('Day only', { exact: true })).toBeVisible()
+
+  // Cancel (Escape) changes nothing and gives focus back to the button.
+  const resetButton = toolbar.locator('.ob-board-tools-inline').getByRole('button', { name: 'Reset day' })
+  await resetButton.click()
+  const confirm = page.getByRole('alertdialog')
+  await expect(confirm).toContainText('fresh copy of your default routine')
+  await page.keyboard.press('Escape')
+  await expect(confirm).toBeHidden()
+  await expect(resetButton).toBeFocused()
+  await expect(board.getByText('Day only', { exact: true })).toBeVisible()
+
+  // Confirm: the day becomes the Weekday routine, also after a reload.
+  await resetButton.click()
+  await confirm.getByRole('button', { name: 'Reset day' }).click()
+  await expect(confirm).toBeHidden()
+  await expect(board.getByText('Day only', { exact: true })).toHaveCount(0)
+  await expect(board.getByText('Template walk', { exact: true }).first()).toBeVisible()
+  await page.reload()
+  await expect(board.getByText('Template walk', { exact: true }).first()).toBeVisible()
+  await expect(board.getByText('Day only', { exact: true })).toHaveCount(0)
+
+  // Past days can't be reset.
+  await page.getByRole('button', { name: 'Previous day' }).click()
+  await expect(resetButton).toBeDisabled()
+})

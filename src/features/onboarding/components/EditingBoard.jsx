@@ -75,9 +75,9 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
  *
  * Side by side (F007 R11/R12), a parent can share one toolbar between boards:
  * `showToolbar` false hides this board's toolbar; `clock` (from useBoardClock) replaces
- * the board's own clock; `gapClearMode` replaces its own Gap clear state; `resetSignal` clears the
- * local completion state whenever it changes (the shared "Reset day"); `scrollContainerRef`
+ * the board's own clock; `gapClearMode` replaces its own Gap clear state; `scrollContainerRef`
  * receives the scrolling element (for scroll sync).
+ * `onResetDay` / `resetDisabled` (F012) go to the toolbar; without `onResetDay` there is no Reset day.
  * `showCompletion` (default true) false hides the "Mark as done" checks (F007 Reality board).
  *
  * @param {{
@@ -95,7 +95,8 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
  *   showToolbar?: boolean,
  *   clock?: import('../hooks/useBoardClock.ts').BoardClock,
  *   gapClearMode?: boolean,
- *   resetSignal?: number,
+ *   onResetDay?: () => void,
+ *   resetDisabled?: boolean,
  *   scrollContainerRef?: (element: HTMLElement | null) => void,
  *   showCompletion?: boolean,
  * }} props
@@ -115,7 +116,8 @@ function EditingBoard({
   showToolbar = true,
   clock: sharedClock,
   gapClearMode: sharedGapClearMode,
-  resetSignal,
+  onResetDay,
+  resetDisabled = false,
   scrollContainerRef,
   showCompletion = true,
 }) {
@@ -233,20 +235,6 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       [index]: !current[index],
     }))
   }
-
-  const handleResetSchedule = () => {
-    setCompletedTasks({})
-  }
-
-  // Shared "Reset day" (side by side): clear local completion state when the signal changes.
-  const lastResetSignalRef = useRef(resetSignal)
-  useEffect(() => {
-    if (lastResetSignalRef.current === resetSignal) {
-      return
-    }
-    lastResetSignalRef.current = resetSignal
-    setCompletedTasks({})
-  }, [resetSignal])
 
   const handleTrackClick = (event) => {
     if (ignoreTrackClickRef.current) {
@@ -416,7 +404,8 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           clock={liveClock ? clock : null}
           gapClearMode={gapClearMode}
           onToggleGapClear={() => setGapClearMode(!gapClearMode)}
-          onResetDay={handleResetSchedule}
+          onResetDay={onResetDay}
+          resetDisabled={resetDisabled}
           actions={toolbarActions}
           menuActions={toolbarMenuActions}
         />

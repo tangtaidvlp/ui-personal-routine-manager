@@ -21,13 +21,23 @@ const formatClock = (minutes) => {
  *   clock?: import('../hooks/useBoardClock.ts').BoardClock | null,
  *   gapClearMode: boolean,
  *   onToggleGapClear: () => void,
- *   onResetDay: () => void,
+ *   onResetDay?: () => void,
+ *   resetDisabled?: boolean,
  *   actions?: import('react').ReactNode,
  *   menuActions?: import('react').ReactNode,
  * }} props
  * `clock` null/undefined = no live clock (setup board): no readout.
+ * `onResetDay` absent = no Reset day button (setup boards, F012 FR-009); `resetDisabled` greys it out (past days).
  */
-function BoardToolbar({ clock = null, gapClearMode, onToggleGapClear, onResetDay, actions = null, menuActions = null }) {
+function BoardToolbar({
+  clock = null,
+  gapClearMode,
+  onToggleGapClear,
+  onResetDay,
+  resetDisabled = false,
+  actions = null,
+  menuActions = null,
+}) {
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
   const { zoom: zoomLevel, zoomIn, zoomOut, canZoomIn, canZoomOut } = useBoardZoom()
 
@@ -65,9 +75,16 @@ function BoardToolbar({ clock = null, gapClearMode, onToggleGapClear, onResetDay
       >
         {gapClearMode ? '✓ Gap clear' : 'Gap clear'}
       </button>
-      <button type="button" className="ui-btn ui-btn-ghost ob-board-btn-secondary" onClick={onResetDay}>
-        Reset day
-      </button>
+      {onResetDay && (
+        <button
+          type="button"
+          className="ui-btn ui-btn-ghost ob-board-btn-secondary"
+          onClick={onResetDay}
+          disabled={resetDisabled}
+        >
+          Reset day
+        </button>
+      )}
       {menuActions}
     </>
   )

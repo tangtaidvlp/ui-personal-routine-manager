@@ -13,3 +13,10 @@ export async function fetchDefaultRoutine(userId: string, type: RoutineType): Pr
     method: 'GET',
   })
 }
+
+/** Copy Weekday to Weekend (specs/F012): the Weekend routine's tasks become copies of the Weekday ones. */
+export async function copyWeekdayToWeekend(userId: string): Promise<void> {
+  await apiRequest<void>(`/api/v1/default-routine/users/${userId}/copy-weekday-to-weekend`, {
+    method: 'POST',
+  })
+}
