@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { registerAndOnboard } from './helpers.ts'
 
 /**
- * F007 daily reflection (specs/F007-reflection/quickstart.md scenarios 1, 2, 4, 6 and 9–13):
+ * F007 daily reflection (specs/.done.F007-reflection/quickstart.md scenarios 1, 2, 4, 6 and 9–13):
  * the "Reflection" toggle, the single board below 1280px (with the task pop-up) and the
  * Plan | Reality boards side by side from 1280px.
  */

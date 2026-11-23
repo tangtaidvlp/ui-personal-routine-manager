@@ -7,7 +7,7 @@
  *
  * Values sampled from specs/.done.F002-ui-refactoring/resources/Sidebar-Design.png.
  *
- * Dark theme (specs/F005-i-want-color-to-be-persisted): the :root[data-theme="dark"] block
+ * Dark theme (specs/.done.F005-i-want-color-to-be-persisted): the :root[data-theme="dark"] block
  * below redefines tier-2 semantic tokens only; values from that spec's
  * resources/dark-theme-palette.md. <html data-theme> is set by src/theme/ and index.html.
  * Task-card colours are not tokens: they come from the backend palette.

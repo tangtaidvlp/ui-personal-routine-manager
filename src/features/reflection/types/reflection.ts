@@ -1,4 +1,4 @@
-/** F007 daily reflection — mirrors specs/F007-reflection/contracts/reflection-api.md. */
+/** F007 daily reflection — mirrors specs/.done.F007-reflection/contracts/reflection-api.md. */
 
 /** One thing the user actually did. `plannedTaskId` null = unplanned. */
 export type ReflectionTask = {
