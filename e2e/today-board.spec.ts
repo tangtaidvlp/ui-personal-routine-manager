@@ -102,7 +102,7 @@ test('today board: an overnight task is one task in two parts', async ({ page })
   await expect(page.getByRole('dialog').getByPlaceholder('e.g. Morning walk')).toHaveValue('Sleep')
 })
 
-// F012 (specs/F012-make-reset-day-reset-to-default-routine): Reset day replaces the plan with the default routine.
+// F012 (specs/.done.F012-make-reset-day-reset-to-default-routine): Reset day replaces the plan with the default routine.
 test('today board: Reset day replaces the day with the default routine after confirming', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await registerAndOnboard(page)
