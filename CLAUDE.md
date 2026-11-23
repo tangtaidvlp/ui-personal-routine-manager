@@ -17,10 +17,27 @@ pnpm test             # Vitest: logic tests (*.test.ts, Node) + React component 
 pnpm test:e2e         # Playwright, headless Chromium (e2e/); needs backend + `pnpm dev` running
 ```
 
-Testing has three layers (specs F006, research R9):
-- **Logic** — `*.test.ts` next to the code, run in Node.
-- **React components** — `*.test.tsx` with Testing Library; each file opts into jsdom with `// @vitest-environment jsdom`. `src/test/setupDom.ts` adds jest-dom matchers and cleanup only when a DOM exists.
-- **E2E** — `e2e/*.spec.ts` (Playwright). Start `SPRING_PROFILES_ACTIVE=fast ./gradlew bootRun` in the backend and `pnpm dev`, then `pnpm test:e2e`. First time: `pnpm exec playwright install chromium`. Helpers (`registerAndOnboard`, `signIn`) are in `e2e/helpers.ts`; every run registers a fresh user.
+## Testing strategy
+
+Testing Trophy: let types and lint catch the cheap bugs, unit-test the logic, and cover the core journeys with a few Playwright tests. Add component tests only where the UI itself has logic. The suite is a guardrail so that a change (including one Claude makes) can't silently break an existing feature. It is not a coverage exercise. Constitution Principle II has the summary.
+
+| Layer | What | Where / tool | Command |
+|---|---|---|---|
+| Static | Typos, wrong props, broken imports | Strict TypeScript (`tsc -b`), oxlint | `pnpm build`, `pnpm lint` |
+| Unit | Every pure function, reducer, schema or transformer, with its edge cases (empty, null, zero, negative, malformed input). E.g. `palette/utils/taskColor`, `settings/utils/settingsSchema`, `walkthrough/utils/walkthroughReducer`, `daily/utils/nowAndNext` | `*.test.ts` next to the code; Vitest in Node | `pnpm test` |
+| Component | Only complex widgets: multi-step flows, forms with conditional validation, stateful lists (e.g. Buddy chat history paging, the reflection task popup). Not simple buttons, headers or static pages. Existing simple-component tests stay; don't add new ones | `*.test.tsx` next to the code; Vitest + Testing Library; put `// @vitest-environment jsdom` at the top (`src/test/setupDom.ts` adds jest-dom matchers and cleanup only when a DOM exists) | `pnpm test` |
+| E2E | 5–10 core journeys: register, onboard and sign in/out; editing the default and the daily routine; reflection; settings and profile. Today: `profile`, `reflection`, `settings-persistence` (routine editing has no e2e yet) | `e2e/*.spec.ts`; Playwright, headless Chromium; helpers `registerAndOnboard`, `signIn` in `e2e/helpers.ts`; every run registers a fresh user | `pnpm test:e2e` (setup below) |
+
+Rules:
+- **Test user behaviour, not implementation.** Query the way a user finds things (`getByRole`, `getByLabelText`, `getByText`). Never assert on internal state, hook calls or CSS classes.
+- **No snapshot tests.** Never create `.snap` files.
+- **Fake the backend at the feature's API module**, with `vi.mock('../api/<module>.ts')` (example: `settings/hooks/useUserSettings.test.ts`). All HTTP goes through `src/lib/api.ts` and `features/*/api/`, so that is the network boundary. Don't mock custom hooks or child components, and don't add MSW.
+- **No coverage targets.** Spend tests on core journeys (e2e) and pure logic (unit).
+- **Keep the targeted style checks:** `src/styles/contrast.test.ts` (WCAG AA contrast in both themes, constitution VI) and `src/styles/noRawColors.test.ts`. Skip heavier extras: visual regression, Storybook interaction tests, full automated accessibility suites.
+- **Bug fixes start with a failing test** at the layer where the bug lives: unit for a logic bug, component for a widget bug, Playwright for a journey bug.
+- **Workflow:** when you build or change a feature, add or update its Playwright journey and unit tests for any logic it adds. Before committing, run `pnpm lint && pnpm test`, plus `pnpm test:e2e` for the journeys you touched.
+
+E2E setup: start the backend with `SPRING_PROFILES_ACTIVE=fast ./gradlew bootRun` (for reflection, also `SPRING_AI_ACTIVE=false`), then `pnpm dev`, then `pnpm test:e2e`. The first time, run `pnpm exec playwright install chromium`.
 
 Visual polish is still checked by hand with the feature's `quickstart.md`.
 
