@@ -3,6 +3,8 @@ import { dismissWalkthrough, registerAndOnboard, signIn } from './helpers.ts'
 
 /** F006 US1: settings stay as the user left them (quickstart scenarios 1–3). */
 test('theme and shared board zoom survive a reload and follow the user to another device', async ({ page, browser }) => {
+  // Wide enough that the board toolbar shows zoom inline, not in "More" (F010).
+  await page.setViewportSize({ width: 1600, height: 900 })
   const user = await registerAndOnboard(page)
   const sidebar = page.locator('.app-sidebar')
   const zoomLabel = page.locator('.ob-board-zoom-label')

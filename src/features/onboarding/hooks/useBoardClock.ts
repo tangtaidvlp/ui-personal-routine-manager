@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react'
 
 export type BoardClock = {
-  /** Minutes since midnight shown by the now-line and the clock readout. */
+  /** Minutes since midnight shown by the now-line and the clock readout. Always real time (F010). */
   currentTime: number
-  /** True while the clock follows real time; false after Pause or a slider drag. */
-  isLive: boolean
-  setIsLive: (next: boolean | ((current: boolean) => boolean)) => void
-  setCurrentTime: (minutes: number) => void
 }
 
 export function getCurrentMinutes(now: Date = new Date()): number {
@@ -15,20 +11,31 @@ export function getCurrentMinutes(now: Date = new Date()): number {
 
 /**
  * The timeline's live clock (F007 R12). One clock can drive several boards so their
- * now-lines, Pause and slider stay in step. `enabled` false = no ticking (setup board).
+ * now-lines stay in step. It always follows real time: there is no pause or time slider (F010).
+ * `enabled` false = no ticking (setup board).
  */
 export function useBoardClock(enabled = true): BoardClock {
   const [currentTime, setCurrentTime] = useState(getCurrentMinutes)
-  const [isLive, setIsLive] = useState(true)
 
   useEffect(() => {
-    if (!enabled || !isLive) {
+    if (!enabled) {
       return
     }
-    setCurrentTime(getCurrentMinutes())
-    const intervalId = setInterval(() => setCurrentTime(getCurrentMinutes()), 60000)
-    return () => clearInterval(intervalId)
-  }, [enabled, isLive])
+    const refresh = () => setCurrentTime(getCurrentMinutes())
+    // Coming back to the tab (or waking the computer) shows the real time at once.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refresh()
+      }
+    }
+    refresh()
+    const intervalId = setInterval(refresh, 60000)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [enabled])
 
-  return { currentTime, isLive, setIsLive, setCurrentTime }
+  return { currentTime }
 }

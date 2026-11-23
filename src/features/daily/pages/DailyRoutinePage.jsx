@@ -407,10 +407,10 @@ function DailyRoutinePage() {
               routine={reflectionReady ? realityRoutine : currentDailyRoutine}
               {...(reflectionReady ? realityHandlers : inReflection ? {} : planHandlers)}
               showCompletion={!inReflection}
+              toolbarMenuActions={inReflection ? null : cleanUpButton}
               toolbarActions={
                 <>
                   {reflectionToggle}
-                  {inReflection ? null : cleanUpButton}
                   <button
                     type="button"
                     className="ui-btn ui-btn-primary dr-add-task-btn"
@@ -501,7 +501,6 @@ function DailyRoutinePage() {
         onClose={closeTaskModal}
         onSaved={modalTarget === 'reality' ? refreshReflection : afterPlanChange}
         onDeleteTask={(task) => handleDeleteTask(modalTarget, task)}
-        showColor={false}
       />
 
       <ReflectionTaskPopup

@@ -49,6 +49,9 @@ export async function registerAndOnboard(page: Page): Promise<TestUser> {
 }
 
 export async function signOut(page: Page) {
-  await page.getByRole('button', { name: 'Sign out' }).first().click()
+  // Sign out lives on the Profile page (F010), opened from the sidebar user block.
+  await page.getByRole('link', { name: 'Open profile' }).first().click()
+  await expect(page).toHaveURL(/#\/profile/)
+  await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/#\/auth/)
 }

@@ -15,7 +15,8 @@ async function addTask(page: Page, addButton: Locator, name: string, start: stri
   const dialog = page.getByRole('dialog')
   await dialog.getByPlaceholder('e.g. Morning walk').fill(name)
   await dialog.locator('input[type="time"]').fill(start)
-  await dialog.locator('input[type="number"]').fill(String(minutes))
+  await dialog.getByLabel('hour', { exact: true }).fill(String(Math.floor(minutes / 60)))
+  await dialog.getByLabel('mins', { exact: true }).fill(String(minutes % 60))
   await dialog.locator('button[type="submit"]').click()
   await expect(dialog).toBeHidden()
 }

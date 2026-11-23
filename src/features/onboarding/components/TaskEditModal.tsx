@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../../../lib/api.ts'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import PaletteSwatches from '../../palette/components/PaletteSwatches.tsx'
 import { usePalette } from '../../palette/hooks/usePalette.ts'
+import { joinDuration, splitDuration } from '../utils/duration.ts'
 
 export type TaskFormValue = {
   id?: string
@@ -28,7 +29,11 @@ export type TaskEditModalProps = {
 function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved, onDeleteTask, showColor = true }: TaskEditModalProps) {
   const [name, setName] = useState('')
   const [startTime, setStartTime] = useState('09:00')
-  const [durationMinutes, setDurationMinutes] = useState(30)
+  // Duration is entered as hours + minutes and saved as total minutes (F010 US4).
+  const [hours, setHours] = useState(0)
+  const [minutes, setMinutes] = useState(30)
+  const hoursId = useId()
+  const minutesId = useId()
   const [description, setDescription] = useState('')
   const [color, setColor] = useState<string | null>(null)
   const { palette } = usePalette()
@@ -42,7 +47,9 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
     }
     setName(draftTask?.name ?? '')
     setStartTime(draftTask?.startTime ?? '09:00')
-    setDurationMinutes(draftTask?.durationMinutes ?? 30)
+    const duration = splitDuration(draftTask?.durationMinutes ?? 30)
+    setHours(duration.hours)
+    setMinutes(duration.minutes)
     setDescription(draftTask?.description ?? '')
     // Create drafts arrive with the routine's next round-robin colour pre-selected (FR-004).
     setColor(draftTask?.color ?? null)
@@ -61,8 +68,9 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
       setError('Give this task a name.')
       return
     }
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0 || durationMinutes > 1440) {
-      setError('Duration must be between 1 and 1440 minutes.')
+    const durationMinutes = joinDuration(hours, minutes)
+    if (durationMinutes < 1 || durationMinutes > 1440) {
+      setError('Duration must be between 1 minute and 24 hours.')
       return
     }
 
@@ -123,17 +131,31 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
                 <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
               </label>
 
-              <label className="ob-modal-field">
-                <span>Duration (min)</span>
-                <input
-                  type="number"
-                  min={5}
-                  step={5}
-                  max={1440}
-                  value={durationMinutes}
-                  onChange={(event) => setDurationMinutes(Number(event.target.value))}
-                />
-              </label>
+              <fieldset className="ob-modal-field ob-modal-duration">
+                <legend>Duration</legend>
+                <div className="ob-modal-duration-inputs">
+                  <input
+                    id={hoursId}
+                    type="number"
+                    min={0}
+                    max={24}
+                    step={1}
+                    value={Number.isNaN(hours) ? '' : hours}
+                    onChange={(event) => setHours(event.target.valueAsNumber)}
+                  />
+                  <label htmlFor={hoursId}>hour</label>
+                  <input
+                    id={minutesId}
+                    type="number"
+                    min={0}
+                    max={59}
+                    step={1}
+                    value={Number.isNaN(minutes) ? '' : minutes}
+                    onChange={(event) => setMinutes(event.target.valueAsNumber)}
+                  />
+                  <label htmlFor={minutesId}>mins</label>
+                </div>
+              </fieldset>
             </div>
 
             <label className="ob-modal-field">

@@ -63,16 +63,17 @@ const snapMinutes = (minutes, step = SNAP_MINUTES) => Math.round(minutes / step)
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
 
 /**
- * `liveClock` (default true): the clock readout, Pause/Resume, slider, now-line, current-task
- * highlight and Now/Next footer, with the board following the current time. The setup screen
+ * `liveClock` (default true): the clock readout, now-line, current-task highlight and Now/Next
+ * footer, always following the real time (no pause or time slider, F010). The setup screen
  * passes false: a default routine is a template with no "now", so the board opens at 06:00
  * instead (spec 003).
  *
  * `toolbarActions` (F002): page actions shown at the right end of the toolbar.
+ * `toolbarMenuActions` (F010): page tools that fold into the toolbar's "More" menu when it is narrow.
  * `showFooter` (F002, default = liveClock): the "Now … · N min left / Next: … at HH:MM" footer.
  *
  * Side by side (F007 R11/R12), a parent can share one toolbar between boards:
- * `showToolbar` false hides this board's toolbar and slider; `clock` (from useBoardClock) replaces
+ * `showToolbar` false hides this board's toolbar; `clock` (from useBoardClock) replaces
  * the board's own clock; `gapClearMode` replaces its own Gap clear state; `resetSignal` clears the
  * local completion state whenever it changes (the shared "Reset day"); `scrollContainerRef`
  * receives the scrolling element (for scroll sync).
@@ -82,6 +83,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
  *   routine: any,
  *   liveClock?: boolean,
  *   toolbarActions?: import('react').ReactNode,
+ *   toolbarMenuActions?: import('react').ReactNode,
  *   showFooter?: boolean,
  *   onRequestCreateTask?: (draft: any) => void,
  *   onRequestEditTask?: (task: any) => void,
@@ -101,6 +103,7 @@ function EditingBoard({
   routine,
   liveClock = true,
   toolbarActions = null,
+  toolbarMenuActions = null,
   showFooter = liveClock,
   onRequestCreateTask,
   onRequestEditTask,
@@ -164,8 +167,8 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     )
   }, [liveClock, routineId])
 
-  // Live clock: show "now" once when the board mounts (specs/F005 FR-014). Clock ticks, Resume,
-  // the slider, zoom, saves and date changes never move the view again (FR-015) — the board
+  // Live clock: show "now" once when the board mounts (specs/F005 FR-014). Clock ticks,
+  // zoom, saves and date changes never move the view again (FR-015) — the board
   // isn't remounted on a date change, so don't key it by date.
   const hasCenteredRef = useRef(false)
   useLayoutEffect(() => {
@@ -399,6 +402,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           onToggleGapClear={() => setGapClearMode(!gapClearMode)}
           onResetDay={handleResetSchedule}
           actions={toolbarActions}
+          menuActions={toolbarMenuActions}
         />
       )}
 
