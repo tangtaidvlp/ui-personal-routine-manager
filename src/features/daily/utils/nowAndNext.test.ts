@@ -50,6 +50,13 @@ describe('nowAndNext', () => {
     expect(nowAndNext(late, at(23, 30)).now).toEqual({ name: 'Wind down', minutesLeft: 30 })
   })
 
+  it('an overnight task is now before and after midnight', () => {
+    const sleep = [{ name: 'Sleep', startTime: '22:00', endTime: '06:00' }]
+    expect(nowAndNext(sleep, at(23)).now).toEqual({ name: 'Sleep', minutesLeft: 420 })
+    expect(nowAndNext(sleep, at(2)).now).toEqual({ name: 'Sleep', minutesLeft: 240 })
+    expect(nowAndNext(sleep, at(7)).now).toBeNull()
+  })
+
   it('ignores tasks without a valid start time', () => {
     const broken = [{ name: 'Broken', startTime: 'soon', endTime: '10:00' }, ...day]
     expect(nowAndNext(broken, at(6)).next?.name).toBe('Morning run')

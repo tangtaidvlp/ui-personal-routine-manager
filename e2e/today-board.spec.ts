@@ -71,3 +71,33 @@ test('today board: always live, hours + minutes with color, and the "More" menu'
   expect(panelBox!.x).toBeGreaterThanOrEqual(boardBox!.x)
   expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(boardBox!.x + boardBox!.width)
 })
+
+// F011 (specs/.done.F011-sleep-task): one task crossing midnight is drawn as two linked parts and stays one task.
+test('today board: an overnight task is one task in two parts', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+
+  await board.getByRole('button', { name: '+ Add task' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Sleep')
+  await dialog.locator('input[type="time"]').fill('22:00')
+  await dialog.getByLabel('hour', { exact: true }).fill('8')
+  await dialog.getByLabel('mins', { exact: true }).fill('0')
+  await expect(dialog.getByText('Ends 06:00 (next day)')).toBeVisible()
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog).toBeHidden()
+
+  const sleepParts = board.getByText('22:00 – 06:00 · 8h')
+  await expect(sleepParts).toHaveCount(2)
+  await expect(board.getByRole('button', { name: 'Delete Sleep' })).toHaveCount(1)
+
+  await page.reload()
+  await expect(sleepParts).toHaveCount(2)
+  await expect(board.getByRole('button', { name: 'Delete Sleep' })).toHaveCount(1)
+
+  // Clicking the after-midnight part edits the same task, and doesn't also open "Add task".
+  await sleepParts.nth(1).click()
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await expect(page.getByRole('dialog').getByPlaceholder('e.g. Morning walk')).toHaveValue('Sleep')
+})

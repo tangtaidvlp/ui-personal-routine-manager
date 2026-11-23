@@ -30,10 +30,15 @@ export function nowAndNext(tasks: readonly TaskLike[], minutesOfDay: number): No
     const start = toMinutes(task.startTime)
     if (start === null) continue
     const parsedEnd = toMinutes(task.endTime)
-    // An end of 00:00 (or a missing end) means the task runs to the end of the day.
-    const end = parsedEnd === null || parsedEnd === 0 ? MINUTES_PER_DAY : parsedEnd
+    // A missing end means the task runs to the end of the day.
+    const end = parsedEnd === null ? MINUTES_PER_DAY : parsedEnd
+    // An end at or before the start (e.g. 22:00–06:00, or 22:00–00:00) crosses midnight (F011).
+    const overnight = end <= start
+    const isCurrent = overnight
+      ? minutesOfDay >= start || minutesOfDay < end
+      : start <= minutesOfDay && minutesOfDay < end
 
-    if (start <= minutesOfDay && minutesOfDay < end) {
+    if (isCurrent) {
       // Overlapping tasks: the one that started last is "now".
       if (!now || start > now.start) now = { name: task.name, start, end }
     } else if (start > minutesOfDay) {
@@ -42,7 +47,9 @@ export function nowAndNext(tasks: readonly TaskLike[], minutesOfDay: number): No
   }
 
   return {
-    now: now ? { name: now.name, minutesLeft: now.end - minutesOfDay } : null,
+    now: now
+      ? { name: now.name, minutesLeft: (now.end - minutesOfDay + MINUTES_PER_DAY) % MINUTES_PER_DAY || MINUTES_PER_DAY }
+      : null,
     next: next ? { name: next.name, startTime: toHHMM(next.start) } : null,
   }
 }

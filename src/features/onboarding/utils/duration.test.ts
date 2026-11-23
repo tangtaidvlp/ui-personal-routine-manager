@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { joinDuration, splitDuration } from './duration.ts'
+import { endsLabel, joinDuration, splitDuration } from './duration.ts'
 
 describe('splitDuration', () => {
   it.each([
@@ -38,5 +38,25 @@ describe('joinDuration', () => {
       const { hours, minutes } = splitDuration(total)
       expect(joinDuration(hours, minutes)).toBe(total)
     }
+  })
+})
+
+describe('endsLabel', () => {
+  it('shows the end time on the same day', () => {
+    expect(endsLabel('09:00', 90)).toBe('Ends 10:30')
+  })
+
+  it('ending exactly at 24:00 is not the next day', () => {
+    expect(endsLabel('23:00', 60)).toBe('Ends 00:00')
+  })
+
+  it('marks an overnight task as next day', () => {
+    expect(endsLabel('22:00', 480)).toBe('Ends 06:00 (next day)')
+  })
+
+  it('returns null for a bad start or duration', () => {
+    expect(endsLabel('', 30)).toBeNull()
+    expect(endsLabel('09:00', 0)).toBeNull()
+    expect(endsLabel('09:00', Number.NaN)).toBeNull()
   })
 })

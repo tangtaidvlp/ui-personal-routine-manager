@@ -13,6 +13,7 @@ import { usePalette } from '../../palette/hooks/usePalette.ts'
 import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
 import { useBoardZoom } from '../../settings/hooks/useUserSettings.ts'
 import { getCurrentMinutes, useBoardClock } from '../hooks/useBoardClock.ts'
+import { taskSegments } from '../utils/taskSegments.ts'
 import BoardToolbar from './BoardToolbar.jsx'
 
 const MINUTES_PER_DAY = 1440
@@ -142,6 +143,12 @@ function EditingBoard({
     scrollContainerRefRef.current?.(element)
   }
   const trackRef = useRef(null)
+  // Each task's `main` part, by id. A drag captures the pointer there, because a `wrap` part
+  // (or the handle on it) can unmount mid-drag when the task stops crossing midnight (F011).
+  const mainPartsRef = useRef(new Map())
+  // With the capture on `main`, a press on a `wrap` part ends on `main`, so the browser sends the
+  // click to their common parent (the track). Ignore that one click so it doesn't open "Add task".
+  const ignoreTrackClickRef = useRef(false)
 
   const boardHeightPx = useMemo(() => BASE_BOARD_HEIGHT_PX * zoomLevel, [zoomLevel])
   const minutesPerPixel = useMemo(() => MINUTES_PER_DAY / boardHeightPx, [boardHeightPx])
@@ -242,6 +249,10 @@ const [completedTasks, setCompletedTasks] = useState(() => {
   }, [resetSignal])
 
   const handleTrackClick = (event) => {
+    if (ignoreTrackClickRef.current) {
+      ignoreTrackClickRef.current = false
+      return
+    }
     if (!trackRef.current || !onRequestCreateTask) {
       return
     }
@@ -255,7 +266,8 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
   const beginDrag = (event, mode, task, originalStartMinutes, originalDurationMinutes) => {
     event.stopPropagation()
-    event.currentTarget.setPointerCapture(event.pointerId)
+    const captureTarget = mainPartsRef.current.get(task.id) ?? event.currentTarget
+    captureTarget.setPointerCapture(event.pointerId)
 
     // When in gap-clear mode, capture original positions of all tasks
     const originalTaskPositions = gapClearMode && mode === 'move'
@@ -283,12 +295,11 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     const deltaMinutes = snapMinutes((event.clientY - dragState.startClientY) * minutesPerPixel)
 
     if (dragState.mode === 'move') {
-      const maxStart = MINUTES_PER_DAY - dragState.originalDurationMinutes
-      const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, maxStart)
+      // The end may pass 24:00: the task then wraps to the top of the board (F011).
+      const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, MINUTES_PER_DAY - SNAP_MINUTES)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveStartMinutes } : current))
     } else {
-      const maxDuration = MINUTES_PER_DAY - dragState.originalStartMinutes
-      const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, maxDuration)
+      const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, MINUTES_PER_DAY)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveDurationMinutes } : current))
     }
   }
@@ -299,6 +310,11 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     }
     const finished = dragState
     setDragState(null)
+    // The click (if any) follows this pointerup in the same turn; clear the flag after it.
+    ignoreTrackClickRef.current = true
+    setTimeout(() => {
+      ignoreTrackClickRef.current = false
+    }, 0)
 
     const movedDistance = Math.abs(event.clientY - finished.startClientY)
 
@@ -349,7 +365,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           const existingTask = tasks.find(t => t.id === origPos.id)
           if (existingTask) {
             const newStart = snapMinutes(origPos.originalStart + deltaMinutes)
-            const clampedStart = clamp(newStart, 0, MINUTES_PER_DAY - existingTask.durationMinutes)
+            const clampedStart = clamp(newStart, 0, MINUTES_PER_DAY - SNAP_MINUTES)
 
             updateMap.set(existingTask.id, {
               id: existingTask.id,
@@ -427,27 +443,37 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           ))}
 
           <div className="ob-board-task-layer">
-            {tasks.map((task, index) => {
+            {tasks.flatMap((task, index) => {
               const storedStartTime = parseLocalTimeToMinutes(task.startTime);
-              const storedEndTime = task.endTime != "00:00" ? parseLocalTimeToMinutes(task.endTime) : MINUTES_PER_DAY;
-              const storedDuration = storedEndTime - storedStartTime
+              // endTime wraps past midnight (22:00 + 8h → 06:00), so the duration comes from durationMinutes (F011).
+              const storedDuration = task.durationMinutes
 
               const isDragging = dragState?.taskId === task.id
               const taskStartTime = isDragging ? dragState.liveStartMinutes : storedStartTime
               const taskDuration = isDragging ? dragState.liveDurationMinutes : storedDuration
               const taskEndTime = taskStartTime + taskDuration
+              // One block per part: `main` and, for an overnight task, `wrap` at the top of the board.
+              const segments = taskSegments(taskStartTime, taskDuration)
 
-              const top = (taskStartTime * 100) / MINUTES_PER_DAY
-              const height = (taskDuration * 100) / MINUTES_PER_DAY
               const isTogglingThis = isToggling.has(task.id)
               const isDone = onToggleComplete
                 ? (isTogglingThis ? Boolean(completedTasks[index]) : Boolean(task.completed))
                 : Boolean(completedTasks[index])
-              const isActive = liveClock && currentTime >= taskStartTime && currentTime < taskEndTime
+              const isActive = liveClock && segments.some((segment) => currentTime >= segment.start && currentTime < segment.end)
 
-              return (
+              return segments.map((segment, segmentIndex) => {
+                const { part } = segment
+                const top = (segment.start * 100) / MINUTES_PER_DAY
+                const height = ((segment.end - segment.start) * 100) / MINUTES_PER_DAY
+
+                return (
                 <div
-                  key={task.id}
+                  key={`${task.id}-${part}`}
+                  ref={part === 'main' ? (element) => {
+                    mainPartsRef.current.set(task.id, element)
+                    return () => mainPartsRef.current.delete(task.id)
+                  } : undefined}
+                  data-part={part}
                   onPointerDown={(event) => beginDrag(event, 'move', task, storedStartTime, storedDuration)}
                   onPointerMove={handleDragPointerMove}
                   onPointerUp={(event) => handleDragPointerUp(event, task)}
@@ -472,7 +498,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     </span>
                   </div>
 
-                  {showCompletion && (
+                  {showCompletion && part === 'main' && (
                   <button
                     type="button"
                     onClick={(event) => toggleTaskCompletion(task, index, event)}
@@ -491,7 +517,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   </button>
                   )}
 
-                  {onRequestDeleteTask && (
+                  {onRequestDeleteTask && part === 'main' && (
                     <button
                       type="button"
                       className="ob-board-task-delete"
@@ -507,6 +533,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     </button>
                   )}
 
+                  {segmentIndex === segments.length - 1 && (
                   <div
                     className="ob-board-task-resize-handle"
                     onPointerDown={(event) => beginDrag(event, 'resize', task, storedStartTime, storedDuration)}
@@ -525,8 +552,10 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     onClick={(event) => event.stopPropagation()}
                     aria-hidden="true"
                   />
+                  )}
                 </div>
-              )
+                )
+              })
             })}
           </div>
 

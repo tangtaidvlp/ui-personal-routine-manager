@@ -3,7 +3,7 @@ import { ApiError } from '../../../lib/api.ts'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import PaletteSwatches from '../../palette/components/PaletteSwatches.tsx'
 import { usePalette } from '../../palette/hooks/usePalette.ts'
-import { joinDuration, splitDuration } from '../utils/duration.ts'
+import { endsLabel, joinDuration, splitDuration } from '../utils/duration.ts'
 
 export type TaskFormValue = {
   id?: string
@@ -59,6 +59,9 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
   if (!isOpen) {
     return null
   }
+
+  // Read-only end time; an overnight task ends the next day (F011).
+  const ends = endsLabel(startTime, joinDuration(hours, minutes))
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -155,6 +158,7 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
                   />
                   <label htmlFor={minutesId}>mins</label>
                 </div>
+                {ends && <p className="ob-modal-duration-ends">{ends}</p>}
               </fieldset>
             </div>
 

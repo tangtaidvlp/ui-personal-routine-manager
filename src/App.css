@@ -955,6 +955,13 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Overnight task (F011): the part after midnight, at the top of the board, continues the task. */
+.ob-board-task[data-part='wrap'] {
+  border-top: 1px dashed var(--task-accent);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .ob-board-task-content {
   display: flex;
   flex-direction: column;
@@ -1607,6 +1614,12 @@
 .ob-modal-duration-inputs label {
   flex-shrink: 0;
   font-weight: var(--font-weight-medium);
+}
+
+.ob-modal-duration-ends {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 .ob-modal-actions {
