@@ -1,10 +1,9 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
+import { currentLocalTime } from '../../../lib/localTime.ts'
 import type { DailyRoutine, DailyTask } from '../types/dailyRoutine.ts'
 import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
-
-type ChatResponse = {
-  reply?: unknown
-}
+import type { BuddyReply } from '../../personal-target/types/goal.ts'
+import { parseBuddyReply } from '../../personal-target/utils/buddyReply.ts'
 
 export async function fetchDailyRoutine(userId: string, date: string): Promise<DailyRoutine> {
   return apiRequest<DailyRoutine>(`/api/routine-manager/daily-routine/${userId}?date=${date}`,
@@ -53,17 +52,13 @@ export async function submitDailyRoutineChat(
   dailyRoutine: DailyRoutine,
   date: string,
   message: string,
-): Promise<string> {
-  const data = await apiRequest<ChatResponse>(`/api/ai/chat/daily-routine/${userId}`, {
+): Promise<BuddyReply> {
+  const data = await apiRequest<unknown>(`/api/ai/chat/daily-routine/${userId}`, {
     method: 'POST',
-    json: { dailyRoutine, date, message },
+    json: { dailyRoutine, date, message, localTime: currentLocalTime() },
   })
 
-  if (!data || typeof data.reply !== 'string') {
-    throw new ApiError(502, 'Invalid AI response payload')
-  }
-
-  return data.reply
+  return parseBuddyReply(data)
 }
 
 /** One page of the stored Buddy conversation for a day (F004). Omit `before` for the newest page. */

@@ -1,25 +1,22 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
+import { currentLocalTime } from '../../../lib/localTime.ts'
 import type { DefaultRoutine } from '../../onboarding/types/routine.ts'
 import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
-
-type ChatResponse = { reply?: unknown }
+import type { BuddyReply } from '../../personal-target/types/goal.ts'
+import { parseBuddyReply } from '../../personal-target/utils/buddyReply.ts'
 
 /**
  * Ask Routine Buddy to change a default routine after onboarding. Same endpoint as the
  * onboarding chat, without the "Onboarding: […]" framing (the server keeps one
  * conversation per routine).
  */
-export async function submitDefaultRoutineChat(userId: string, defaultRoutine: DefaultRoutine | null, message: string): Promise<string> {
-  const data = await apiRequest<ChatResponse>(`/api/ai/chat/default-routine/${userId}`, {
+export async function submitDefaultRoutineChat(userId: string, defaultRoutine: DefaultRoutine | null, message: string): Promise<BuddyReply> {
+  const data = await apiRequest<unknown>(`/api/ai/chat/default-routine/${userId}`, {
     method: 'POST',
-    json: { defaultRoutine, message },
+    json: { defaultRoutine, message, localTime: currentLocalTime() },
   })
 
-  if (!data || typeof data.reply !== 'string') {
-    throw new ApiError(502, 'Invalid AI response payload')
-  }
-
-  return data.reply
+  return parseBuddyReply(data)
 }
 
 /**

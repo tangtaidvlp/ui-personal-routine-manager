@@ -480,9 +480,10 @@ function DailyRoutinePage() {
               }
               return submitReflectionChat(user.id, selectedDate, message)
             }}
-            onAfterSend={() => {
+            onAfterSend={({ hasGoalProposal }) => {
               refreshReflection()
-              setMobileView('board')
+              // A goal proposal (F013) waits for the user in the chat.
+              if (!hasGoalProposal) setMobileView('board')
             }}
           />
         ) : (
@@ -495,9 +496,10 @@ function DailyRoutinePage() {
             initialMessage="Hi! Ask me to add, adjust, or check off tasks for this day."
             placeholder='Try: "Mark my workout as done"'
             onSend={(message) => submitDailyRoutineChat(user.id, currentDailyRoutine, selectedDate, message)}
-            onAfterSend={() => {
+            onAfterSend={({ hasGoalProposal }) => {
               refreshDailyRoutine()
-              setMobileView('board')
+              // A goal proposal (F013) waits for the user in the chat.
+              if (!hasGoalProposal) setMobileView('board')
             }}
           />
         )}

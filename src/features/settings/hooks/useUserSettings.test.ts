@@ -22,7 +22,7 @@ let theme: ThemeStore
 let notice: Notice
 
 const view = (settings: Partial<UserSettingsView['settings']> = {}, customized: string[] = []): UserSettingsView => ({
-  settings: { theme: 'system', boardZoom: 1, ...settings },
+  settings: { theme: 'system', boardZoom: 1, buddyTone: 'BALANCED', ...settings },
   customized,
 })
 

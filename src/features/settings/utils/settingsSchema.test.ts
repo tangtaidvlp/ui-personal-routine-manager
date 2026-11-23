@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, normalizeSettings, normalizeZoom, themeFromApi, themeToApi, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './settingsSchema.ts'
+import { BUDDY_TONE_IDS, DEFAULT_SETTINGS, normalizeBuddyTone, normalizeSettings, normalizeZoom, themeFromApi, themeToApi, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './settingsSchema.ts'
 
 describe('normalizeZoom', () => {
   it('keeps valid steps', () => {
@@ -50,15 +50,35 @@ describe('normalizeSettings', () => {
 
   it('maps API values and ignores unknown keys', () => {
     const result = normalizeSettings({ theme: 'DARK', boardZoom: 1.5, fontSize: 14 })
-    expect(result).toEqual({ theme: 'dark', boardZoom: 1.5 })
+    expect(result).toEqual({ theme: 'dark', boardZoom: 1.5, buddyTone: 'BALANCED' })
     expect(result).not.toHaveProperty('fontSize')
   })
 
   it('falls back per key on bad values', () => {
-    expect(normalizeSettings({ boardZoom: 'banana', theme: 'LIGHT' })).toEqual({ theme: 'light', boardZoom: 1 })
+    expect(normalizeSettings({ boardZoom: 'banana', theme: 'LIGHT' })).toEqual({ theme: 'light', boardZoom: 1, buddyTone: 'BALANCED' })
   })
 
   it('default settings are System and 100%', () => {
-    expect(DEFAULT_SETTINGS).toEqual({ theme: 'system', boardZoom: 1 })
+    expect(DEFAULT_SETTINGS).toEqual({ theme: 'system', boardZoom: 1, buddyTone: 'BALANCED' })
+  })
+})
+
+describe('normalizeBuddyTone (F014)', () => {
+  it('keeps every known tone, in any case', () => {
+    for (const id of BUDDY_TONE_IDS) {
+      expect(normalizeBuddyTone(id)).toBe(id)
+    }
+    expect(normalizeBuddyTone(' warm_anchor ')).toBe('WARM_ANCHOR')
+  })
+
+  it('falls back to Balanced for anything else', () => {
+    for (const raw of ['ROBOT', '', null, undefined, 3, {}]) {
+      expect(normalizeBuddyTone(raw)).toBe('BALANCED')
+    }
+  })
+
+  it('is read from the settings payload', () => {
+    expect(normalizeSettings({ buddyTone: 'STOIC' }).buddyTone).toBe('STOIC')
+    expect(normalizeSettings({ buddyTone: 'nope' }).buddyTone).toBe('BALANCED')
   })
 })

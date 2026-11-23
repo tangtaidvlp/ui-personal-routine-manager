@@ -1,4 +1,7 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
+import { currentLocalTime } from '../../../lib/localTime.ts'
+import type { BuddyReply } from '../../personal-target/types/goal.ts'
+import { parseBuddyReply } from '../../personal-target/utils/buddyReply.ts'
 import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
 import type { ReflectionTask, ReflectionView } from '../types/reflection.ts'
 
@@ -47,18 +50,17 @@ export function deleteReflectionTasks(userId: string, date: string, taskIds: str
 
 /** Buddy's encouraging note; ApiError 503 when Buddy is unavailable. */
 export function requestReflectionFeedback(userId: string, date: string): Promise<ReflectionView> {
-  return apiRequest<ReflectionView>(`${base(userId, date)}/feedback`, { method: 'POST' })
+  return apiRequest<ReflectionView>(`${base(userId, date)}/feedback?localTime=${encodeURIComponent(currentLocalTime())}`, {
+    method: 'POST',
+  })
 }
 
-export async function submitReflectionChat(userId: string, date: string, message: string): Promise<string> {
-  const data = await apiRequest<{ reply?: unknown }>(`/api/ai/chat/daily-reflection/${userId}`, {
+export async function submitReflectionChat(userId: string, date: string, message: string): Promise<BuddyReply> {
+  const data = await apiRequest<unknown>(`/api/ai/chat/daily-reflection/${userId}`, {
     method: 'POST',
-    json: { date, message },
+    json: { date, message, localTime: currentLocalTime() },
   })
-  if (!data || typeof data.reply !== 'string') {
-    throw new ApiError(502, 'Invalid AI response payload')
-  }
-  return data.reply
+  return parseBuddyReply(data)
 }
 
 /** One page of the day's reflection chat (separate from the planning chat). */

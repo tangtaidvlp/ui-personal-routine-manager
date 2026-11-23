@@ -17,5 +17,6 @@ export {
   SparkIcon,
   SparklesIcon,
   SunIcon,
+  TargetIcon,
   XIcon,
 } from './Icons'
