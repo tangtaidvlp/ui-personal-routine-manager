@@ -5,6 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Coding rules for this repo (loaded automatically):
 @codingrules.md
 
+## Project status (as of 2026-11-24)
+
+- **Phase:** pre-production, like the backend. A push to `main` deploys to GitHub Pages.
+- **Done:** onboarding and guided tour (002, 003), F002 app shell, F004 Buddy chat history, F005 task colours and dark mode, F006 profile and account settings, F007 reflection, F008 testing strategy, F009 reflection scroll sync, F010 Today board UX, F011 overnight tasks, F012 reset day (`specs/.done.*`).
+- **Not built:** Analytics (`/analytics` is a placeholder page).
+- **Open bugs:** none in this repo. Backend bug-0003 shows up here: the silent refresh fails after 15 minutes, so users get signed out (`AI-project-docs/bugs/`).
+
 ## Commands
 
 ```bash
@@ -72,12 +79,8 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
 
 ### API layer ([src/lib/api.ts](src/lib/api.ts))
 
-- `apiRequest<T>(path, options)` wraps `fetch` with `credentials: 'include'` (for refresh-token cookie), auto JSON serialization/deserialization, and throws `ApiError` on non-2xx responses.
-- `API_BASE_URL` defaults to `/api/v1`; override with `VITE_API_BASE_URL` env var for production.
-- Auth endpoints (`/auth/login`, `/auth/register`, `/auth/logout`) bypass `apiRequest` and call `fetch` directly in `App.tsx`.
-- **Two URL-building patterns exist:**
-  - Onboarding API modules use relative paths like `/default-routine/...` (goes through Vite proxy in dev).
-  - Daily routine API modules use `toAbsoluteApiUrl(path)` which builds `new URL(path, window.location.origin)` — this avoids proxy issues in production where the backend is on a different origin. Prefer this pattern for new API code.
+- Every HTTP call, auth included, goes through `apiRequest<T>(path, options)`: `fetch` with `credentials: 'include'` (refresh-token cookie), JSON in and out, an optional bearer `token`, and an `ApiError` (`status`, the backend's `message`) on non-2xx. A network failure is `ApiError` with status 0.
+- Pass the full backend path (`/api/v1/...`, `/api/routine-manager/...`, `/api/ai/...`); `VITE_API_BASE_URL`, set in both `.env` files, is the backend origin.
 
 ### Feature behavior (structure rules are in `codingrules.md`)
 
@@ -97,9 +100,10 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
   - **Page handlers** take a target (`'plan' | 'reality'`), and the task modal remembers its target. Plan edits made while reflecting also refresh the reflection.
   - **Reality boards** pass `showCompletion={false}`, so they have no done checks. "Clean up" is plan-only.
   - **Comparison and note**: `ReflectionSummaryStrip` (one line of totals and chips, with a collapsed task-by-task list) sits above the board(s). `ReflectionNote` (Buddy's note, get/refresh) is in the reflection BuddyChat `topSlot` with `compactHeader`. BuddyChat is keyed `${date}:reality` and has its own history.
-  - **Board API**: `EditingBoard` has the optional props `showToolbar`, `clock`, `gapClearMode`, `resetSignal`, `scrollContainerRef`, `showCompletion` and `toolbarMenuActions`. Its toolbar is `BoardToolbar.jsx`: `actions` always show; zoom, Gap clear, Reset day and `menuActions` (Today: Clean up) fold into a "More" disclosure (`ToolbarMoreMenu.tsx`) when the toolbar's own width is ≤ 770px (CSS container query in `App.css`; measured from the full Today toolbar, F010). Those tools render in both places and CSS shows one; `.ob-board-scroll` uses `isolation: isolate` so the board's layers stay under the open panel.
+  - **Board API**: `EditingBoard` has the optional props `showToolbar`, `clock`, `gapClearMode`, `onResetDay`, `resetDisabled`, `scrollContainerRef`, `showCompletion` and `toolbarMenuActions`. Its toolbar is `BoardToolbar.jsx`: `actions` always show; zoom, Gap clear, Reset day (only when `onResetDay` is passed) and `menuActions` (Today: Clean up; setup boards: Copy Weekday to Weekend) fold into a "More" disclosure (`ToolbarMoreMenu.tsx`) when the toolbar's own width is ≤ 770px (CSS container query in `App.css`; measured from the full Today toolbar, F010). Those tools render in both places and CSS shows one; `.ob-board-scroll` uses `isolation: isolate` so the board's layers stay under the open panel.
   - **Styling and tests**: `data-reflection="on"`, a "Reality" badge, and a dashed outline on the Reality board. Styles are the `.rf-*` classes in `App.css`. E2E: `e2e/reflection.spec.ts` (run with a mock-AI backend: `SPRING_AI_ACTIVE=false`).
 - **overnight tasks (F011)** — a task may cross midnight (start + `durationMinutes` > 1440), so `endTime` may be earlier than `startTime` (22:00 + 480 → `"06:00"`); always use `durationMinutes`, never `endTime − startTime`. `EditingBoard` draws such a task as two blocks, `data-part="main"` and `data-part="wrap"` (`onboarding/utils/taskSegments.ts`); both carry the full label and the same drag handlers, the done check and delete sit on `main`, and drags capture the pointer on `main`. Ending exactly at 24:00 is not overnight.
+- **Reset day (F012, `specs/.done.F012-make-reset-day-reset-to-default-routine/`)** — on Today only: `ConfirmDialog`, then `resetDailyRoutine` (server replaces the plan with a fresh copy of the default routine; weekend days use the Weekend routine if it has tasks) and `afterPlanChange`. Disabled on past dates; not offered while the single board shows Reality; in Compare it acts on the plan. Setup boards have no Reset day; `DefaultRoutineEditor` has "Copy Weekday to Weekend" (confirm, then `copyWeekdayToWeekend` and reload the Weekend tab). `ConfirmDialog` focuses Cancel on open, closes on Escape, returns focus, and takes `loadingLabel`.
 - **daily** — "Clean up" and "+ Add task" sit in the board toolbar (`EditingBoard` `toolbarActions` prop); the board footer shows Now/Next (`features/daily/utils/nowAndNext.ts`). "Clean up" deletes all tasks for the current date. On first access to a non-today date, `ensureDailyRoutine` lazily creates the routine (cloning from the user's default routine).
 
 ### Shared components (quirks)
@@ -134,9 +138,8 @@ Test files are type-checked by `tsconfig.test.json` (adds Node + jest-dom types;
 
 ## Deployment
 
-Two deploy targets exist:
-- **GitHub Pages** (`.github/workflows/deploy.yml`): builds and deploys `dist/` to `tangtaidvlp/milos.github.io` via `peaceiris/actions-gh-pages@v4`.
-- **AWS S3 + CloudFront** (noted in [notes/deploy-secrets-notes.md](notes/deploy-secrets-notes.md)): requires `AWS_ROLE_ARN`, `S3_BUCKET_NAME`, `CLOUDFRONT_DISTRIBUTION_ID`.
+- **GitHub Pages** (`.github/workflows/deploy.yml`, on push to `main`): builds and deploys `dist/` to `tangtaidvlp/milos.github.io` via `peaceiris/actions-gh-pages@v4`. This is the only wired target.
+- **AWS S3 + CloudFront** is only noted in [notes/deploy-secrets-notes.md](notes/deploy-secrets-notes.md) (`AWS_ROLE_ARN`, `S3_BUCKET_NAME`, `CLOUDFRONT_DISTRIBUTION_ID`); no workflow uses it.
 
 ## Key conventions
 
@@ -144,6 +147,6 @@ Two deploy targets exist:
 - **`verbatimModuleSyntax: true`** — use `import type` for type-only imports.
 - **oxlint** enforces React rules-of-hooks (error) and warns on non-constant exports. Config in [`.oxlintrc.json`](.oxlintrc.json).
 - The backend is a separate repo (`../ms-personal-routine-manager`) expected at `localhost:8080`.
-- **URL construction for API calls:** Use `toAbsoluteApiUrl(path)` (as done in `features/daily/api/`) for production safety — it builds full URLs from `window.location.origin`. Avoid bare relative paths like `/default-routine/...` in new code.
+- **API calls:** only through `apiRequest` in a feature's `api/` module, with the full `/api/...` path (see API layer).
 - **Auth state:** Only `AuthContext` (from `src/context/AuthContext.ts`) is active. `src/context/Auth.ts` is a stale duplicate — don't import from it.
 - **`pnpm`** is the package manager — don't use `npm` or `yarn`.

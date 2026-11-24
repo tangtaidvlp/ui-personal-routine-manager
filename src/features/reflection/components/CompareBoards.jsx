@@ -8,7 +8,7 @@ import { useSyncedScroll } from '../hooks/useSyncedScroll.ts'
  * F007 FR-012 (wide screens): the Plan and Reality boards side by side under one toolbar.
  * Both are editable. One clock drives both now-lines, zoom is the shared account setting,
  * and scrolling one board scrolls the other, so the same times line up (research R11/R12).
- * Gap clear and Reset day act on the plan only (spec Assumptions).
+ * Gap clear and Reset day act on the plan only (spec Assumptions; F012 FR-007).
  *
  * @param {{
  *   planRoutine: any,
@@ -27,6 +27,8 @@ import { useSyncedScroll } from '../hooks/useSyncedScroll.ts'
  *     onRequestDeleteTask: (task: any) => unknown,
  *   },
  *   onAddPlan: () => void,
+ *   onResetDay?: () => void,
+ *   resetDisabled?: boolean,
  *   onAddReality: () => void,
  *   planActions?: import('react').ReactNode,
  *   toolbarActions?: import('react').ReactNode,
@@ -39,12 +41,13 @@ function CompareBoards({
   realityHandlers,
   onAddPlan,
   onAddReality,
+  onResetDay,
+  resetDisabled = false,
   planActions = null,
   toolbarActions = null,
 }) {
   const clock = useBoardClock()
   const [gapClearMode, setGapClearMode] = useState(false)
-  const [resetSignal, setResetSignal] = useState(0)
   const registerScroll = useSyncedScroll()
 
   return (
@@ -54,7 +57,8 @@ function CompareBoards({
           clock={clock}
           gapClearMode={gapClearMode}
           onToggleGapClear={() => setGapClearMode((current) => !current)}
-          onResetDay={() => setResetSignal((current) => current + 1)}
+          onResetDay={onResetDay}
+          resetDisabled={resetDisabled}
           actions={toolbarActions}
         />
       </div>
@@ -75,7 +79,6 @@ function CompareBoards({
             showToolbar={false}
             clock={clock}
             gapClearMode={gapClearMode}
-            resetSignal={resetSignal}
             scrollContainerRef={registerScroll}
             {...planHandlers}
           />

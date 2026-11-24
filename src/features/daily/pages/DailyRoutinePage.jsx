@@ -4,12 +4,14 @@ import TaskEditModal from '../../onboarding/components/TaskEditModal.tsx'
 import FabButton from '../../onboarding/components/FabButton.tsx'
 import BuddyChat, { SendIcon } from '../../onboarding/components/BuddyChat.jsx'
 import PageHeader from '../../../components/layout/PageHeader.tsx'
+import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import { useShellContext } from '../../../components/layout/shellContext.ts'
 import { ChevronLeftIcon, ChevronRightIcon } from '../../../components/icons/index.ts'
 import { routineTypeForDate, routineTypeLabel } from '../../onboarding/utils/routineTypeForDate.ts'
 import {
   fetchDailyRoutine,
   ensureDailyRoutine,
+  resetDailyRoutine,
   createDailyTasks,
   updateDailyTasks,
   deleteDailyTasks,
@@ -80,9 +82,15 @@ function DailyRoutinePage() {
   const [reflectionError, setReflectionError] = useState(null)
   // Narrow screens: the reality task whose plan-vs-reality pop-up is open (FR-012a).
   const [popupTaskId, setPopupTaskId] = useState(null)
+  // F012 Reset day: confirm dialog, request in flight, and a failure for one date (hidden on other dates).
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+  const [resetFailure, setResetFailure] = useState(null)
   const isWide = useMediaQuery(COMPARE_MEDIA_QUERY)
   const todayValue = toDateInputValue(new Date())
   const isFuture = isFutureDate(selectedDate, todayValue)
+  // ISO dates compare as strings. Past days can't be reset (F012 FR-005).
+  const isPast = selectedDate < todayValue
   const inReflection = reflectionOn && !isFuture
 
   const refreshDailyRoutine = async () => {
@@ -282,6 +290,23 @@ function DailyRoutinePage() {
     await afterPlanChange()
   }
 
+  // F012: replace the plan with a fresh copy of the default routine; the reflection is not touched.
+  const handleConfirmReset = async () => {
+    setIsResetting(true)
+    setResetFailure(null)
+    try {
+      await resetDailyRoutine(user.id, selectedDate)
+      await afterPlanChange()
+    } catch (error) {
+      console.error('Failed to reset the day:', error)
+      setResetFailure(selectedDate)
+    } finally {
+      setIsResetting(false)
+      setResetConfirmOpen(false)
+    }
+  }
+  const openResetConfirm = () => setResetConfirmOpen(true)
+
   const hasTasks = (currentDailyRoutine?.tasks ?? []).length > 0
   const reflectionReady = inReflection && Boolean(reflection?.exists)
   const layout = reflectionReady && isWide ? 'compare' : 'single'
@@ -374,6 +399,9 @@ function DailyRoutinePage() {
 
       <main className="dr-main">
         <section className="dr-canvas-card">
+          {resetFailure === selectedDate ? (
+            <p className="rf-note-error" role="alert">Couldn't reset the day. Nothing was changed.</p>
+          ) : null}
           {inReflection ? (
             <div className="rf-intro">
               {reflectionError ? <p className="rf-note-error" role="alert">{reflectionError}</p> : null}
@@ -399,6 +427,8 @@ function DailyRoutinePage() {
               onAddReality={() => openCreateTaskModal('reality', nextDefaultDraftTask())}
               planActions={cleanUpButton}
               toolbarActions={reflectionToggle}
+              onResetDay={openResetConfirm}
+              resetDisabled={isPast}
             />
           ) : (
             <EditingBoard
@@ -408,6 +438,9 @@ function DailyRoutinePage() {
               {...(reflectionReady ? realityHandlers : inReflection ? {} : planHandlers)}
               showCompletion={!inReflection}
               toolbarMenuActions={inReflection ? null : cleanUpButton}
+              // Reset day acts on the plan, so it isn't offered while the single board shows Reality.
+              onResetDay={inReflection ? undefined : openResetConfirm}
+              resetDisabled={isPast}
               toolbarActions={
                 <>
                   {reflectionToggle}
@@ -501,6 +534,16 @@ function DailyRoutinePage() {
         onClose={closeTaskModal}
         onSaved={modalTarget === 'reality' ? refreshReflection : afterPlanChange}
         onDeleteTask={(task) => handleDeleteTask(modalTarget, task)}
+      />
+
+      <ConfirmDialog
+        isOpen={resetConfirmOpen}
+        message="Replace all tasks on this day with a fresh copy of your default routine? Your reflection stays as it is."
+        confirmLabel="Reset day"
+        loadingLabel="Resetting..."
+        isLoading={isResetting}
+        onConfirm={handleConfirmReset}
+        onCancel={() => setResetConfirmOpen(false)}
       />
 
       <ReflectionTaskPopup

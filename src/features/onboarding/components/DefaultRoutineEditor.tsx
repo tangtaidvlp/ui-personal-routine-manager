@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import EditingBoard from './EditingBoard.jsx'
+import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
+import { copyWeekdayToWeekend } from '../api/defaultRoutine.ts'
 import TaskEditModal, { type TaskFormValue } from './TaskEditModal.tsx'
 import FabButton from './FabButton.tsx'
 import { SCHEDULE_TABS, useDefaultRoutines, type DefaultRoutinesState } from '../hooks/useDefaultRoutines.ts'
@@ -85,6 +87,24 @@ function DefaultRoutineEditor({
     closeTaskModal,
   } = routines
 
+  // F012: Copy Weekday to Weekend, after a confirm.
+  const [copyConfirmOpen, setCopyConfirmOpen] = useState(false)
+  const [isCopying, setIsCopying] = useState(false)
+
+  const handleConfirmCopy = async () => {
+    if (!userId) return
+    setIsCopying(true)
+    try {
+      await copyWeekdayToWeekend(userId)
+      await refreshRoutine('weekend')
+    } catch (error) {
+      handleSaveError(error)
+    } finally {
+      setIsCopying(false)
+      setCopyConfirmOpen(false)
+    }
+  }
+
   const canAddTask = Boolean(activeRoutine?.id)
   const isEmpty = isActiveLoaded && (activeRoutine?.tasks?.length ?? 0) === 0
 
@@ -150,6 +170,16 @@ function DefaultRoutineEditor({
             onPersistTaskChange={persistTaskChange}
             onPersistError={handleSaveError}
             onRequestDeleteTask={handleDeleteTask}
+            toolbarMenuActions={
+              <button
+                type="button"
+                className="ui-btn ui-btn-ghost"
+                onClick={() => setCopyConfirmOpen(true)}
+                disabled={!userId || isCopying}
+              >
+                Copy Weekday to Weekend
+              </button>
+            }
           />
         </section>
 
@@ -169,6 +199,16 @@ function DefaultRoutineEditor({
         onClose={closeTaskModal}
         onSaved={() => refreshRoutine()}
         onDeleteTask={handleDeleteTask}
+      />
+
+      <ConfirmDialog
+        isOpen={copyConfirmOpen}
+        message="Replace all Weekend tasks with a copy of your Weekday routine?"
+        confirmLabel="Copy"
+        loadingLabel="Copying..."
+        isLoading={isCopying}
+        onConfirm={handleConfirmCopy}
+        onCancel={() => setCopyConfirmOpen(false)}
       />
 
       {children}
