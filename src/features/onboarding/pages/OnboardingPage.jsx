@@ -78,9 +78,10 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             initialMessage={BUDDY_GREETING}
             placeholder='Try: "I work from 9 to 5"'
             onSend={(message) => submitOnboardingChat(user.id, routines[tab], message)}
-            onAfterSend={() => {
+            onAfterSend={({ hasGoalProposal }) => {
               refreshRoutine(tab)
-              setMobileView('board')
+              // A goal proposal (F013) waits for the user in the chat.
+              if (!hasGoalProposal) setMobileView('board')
             }}
           />
           )

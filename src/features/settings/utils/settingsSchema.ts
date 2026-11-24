@@ -1,4 +1,4 @@
-import type { ApiTheme, SettingKey, ThemePreference, UserSettings } from '../types/settings.ts'
+import type { ApiTheme, BuddyToneId, SettingKey, ThemePreference, UserSettings } from '../types/settings.ts'
 
 /*
  * Known account settings, mirrored from the backend UserSettingsRegistry
@@ -32,11 +32,29 @@ export function normalizeZoom(value: unknown): number {
   return Math.round(clamped / ZOOM_STEP) * ZOOM_STEP
 }
 
+/** Every Buddy tone id, in catalogue order (mirror of the backend BuddyTone enum, F014). */
+export const BUDDY_TONE_IDS: readonly BuddyToneId[] = [
+  'BALANCED',
+  'CHIEF_OF_STAFF',
+  'STOIC',
+  'SOCRATIC_PEER',
+  'WARM_ANCHOR',
+  'ACCOUNTABILITY_COACH',
+]
+export const DEFAULT_BUDDY_TONE: BuddyToneId = 'BALANCED'
+
+/** API value → tone id; anything unknown means the default, Balanced (F014 FR-011). */
+export function normalizeBuddyTone(value: unknown): BuddyToneId {
+  const upper = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  return (BUDDY_TONE_IDS as readonly string[]).includes(upper) ? (upper as BuddyToneId) : DEFAULT_BUDDY_TONE
+}
+
 type SettingDefinitions = { [K in SettingKey]: { defaultValue: UserSettings[K]; normalize: (raw: unknown) => UserSettings[K] } }
 
 const SETTING_DEFINITIONS: SettingDefinitions = {
   theme: { defaultValue: 'system', normalize: themeFromApi },
   boardZoom: { defaultValue: 1, normalize: normalizeZoom },
+  buddyTone: { defaultValue: DEFAULT_BUDDY_TONE, normalize: normalizeBuddyTone },
 }
 
 const SETTING_KEYS = Object.keys(SETTING_DEFINITIONS) as SettingKey[]
@@ -44,6 +62,7 @@ const SETTING_KEYS = Object.keys(SETTING_DEFINITIONS) as SettingKey[]
 export const DEFAULT_SETTINGS: UserSettings = Object.freeze({
   theme: SETTING_DEFINITIONS.theme.defaultValue,
   boardZoom: SETTING_DEFINITIONS.boardZoom.defaultValue,
+  buddyTone: SETTING_DEFINITIONS.buddyTone.defaultValue,
 })
 
 /** API `settings` object → UserSettings: known keys only, defaults for missing or bad values. */

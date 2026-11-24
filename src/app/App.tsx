@@ -14,6 +14,7 @@ import OnboardingPage from '../features/onboarding/pages/OnboardingPage.jsx'
 import { completeOnboarding } from '../features/onboarding/api/completeOnboarding.ts'
 import AuthContext from '../context/AuthContext.ts'
 import ProfilePage from '../features/profile/pages/ProfilePage.tsx'
+import PersonalTargetPage from '../features/personal-target/pages/PersonalTargetPage.tsx'
 import SettingsSaveNotice from '../features/settings/components/SettingsSaveNotice.tsx'
 import { loadUserSettings, resetUserSettings } from '../features/settings/hooks/useUserSettings.ts'
 
@@ -336,6 +337,7 @@ function App() {
           >
             <Route path="/today" element={<DailyRoutinePage />} />
             <Route path="/default-routine" element={<DefaultRoutinePage />} />
+            <Route path="/personal-target" element={<PersonalTargetPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>

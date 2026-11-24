@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { nextCursor, prependOlder, toChatItems } from './chatHistory.ts'
+import GoalProposalCard from '../../personal-target/components/GoalProposalCard.tsx'
 
 // Load older history when the thread is scrolled to within this many px of the top.
 const LOAD_OLDER_THRESHOLD_PX = 40
@@ -37,19 +38,23 @@ function createChatMessage(role, text, isError = false) {
  *   subtitle?: string,
  *   initialMessage: string,
  *   placeholder?: string,
- *   onSend: (message: string) => Promise<string>,
- *   onAfterSend?: () => void,
+ *   onSend: (message: string) => Promise<string | import('../../personal-target/types/goal.ts').BuddyReply>,
+ *   onAfterSend?: (info: { hasGoalProposal: boolean }) => void,
  *   tourId?: string,
  *   isHidden?: boolean,
  *   loadHistory?: (before?: number | null) => Promise<import('../types/chatHistory.ts').ChatHistoryPage>,
  *   topSlot?: import('react').ReactNode,
  *   compactHeader?: boolean,
+ *   onGoalSaved?: () => void,
  * }} props
  *
  * `loadHistory` (F004): when given, the stored conversation is shown under the greeting
  * (newest page first) and older pages load when the thread is scrolled to the top.
  * `topSlot` (F007): content pinned between the header and the thread (Buddy's reflection note).
  * `compactHeader` (F007): a shorter header, to leave room for `topSlot`.
+ * `onSend` (F013) may return a BuddyReply; a goal proposal in it is shown as a confirm card
+ * under the reply, and `onAfterSend` is told so the page can keep the chat in view.
+ * `onGoalSaved` (F013 US4) is called when a proposal is confirmed, so a page listing goals can reload.
  */
 function BuddyChat({
   title = 'Routine Buddy',
@@ -63,6 +68,7 @@ function BuddyChat({
   loadHistory,
   topSlot = null,
   compactHeader = false,
+  onGoalSaved,
 }) {
   const [prompt, setPrompt] = useState('')
   const inputRef = useRef(null)
@@ -163,9 +169,10 @@ function BuddyChat({
       setIsSendingChat(true)
       setMessages((current) => [...current, createChatMessage('user', message)])
       setPrompt('')
-      const reply = await onSend(message)
-      setMessages((current) => [...current, createChatMessage('bot', reply)])
-      onAfterSend?.()
+      const result = await onSend(message)
+      const { reply, goalProposal } = typeof result === 'string' ? { reply: result, goalProposal: null } : result
+      setMessages((current) => [...current, { ...createChatMessage('bot', reply), goalProposal }])
+      onAfterSend?.({ hasGoalProposal: Boolean(goalProposal) })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message'
       setMessages((current) => [...current, createChatMessage('bot', errorMessage, true)])
@@ -207,6 +214,7 @@ function BuddyChat({
             <div className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>
               <ReactMarkdown>{chat.isError ? `Error: ${chat.text}` : chat.text}</ReactMarkdown>
             </div>
+            {chat.goalProposal ? <GoalProposalCard proposal={chat.goalProposal} onSaved={onGoalSaved} /> : null}
             <div className="ob-message-spacer"></div>
           </div>
         ))}

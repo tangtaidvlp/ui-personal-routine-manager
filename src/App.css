@@ -2858,3 +2858,430 @@
     flex-wrap: wrap;
   }
 }
+
+/* ── Personal Target (specs/F013-personal-goals, contracts/ui.md) ── */
+
+/* Cards on the left, Buddy's goals chat on the right, like Today (F013 US4). */
+.pt-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--chat-panel-width);
+}
+
+.pt-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pt-layout > .ob-buddy-card {
+  border: none;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+}
+
+/* Phones: goals ⇄ chat, switched by the floating buttons. */
+@media (max-width: 760px) {
+  .pt-layout {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pt-layout[data-mobile-view='goals'] .pt-main {
+    flex: 1;
+  }
+
+  .pt-layout[data-mobile-view='goals'] > .ob-buddy-card {
+    display: none;
+  }
+
+  .pt-layout[data-mobile-view='goals'] .ob-fab-btn-chat {
+    display: grid;
+  }
+
+  .pt-layout[data-mobile-view='chat'] .pt-page {
+    display: none;
+  }
+
+  .pt-layout[data-mobile-view='chat'] .ob-fab-btn-view-schedule {
+    display: block;
+  }
+
+  .pt-layout > .ob-buddy-card {
+    flex: 1;
+    margin: 0 var(--space-3) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    /* Keep the message box clear of the floating "View goals" button. */
+    padding-bottom: 72px;
+  }
+
+  /* Leave room for the floating chat button under the last card. */
+  .pt-layout .pt-page {
+    padding-bottom: 88px;
+  }
+}
+
+.pt-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  overflow-y: auto;
+}
+
+.pt-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.pt-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pt-card-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.pt-total,
+.pt-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.pt-intro,
+.pt-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.pt-error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.pt-review {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.pt-review p {
+  margin: 0;
+}
+
+.pt-review-title {
+  font-weight: var(--font-weight-semibold);
+}
+
+.pt-review-goal {
+  font-weight: var(--font-weight-semibold);
+}
+
+.pt-review-help {
+  color: var(--color-text-secondary);
+}
+
+.pt-load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.pt-goal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pt-goal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  min-width: 0;
+}
+
+.pt-goal-text {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.pt-goal-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.pt-goal-help {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.pt-goal-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.pt-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pt-form {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.pt-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.pt-field input,
+.pt-field textarea {
+  font: inherit;
+  font-weight: 400;
+  width: 100%;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  outline: none;
+  resize: vertical;
+}
+
+.pt-field input:focus,
+.pt-field textarea:focus {
+  border-color: var(--color-accent);
+}
+
+.pt-field .pt-count {
+  align-self: flex-end;
+  font-weight: 400;
+}
+
+.pt-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* Buddy goal proposal card (specs/F013 US3, contracts/ui.md) */
+.pt-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font-size: var(--font-size-sm);
+  min-width: 0;
+}
+
+.pt-proposal-title {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.pt-proposal-goal {
+  display: block;
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.pt-proposal-help {
+  display: block;
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.pt-proposal-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.pt-proposal-compare dt {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.pt-proposal-compare dd {
+  margin: 0;
+}
+
+.pt-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.pt-proposal-status {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.pt-proposal-status:empty {
+  display: none;
+}
+
+.pt-proposal-status a {
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Buddy tone picker (specs/F014-buddy-tone, contracts/ui.md) */
+.pt-tone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pt-tone-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+@media (min-width: 720px) {
+  .pt-tone-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.pt-tone-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.pt-tone-option:hover {
+  border-color: var(--color-border-strong);
+}
+
+.pt-tone-option.is-selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.pt-tone-option:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.pt-tone-option input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--color-accent);
+}
+
+.pt-tone-group:disabled .pt-tone-option {
+  cursor: progress;
+}
+
+.pt-tone-body,
+.pt-tone-desc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.pt-tone-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.pt-tone-vibe,
+.pt-tone-best {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.pt-tone-example {
+  font-size: var(--font-size-sm);
+  font-style: italic;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.pt-tone .pt-note:empty {
+  display: none;
+}

@@ -48,9 +48,10 @@ function DefaultRoutinePage() {
             initialMessage={GREETING[tab]}
             placeholder='Try: "Move my run to 6:30"'
             onSend={(message: string) => submitDefaultRoutineChat(userId, routines[tab], message)}
-            onAfterSend={() => {
+            onAfterSend={({ hasGoalProposal }) => {
               void refreshRoutine(tab)
-              setMobileView('board')
+              // A goal proposal (F013) waits for the user in the chat.
+              if (!hasGoalProposal) setMobileView('board')
             }}
           />
           )

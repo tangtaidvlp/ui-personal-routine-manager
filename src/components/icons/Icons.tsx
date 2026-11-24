@@ -108,6 +108,17 @@ export function BarChartIcon(props: IconProps) {
   )
 }
 
+/** Personal Target page (F013): goals. */
+export function TargetIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1" />
+    </Icon>
+  )
+}
+
 /** Open the sidebar on narrow screens (burger). */
 export function MenuIcon(props: IconProps) {
   return (
