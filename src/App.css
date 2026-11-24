@@ -2861,6 +2861,70 @@
 
 /* ── Personal Target (specs/F013-personal-goals, contracts/ui.md) ── */
 
+/* Cards on the left, Buddy's goals chat on the right, like Today (F013 US4). */
+.pt-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--chat-panel-width);
+}
+
+.pt-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pt-layout > .ob-buddy-card {
+  border: none;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+}
+
+/* Phones: goals ⇄ chat, switched by the floating buttons. */
+@media (max-width: 760px) {
+  .pt-layout {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pt-layout[data-mobile-view='goals'] .pt-main {
+    flex: 1;
+  }
+
+  .pt-layout[data-mobile-view='goals'] > .ob-buddy-card {
+    display: none;
+  }
+
+  .pt-layout[data-mobile-view='goals'] .ob-fab-btn-chat {
+    display: grid;
+  }
+
+  .pt-layout[data-mobile-view='chat'] .pt-page {
+    display: none;
+  }
+
+  .pt-layout[data-mobile-view='chat'] .ob-fab-btn-view-schedule {
+    display: block;
+  }
+
+  .pt-layout > .ob-buddy-card {
+    flex: 1;
+    margin: 0 var(--space-3) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    /* Keep the message box clear of the floating "View goals" button. */
+    padding-bottom: 72px;
+  }
+
+  /* Leave room for the floating chat button under the last card. */
+  .pt-layout .pt-page {
+    padding-bottom: 88px;
+  }
+}
+
 .pt-page {
   flex: 1;
   display: flex;
@@ -2912,6 +2976,35 @@
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-danger);
+}
+
+.pt-review {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.pt-review p {
+  margin: 0;
+}
+
+.pt-review-title {
+  font-weight: var(--font-weight-semibold);
+}
+
+.pt-review-goal {
+  font-weight: var(--font-weight-semibold);
+}
+
+.pt-review-help {
+  color: var(--color-text-secondary);
 }
 
 .pt-load-error {

@@ -20,6 +20,15 @@ export type GoalInput = {
   howToHelp: string | null
 }
 
+/** Why Buddy refused a goal on save, with a suggested version (specs/F013 US5, contracts/goals-api.md). */
+export type GoalReview = {
+  reason: string
+  suggestion: GoalInput | null
+}
+
+/** A goal save: the saved goal, or Buddy's refusal with nothing saved. */
+export type GoalSaveResult = { goal: Goal; review: null } | { goal: null; review: GoalReview }
+
 /** A goal Buddy suggests in chat; saved only when the user confirms (contracts/buddy-chat-goal-proposal.md). */
 export type GoalProposal = {
   action: 'ADD' | 'UPDATE'

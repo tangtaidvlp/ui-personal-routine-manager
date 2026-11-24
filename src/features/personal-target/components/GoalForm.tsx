@@ -1,19 +1,20 @@
 import { useEffect, useId, useRef, useState, useTransition, type FormEvent } from 'react'
 import { ApiError } from '../../../lib/api.ts'
-import type { GoalInput } from '../types/goal.ts'
+import type { GoalInput, GoalReview } from '../types/goal.ts'
 import { GOAL_MAX, HELP_MAX, validateGoal } from '../utils/goalRules.ts'
 
 type GoalFormProps = {
   /** The goal being edited; empty for a new goal. */
   initial?: GoalInput
-  /** Saves the goal; throws (ApiError) when the server refuses it. */
-  onSave: (input: GoalInput) => Promise<void>
+  /** Saves the goal. Resolves with Buddy's review when Buddy refused it (US5); throws (ApiError) on other refusals. */
+  onSave: (input: GoalInput) => Promise<GoalReview | null>
   onCancel: () => void
 }
 
 /**
  * Add/edit form for one goal (specs/F013 contracts/ui.md "Add/Edit form"). A refused save keeps
- * what the user typed and shows the server's message.
+ * what the user typed and shows the server's message. Buddy checks the goal on save (US5): a
+ * refusal shows Buddy's reason and a suggestion the user can put into the form.
  */
 function GoalForm({ initial, onSave, onCancel }: GoalFormProps) {
   const goalId = useId()
@@ -23,6 +24,7 @@ function GoalForm({ initial, onSave, onCancel }: GoalFormProps) {
   const [goal, setGoal] = useState(initial?.goal ?? '')
   const [help, setHelp] = useState(initial?.howToHelp ?? '')
   const [error, setError] = useState<string | null>(null)
+  const [review, setReview] = useState<GoalReview | null>(null)
   const [isSaving, startSaving] = useTransition()
 
   // Focus moves into the form when it opens (contracts/ui.md, keyboard use).
@@ -38,13 +40,24 @@ function GoalForm({ initial, onSave, onCancel }: GoalFormProps) {
       return
     }
     setError(null)
+    setReview(null)
     startSaving(async () => {
       try {
-        await onSave(result.value)
+        const refusal = await onSave(result.value)
+        if (refusal) setReview(refusal)
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Couldn't save the goal. Please try again.")
       }
     })
+  }
+
+  const applySuggestion = () => {
+    const suggestion = review?.suggestion
+    if (!suggestion) return
+    setGoal(suggestion.goal)
+    setHelp(suggestion.howToHelp ?? '')
+    setReview(null)
+    goalRef.current?.focus()
   }
 
   return (
@@ -80,12 +93,34 @@ function GoalForm({ initial, onSave, onCancel }: GoalFormProps) {
           {error}
         </p>
       ) : null}
+      {isSaving ? (
+        <p className="pt-note" role="status">
+          Buddy is checking your goal…
+        </p>
+      ) : null}
+      {review ? (
+        <div className="pt-review" role="alert">
+          <p className="pt-review-title">Buddy can&apos;t save this goal yet</p>
+          <p className="pt-review-reason">{review.reason}</p>
+          {review.suggestion ? (
+            <>
+              <p className="pt-review-suggestion">
+                Try: <span className="pt-review-goal">{review.suggestion.goal}</span>
+              </p>
+              {review.suggestion.howToHelp ? <p className="pt-review-help">{review.suggestion.howToHelp}</p> : null}
+              <button type="button" className="ui-btn ui-btn-ghost" onClick={applySuggestion}>
+                Use suggestion
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
       <div className="pt-form-actions">
         <button type="button" className="ui-btn ui-btn-ghost" onClick={onCancel} disabled={isSaving}>
           Cancel
         </button>
         <button type="submit" className="ui-btn ui-btn-primary" disabled={isSaving}>
-          {isSaving ? 'Saving…' : 'Save'}
+          {isSaving ? 'Checking…' : 'Save'}
         </button>
       </div>
     </form>

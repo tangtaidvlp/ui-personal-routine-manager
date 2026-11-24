@@ -67,3 +67,41 @@ test('personal target: choose Buddy tone and keep it after a reload', async ({ p
   await expect(tone.getByRole('radio', { name: 'Warm Anchor' })).toBeChecked()
   await expect(tone.getByRole('radio', { name: /Balanced/ })).not.toBeChecked()
 })
+
+/** F013 US4: chat with Buddy about goals on the page; the conversation is kept (quickstart E1). */
+test('personal target: chat with Buddy and keep the conversation', async ({ page }) => {
+  await registerAndOnboard(page)
+
+  await page.locator('.app-sidebar').getByRole('link', { name: 'Personal Target' }).click()
+  const input = page.getByPlaceholder('Try: "Help me set a sleep goal"')
+  await input.fill('help me set a sleep goal')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  // The test backend uses the mock AI, which echoes the message.
+  await expect(page.getByText(/Mock goals response .*help me set a sleep goal/)).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByText(/Mock goals response .*help me set a sleep goal/)).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Your goals' })).toBeVisible()
+})
+
+/** F013 US5: Buddy checks a goal on save; a refused goal isn't saved (quickstart F1–F2). */
+test('personal target: Buddy refuses an unrealistic goal and its suggestion can be saved', async ({ page }) => {
+  await registerAndOnboard(page)
+
+  await page.locator('.app-sidebar').getByRole('link', { name: 'Personal Target' }).click()
+  const goals = page.getByRole('region', { name: 'Your goals' })
+  await goals.getByRole('button', { name: 'Add goal' }).click()
+  // The test backend's mock reviewer refuses text containing "impossible".
+  await goals.getByLabel('Goal', { exact: true }).fill('Do the impossible every day')
+  await goals.getByRole('button', { name: 'Save' }).click()
+
+  const review = goals.getByRole('alert')
+  await expect(review).toContainText("Buddy can't save this goal yet")
+  await expect(goals.getByLabel('Goal', { exact: true })).toHaveValue('Do the impossible every day')
+
+  await review.getByRole('button', { name: 'Use suggestion' }).click()
+  await expect(goals.getByLabel('Goal', { exact: true })).toHaveValue('Take one small step toward it each day')
+  await goals.getByRole('button', { name: 'Save' }).click()
+  await expect(goals.getByText('Take one small step toward it each day')).toBeVisible()
+  await expect(goals.getByText('1/3')).toBeVisible()
+})

@@ -3,17 +3,21 @@ import { Link } from 'react-router-dom'
 import AuthContext from '../../../context/AuthContext.ts'
 import { ApiError } from '../../../lib/api.ts'
 import { createGoal, updateGoal } from '../api/goals.ts'
-import type { GoalProposal } from '../types/goal.ts'
+import type { GoalProposal, GoalReview } from '../types/goal.ts'
 
 type Outcome =
   | { kind: 'open' }
   | { kind: 'saved' }
   | { kind: 'dismissed' }
+  /** Buddy's check refused the goal on save (US5); final. */
+  | { kind: 'refused'; review: GoalReview }
   /** `retry`: a network error; the user may try again. Server refusals (4xx) are final. */
   | { kind: 'error'; message: string; retry: boolean }
 
 type GoalProposalCardProps = {
   proposal: GoalProposal
+  /** Called after the goal is saved, so a page showing the goals can reload them (F013 US4). */
+  onSaved?: () => void
 }
 
 /**
@@ -21,7 +25,7 @@ type GoalProposalCardProps = {
  * Nothing is saved until the user clicks Confirm, which goes through the normal goals API, so
  * the limit, length and ownership rules apply.
  */
-function GoalProposalCard({ proposal }: GoalProposalCardProps) {
+function GoalProposalCard({ proposal, onSaved }: GoalProposalCardProps) {
   const { user } = useContext(AuthContext)
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'open' })
   const [isSaving, startSaving] = useTransition()
@@ -36,16 +40,19 @@ function GoalProposalCard({ proposal }: GoalProposalCardProps) {
     }
     startSaving(async () => {
       try {
-        if (isUpdate && proposal.goalId) {
-          await updateGoal(userId, proposal.goalId, input)
-        } else {
-          await createGoal(userId, input)
+        const result =
+          isUpdate && proposal.goalId ? await updateGoal(userId, proposal.goalId, input) : await createGoal(userId, input)
+        if (result.goal === null) {
+          setOutcome({ kind: 'refused', review: result.review })
+          return
         }
         setOutcome({ kind: 'saved' })
+        onSaved?.()
       } catch (err) {
-        const isNetwork = err instanceof ApiError && err.status === 0
+        // A network error or Buddy being unavailable (503) may be retried; other refusals are final.
+        const retryable = !(err instanceof ApiError) || err.status === 0 || err.status === 503
         const message = err instanceof ApiError ? err.message : "Couldn't save the goal. Please try again."
-        setOutcome({ kind: 'error', message, retry: isNetwork || !(err instanceof ApiError) })
+        setOutcome({ kind: 'error', message, retry: retryable })
       }
     })
   }
@@ -98,6 +105,12 @@ function GoalProposalCard({ proposal }: GoalProposalCardProps) {
         ) : null}
         {outcome.kind === 'dismissed' ? 'Not saved.' : null}
         {outcome.kind === 'error' ? <span className="pt-error">{outcome.message}</span> : null}
+        {outcome.kind === 'refused' ? (
+          <span className="pt-review-reason">
+            {outcome.review.reason}
+            {outcome.review.suggestion ? <> Try: {outcome.review.suggestion.goal}</> : null}
+          </span>
+        ) : null}
       </p>
     </section>
   )

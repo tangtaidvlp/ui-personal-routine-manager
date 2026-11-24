@@ -22,13 +22,14 @@ const update: GoalProposal = {
   howToHelp: null,
   current: { goal: 'Run a 10k', howToHelp: 'Keep me training' },
 }
-const saved: Goal = { id: 'g-9', goal: 'x', howToHelp: null, createdAt: '', updatedAt: '' }
+const savedGoal: Goal = { id: 'g-9', goal: 'x', howToHelp: null, createdAt: '', updatedAt: '' }
+const saved = { goal: savedGoal, review: null }
 
-function renderCard(proposal: GoalProposal) {
+function renderCard(proposal: GoalProposal, onSaved?: () => void) {
   return render(
     <AuthContext.Provider value={{ user: { id: 'user-1', name: 'Tom' }, setUser: vi.fn() }}>
       <MemoryRouter>
-        <GoalProposalCard proposal={proposal} />
+        <GoalProposalCard proposal={proposal} onSaved={onSaved} />
       </MemoryRouter>
     </AuthContext.Provider>,
   )
@@ -40,6 +41,43 @@ beforeEach(() => {
 })
 
 describe('GoalProposalCard', () => {
+  it('tells the page once the goal is saved, never on dismiss', async () => {
+    vi.mocked(createGoal).mockResolvedValue(saved)
+    const onSaved = vi.fn()
+    const { unmount } = renderCard(add, onSaved)
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    unmount()
+
+    renderCard(add, onSaved)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await screen.findByText(/Saved to your goals\./)
+    expect(onSaved).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows Buddy's refusal as final, with the suggestion", async () => {
+    vi.mocked(createGoal).mockResolvedValue({
+      goal: null,
+      review: { reason: 'Too little sleep is not safe.', suggestion: { goal: 'Sleep 7 hours a night', howToHelp: null } },
+    })
+    const onSaved = vi.fn()
+    renderCard(add, onSaved)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    expect(await screen.findByText(/Too little sleep is not safe\. Try: Sleep 7 hours a night/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument()
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it('keeps Confirm when Buddy is unavailable (503)', async () => {
+    vi.mocked(createGoal).mockRejectedValue(new ApiError(503, "Buddy couldn't check your goal right now. Please try again in a moment."))
+    renderCard(add)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    expect(await screen.findByText(/Buddy couldn't check your goal right now/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
+  })
+
   it('saves a new goal only when the user confirms', async () => {
     vi.mocked(createGoal).mockResolvedValue(saved)
     renderCard(add)
