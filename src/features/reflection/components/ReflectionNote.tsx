@@ -22,7 +22,9 @@ function ReflectionNote({ view, onRequestFeedback }: Props) {
     } catch (e) {
       setError(e instanceof ApiError && e.status === 503
         ? 'Buddy is unavailable right now. Your reflection is saved — try again in a bit.'
-        : "Couldn't get Buddy's note. Please try again.")
+        : e instanceof ApiError && e.status === 429
+          ? e.message
+          : "Couldn't get Buddy's note. Please try again.")
     } finally {
       setLoading(false)
     }

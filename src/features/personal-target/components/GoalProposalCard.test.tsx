@@ -78,6 +78,15 @@ describe('GoalProposalCard', () => {
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
   })
 
+  it('keeps Confirm when the user is rate limited (429)', async () => {
+    vi.mocked(createGoal).mockRejectedValue(new ApiError(429, "You're messaging Buddy too fast. Please wait a minute and try again."))
+    renderCard(add)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    expect(await screen.findByText(/messaging Buddy too fast/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
+  })
+
   it('saves a new goal only when the user confirms', async () => {
     vi.mocked(createGoal).mockResolvedValue(saved)
     renderCard(add)
