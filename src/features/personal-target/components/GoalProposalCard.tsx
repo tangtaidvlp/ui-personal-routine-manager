@@ -49,8 +49,8 @@ function GoalProposalCard({ proposal, onSaved }: GoalProposalCardProps) {
         setOutcome({ kind: 'saved' })
         onSaved?.()
       } catch (err) {
-        // A network error or Buddy being unavailable (503) may be retried; other refusals are final.
-        const retryable = !(err instanceof ApiError) || err.status === 0 || err.status === 503
+        // A network error or Buddy being unavailable (503) or a rate limit (429) may be retried; other refusals are final.
+        const retryable = !(err instanceof ApiError) || err.status === 0 || err.status === 503 || err.status === 429
         const message = err instanceof ApiError ? err.message : "Couldn't save the goal. Please try again."
         setOutcome({ kind: 'error', message, retry: retryable })
       }

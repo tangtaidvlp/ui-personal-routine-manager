@@ -32,4 +32,11 @@ describe('ReflectionNote', () => {
     await userEvent.click(screen.getByRole('button', { name: "Get Buddy's note" }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Buddy is unavailable right now')
   })
+
+  it('shows the rate-limit message when the user asks too often', async () => {
+    const onRequestFeedback = vi.fn().mockRejectedValue(new ApiError(429, "You're messaging Buddy too fast. Please wait a minute and try again."))
+    render(<ReflectionNote view={testView()} onRequestFeedback={onRequestFeedback} />)
+    await userEvent.click(screen.getByRole('button', { name: "Get Buddy's note" }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('messaging Buddy too fast')
+  })
 })
