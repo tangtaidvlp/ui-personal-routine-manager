@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import EditingBoard from '../../onboarding/components/EditingBoard.jsx'
+import RadialBoard from '../../radial-view/components/RadialBoard.tsx'
 import BoardToolbar from '../../onboarding/components/BoardToolbar.jsx'
 import { useBoardClock } from '../../onboarding/hooks/useBoardClock.ts'
 import { useSyncedScroll } from '../hooks/useSyncedScroll.ts'
@@ -8,6 +9,7 @@ import { useSyncedScroll } from '../hooks/useSyncedScroll.ts'
  * F007 FR-012 (wide screens): the Plan and Reality boards side by side under one toolbar.
  * Both are editable. One clock drives both now-lines, zoom is the shared account setting,
  * and scrolling one board scrolls the other, so the same times line up (research R11/R12).
+ * `view` 'radial' (F016) swaps both boards for the 24-hour circle; zoom and Gap clear leave the toolbar.
  * Gap clear and Reset day act on the plan only (spec Assumptions; F012 FR-007).
  *
  * @param {{
@@ -32,6 +34,7 @@ import { useSyncedScroll } from '../hooks/useSyncedScroll.ts'
  *   onAddReality: () => void,
  *   planActions?: import('react').ReactNode,
  *   toolbarActions?: import('react').ReactNode,
+ *   view?: 'vertical' | 'radial',
  * }} props
  */
 function CompareBoards({
@@ -45,7 +48,9 @@ function CompareBoards({
   resetDisabled = false,
   planActions = null,
   toolbarActions = null,
+  view = 'vertical',
 }) {
+  const Board = view === 'radial' ? RadialBoard : EditingBoard
   const clock = useBoardClock()
   const [gapClearMode, setGapClearMode] = useState(false)
   const registerScroll = useSyncedScroll()
@@ -60,6 +65,7 @@ function CompareBoards({
           onResetDay={onResetDay}
           resetDisabled={resetDisabled}
           actions={toolbarActions}
+          boardTools={view !== 'radial'}
         />
       </div>
 
@@ -74,7 +80,8 @@ function CompareBoards({
               </button>
             </div>
           </header>
-          <EditingBoard
+          <Board
+            label="Plan"
             routine={planRoutine}
             showToolbar={false}
             clock={clock}
@@ -93,7 +100,8 @@ function CompareBoards({
               </button>
             </div>
           </header>
-          <EditingBoard
+          <Board
+            label="Reality"
             routine={realityRoutine}
             showToolbar={false}
             clock={clock}
