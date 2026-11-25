@@ -44,6 +44,8 @@ function BoardToolbar({
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
   const { zoom: zoomLevel, zoomIn, zoomOut, canZoomIn, canZoomOut } = useBoardZoom()
 
+  const hasTools = Boolean(boardTools || onResetDay || menuActions)
+
   const secondaryTools = (inMenu) => (
     <>
       {boardTools && (
@@ -105,8 +107,12 @@ function BoardToolbar({
         </div>
       )}
       <div className="ob-board-toolbar-controls">
-        <div className="ob-board-tools-inline">{secondaryTools(false)}</div>
-        <ToolbarMoreMenu>{secondaryTools(true)}</ToolbarMoreMenu>
+        {hasTools && (
+          <>
+            <div className="ob-board-tools-inline">{secondaryTools(false)}</div>
+            <ToolbarMoreMenu>{secondaryTools(true)}</ToolbarMoreMenu>
+          </>
+        )}
         {actions ? (
           <>
             <span className="ob-board-toolbar-divider" aria-hidden="true" />

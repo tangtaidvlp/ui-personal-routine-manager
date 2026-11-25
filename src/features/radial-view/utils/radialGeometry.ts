@@ -104,3 +104,15 @@ export function findNowAndNext<T extends TimedItem>(
   }
   return { current, minutesLeft: current ? current.duration - sinceStart : 0, next }
 }
+
+/** Angle (0 = top, clockwise, [0, 360)) of point (x, y) around (cx, cy). */
+export function angleAt(cx: number, cy: number, x: number, y: number): number {
+  const angle = (Math.atan2(x - cx, cy - y) * 180) / Math.PI
+  return angle < 0 ? angle + 360 : angle
+}
+
+/** Shortest signed turn from one angle to another, in (-180, 180]. Summing these follows a drag past midnight. */
+export function angleDelta(from: number, to: number): number {
+  const delta = (((to - from) % 360) + 540) % 360 - 180
+  return delta === -180 ? 180 : delta
+}

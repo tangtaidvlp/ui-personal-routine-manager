@@ -3432,6 +3432,16 @@ circle.rv-arc {
   filter: brightness(1.1);
 }
 
+.rv-arc.is-draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.rv-arc.is-dragging {
+  cursor: grabbing;
+  filter: brightness(1.1);
+}
+
 .rv-arc.is-done {
   opacity: 0.5;
 }

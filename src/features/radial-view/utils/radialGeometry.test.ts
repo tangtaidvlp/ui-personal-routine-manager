@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arcPath, assignLanes, findNowAndNext, laneBand, minutesToAngle, parseStartMinutes, pointAt } from './radialGeometry.ts'
+import { angleAt, angleDelta, arcPath, assignLanes, findNowAndNext, laneBand, minutesToAngle, parseStartMinutes, pointAt } from './radialGeometry.ts'
 
 describe('parseStartMinutes', () => {
   it('accepts H:mm, HH:mm and HH:mm:ss', () => {
@@ -143,5 +143,21 @@ describe('findNowAndNext', () => {
   it('treats the end time as free (end is exclusive) and handles no tasks', () => {
     expect(findNowAndNext([lunch], 13 * 60).current).toBeNull()
     expect(findNowAndNext([], 0)).toEqual({ current: null, minutesLeft: 0, next: null })
+  })
+})
+
+describe('angleAt / angleDelta', () => {
+  it('measures clockwise from the top', () => {
+    expect(angleAt(0, 0, 0, -10)).toBe(0)
+    expect(angleAt(0, 0, 10, 0)).toBe(90)
+    expect(angleAt(0, 0, 0, 10)).toBe(180)
+    expect(angleAt(0, 0, -10, 0)).toBe(270)
+  })
+
+  it('takes the short way round, across midnight too', () => {
+    expect(angleDelta(10, 40)).toBe(30)
+    expect(angleDelta(40, 10)).toBe(-30)
+    expect(angleDelta(350, 10)).toBe(20)
+    expect(angleDelta(10, 350)).toBe(-20)
   })
 })

@@ -32,6 +32,36 @@ test('Today circle view', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Circle', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('button', { name: /^Circle task, 09:00 to/ })).toBeVisible()
 
+  // A second task at 09:45: dragging past it must still save (the arc order in the DOM must not move the dragged arc).
+  await board.getByRole('button', { name: '+ Add task' }).click()
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Blocker')
+  await dialog.locator('input[type="time"]').fill('09:45')
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole('button', { name: /^Blocker, 09:45 to/ })).toBeVisible()
+
+  // Dragging the arc one hour clockwise moves the task to 10:00 (the svg is decorative, so locate the arc by class).
+  const centre = await page.locator('.rv-centre').boundingBox()
+  if (!centre) throw new Error('circle not rendered')
+  const cx = centre.x + centre.width / 2
+  const cy = centre.y + centre.height / 2
+  // Arcs have no name and their DOM order is by id: take the one earliest on the clock (09:00, not 09:45).
+  const boxes = await page.locator('.rv-arc').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()))
+  const clockAngle = (b: { x: number; y: number; width: number; height: number }) =>
+    (Math.atan2(b.x + b.width / 2 - cx, cy - (b.y + b.height / 2)) + 2 * Math.PI) % (2 * Math.PI)
+  const arc = boxes.sort((p, q) => clockAngle(p) - clockAngle(q))[0]
+  const gx = arc.x + arc.width / 2
+  const gy = arc.y + arc.height / 2
+  const turn = Math.PI / 12 // 15° = 1 hour
+  const tx = cx + (gx - cx) * Math.cos(turn) - (gy - cy) * Math.sin(turn)
+  const ty = cy + (gx - cx) * Math.sin(turn) + (gy - cy) * Math.cos(turn)
+  await page.mouse.move(gx, gy)
+  await page.mouse.down()
+  await page.mouse.move(tx, ty, { steps: 10 })
+  await page.mouse.up()
+  await expect(page.getByRole('button', { name: /^Circle task, 10:00 to/ })).toBeVisible()
+  await expect(dialog).toBeHidden()
+
   // Back to the timeline.
   await page.getByRole('button', { name: 'Timeline', exact: true }).click()
   await expect(page.locator('.dr-page')).toHaveAttribute('data-board-view', 'vertical')

@@ -1,8 +1,10 @@
-import { useMemo, type CSSProperties, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import { usePalette } from '../../palette/hooks/usePalette.ts'
 import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
 import {
   MINUTES_PER_DAY,
+  angleAt,
+  angleDelta,
   arcPath,
   assignLanes,
   findNowAndNext,
@@ -18,6 +20,7 @@ import { labelEdgeX, layoutLabels, type LabelSide } from '../utils/radialLabels.
 export type RadialTask = {
   id?: string
   name: string
+  description?: string
   startTime: string
   durationMinutes: number
   color?: string | null
@@ -30,6 +33,8 @@ type RadialDayChartProps<T extends RadialTask> = {
   label: string
   /** Absent = view-only: labels are plain text and arcs are not clickable. */
   onTaskClick?: (task: T) => void
+  /** Drag an arc round the clock to move the task (5-minute steps). Absent = arcs only click. */
+  onMoveTask?: (task: T, startMinutes: number) => Promise<unknown> | void
   showCompletion?: boolean
   /** Live clock in minutes since midnight: centre time and task, now hand and the "Now" badge. Absent = setup board. */
   currentTime?: number
@@ -52,6 +57,21 @@ const ALL_NUMBERS_FROM_RADIUS = 80
 const CENTRE_DETAILS_FROM = 64 // centre disc radius needed for the "until" line under the current task
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max))
+const SNAP_MINUTES = 5
+const CLICK_DISTANCE_PX = 4
+const snapToDay = (minutes: number) =>
+  (((Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+
+type DragState = {
+  id: string
+  pointerId: number
+  startX: number
+  startY: number
+  lastAngle: number
+  turned: number // degrees turned since the grab, summed so a drag can pass midnight
+  original: number
+  live: number
+}
 
 const formatTime = (minutes: number) => {
   const normalized = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
@@ -64,23 +84,29 @@ function RadialDayChart<T extends RadialTask>({
   tasks,
   label,
   onTaskClick,
+  onMoveTask,
   showCompletion = false,
   currentTime,
   width,
   height: boardHeight,
 }: RadialDayChartProps<T>) {
   const { palette } = usePalette()
+  const [drag, setDrag] = useState<DragState | null>(null)
+  // A dropped task keeps its new place until the saved tasks come back (tasks prop changes).
+  const [dropped, setDropped] = useState<{ id: string; start: number; tasks: T[] } | null>(null)
+  const override = drag ? { id: drag.id, start: drag.live } : dropped && dropped.tasks === tasks ? dropped : null
 
   const items = useMemo(
     () =>
       tasks
         .flatMap((task) => {
-          const start = parseStartMinutes(task.startTime)
-          if (!task.id || start === null) return []
+          const parsed = parseStartMinutes(task.startTime)
+          if (!task.id || parsed === null) return []
+          const start = override?.id === task.id ? override.start : parsed
           return [{ task, id: task.id, start, duration: clamp(task.durationMinutes, 1, MINUTES_PER_DAY) }]
         })
         .sort((a, b) => a.start - b.start),
-    [tasks],
+    [tasks, override?.id, override?.start],
   )
 
   const layout = useMemo(() => {
@@ -186,6 +212,49 @@ function RadialDayChart<T extends RadialTask>({
   const knob = pointAt(cx, cy, radius - track / 2, nowAngle)
   const details = discRadius >= CENTRE_DETAILS_FROM
 
+  // Stable DOM order: moving the dragged element in the DOM would release its pointer capture.
+  const svgArcs = [...layout.arcs].sort((a, b) => a.id.localeCompare(b.id))
+  const pointerAngle = (event: PointerEvent<SVGElement>) => {
+    const rect = (event.currentTarget as SVGElement).ownerSVGElement?.getBoundingClientRect()
+    return rect ? angleAt(rect.left + cx, rect.top + cy, event.clientX, event.clientY) : 0
+  }
+  const dragHandlers = (task: T, id: string, start: number) =>
+    onMoveTask
+      ? {
+          onPointerDown: (event: PointerEvent<SVGElement>) => {
+            if (event.button !== 0) return
+            event.currentTarget.setPointerCapture(event.pointerId)
+            const angle = pointerAngle(event)
+            setDrag({ id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, lastAngle: angle, turned: 0, original: start, live: start })
+          },
+          onPointerMove: (event: PointerEvent<SVGElement>) => {
+            if (!drag || drag.pointerId !== event.pointerId) return
+            const angle = pointerAngle(event)
+            const turned = drag.turned + angleDelta(drag.lastAngle, angle)
+            setDrag({ ...drag, lastAngle: angle, turned, live: snapToDay(drag.original + (turned / 360) * MINUTES_PER_DAY) })
+          },
+          onPointerUp: (event: PointerEvent<SVGElement>) => {
+            if (!drag || drag.pointerId !== event.pointerId) return
+            setDrag(null)
+            if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < CLICK_DISTANCE_PX) {
+              onTaskClick?.(task)
+            } else if (drag.live !== drag.original) {
+              const { live } = drag
+              setDropped({ id, start: live, tasks })
+              // A failed save drops the unsaved position (the board reports the error).
+              Promise.resolve(onMoveTask(task, live)).catch(() =>
+                setDropped((d) => (d?.id === id && d.start === live ? null : d)),
+              )
+            }
+          },
+          onPointerCancel: () => setDrag(null),
+          // Pointerup comes first and clears the drag, so only a capture lost mid-drag gets here.
+          onLostPointerCapture: (event: PointerEvent<SVGElement>) => {
+            if (drag && drag.pointerId === event.pointerId) setDrag(null)
+          },
+        }
+      : { onClick: onTaskClick ? () => onTaskClick(task) : undefined }
+
   const taskLabel = (item: (typeof layout.arcs)[number], extraClass: string, style: CSSProperties): ReactNode => {
     const done = showCompletion && Boolean(item.task.completed)
     const isNow = current?.id === item.id
@@ -238,12 +307,20 @@ function RadialDayChart<T extends RadialTask>({
               />
             ) : null,
           )}
-          {layout.arcs.map((arc) => {
+          {svgArcs.map((arc) => {
             const done = showCompletion && arc.task.completed
             const props = {
-              className: ['rv-arc', done ? 'is-done' : '', onTaskClick ? 'is-clickable' : ''].filter(Boolean).join(' '),
+              className: [
+                'rv-arc',
+                done ? 'is-done' : '',
+                onTaskClick ? 'is-clickable' : '',
+                onMoveTask ? 'is-draggable' : '',
+                drag?.id === arc.id ? 'is-dragging' : '',
+              ]
+                .filter(Boolean)
+                .join(' '),
               style: resolveTaskColor(arc.task.color, palette) as CSSProperties,
-              onClick: onTaskClick ? () => onTaskClick(arc.task) : undefined,
+              ...dragHandlers(arc.task, arc.id, arc.start),
             }
             return arc.dot ? (
               <circle key={arc.id} {...props} cx={arc.dot.x} cy={arc.dot.y} r={arc.stroke / 2} />

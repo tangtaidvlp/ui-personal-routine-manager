@@ -157,7 +157,7 @@ function DefaultRoutineEditor({
             <div>
               <h2>{BOARD_TITLE[scheduleMode]}</h2>
               <p className="ob-card-subtitle">
-                {BOARD_SUBTITLE[scheduleMode]} · {view === 'radial' ? 'click a task to edit' : 'drag to move'}
+                {BOARD_SUBTITLE[scheduleMode]} · {view === 'radial' ? 'click to edit · drag to move' : 'drag to move'}
               </p>
             </div>
             <button

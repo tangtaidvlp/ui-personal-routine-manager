@@ -16,18 +16,19 @@ type RadialBoardProps = {
   toolbarMenuActions?: ReactNode
   onResetDay?: () => void
   resetDisabled?: boolean
-  // EditingBoard's drag props are accepted and ignored so pages can spread the same handlers.
-  onPersistTaskChange?: unknown
+  /** Same as EditingBoard: called with the changed tasks after a drag. */
+  onPersistTaskChange?: (tasks: RadialTask[]) => unknown
+  onPersistError?: (error: unknown) => void
+  // Other EditingBoard props are accepted and ignored so pages can spread the same handlers.
   onRequestCreateTask?: unknown
   onToggleComplete?: unknown
   onRequestDeleteTask?: unknown
-  onPersistError?: unknown
   gapClearMode?: unknown
   scrollContainerRef?: unknown
   showFooter?: unknown
 }
 
-/** Drop-in for EditingBoard that shows the day as a 24-hour circle (specs/F016). Clicking a task edits it; there is no dragging. */
+/** Drop-in for EditingBoard that shows the day as a 24-hour circle (specs/F016). Click a task to edit it, drag its arc to move it. */
 function RadialBoard({
   routine,
   label = '24-hour circle',
@@ -40,10 +41,24 @@ function RadialBoard({
   toolbarMenuActions = null,
   onResetDay,
   resetDisabled = false,
+  onPersistTaskChange,
+  onPersistError,
 }: RadialBoardProps) {
   const [bodyRef, bodySize] = useElementSize<HTMLDivElement>()
   const ownClock = useBoardClock(liveClock && !sharedClock)
   const clock = liveClock ? (sharedClock ?? ownClock) : null
+
+  // Same update shape as the timeline's drag (EditingBoard), so pages need no change.
+  const moveTask = (task: RadialTask, startMinutes: number) => {
+    const startTime = `${Math.floor(startMinutes / 60).toString().padStart(2, '0')}:${(startMinutes % 60).toString().padStart(2, '0')}`
+    const update = { id: task.id, name: task.name, description: task.description, color: task.color, startTime, durationMinutes: task.durationMinutes, completed: task.completed }
+    // Reports the error once, then re-throws so the chart can drop the unsaved position.
+    return Promise.resolve(onPersistTaskChange?.([update])).catch((error) => {
+      if (onPersistError) onPersistError(error)
+      else console.error('Failed to update tasks', error)
+      throw error
+    })
+  }
 
   return (
     <section className="ob-timeline-board rv-board" aria-label={label}>
@@ -65,6 +80,7 @@ function RadialBoard({
           currentTime={clock?.currentTime}
           label={label}
           onTaskClick={onRequestEditTask}
+          onMoveTask={onPersistTaskChange ? moveTask : undefined}
           showCompletion={showCompletion}
           width={bodySize.width}
           height={bodySize.height}
