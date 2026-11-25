@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { registerAndOnboard } from './helpers.ts'
 
-/** F016 Radial 24H View (specs/F016-radial-24h-view/quickstart.md rows 1-6). */
+/** F016 Radial 24H View (specs/.done.F016-radial-24h-view/quickstart.md rows 1-6). */
 
 test('Today circle view', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
