@@ -1,0 +1,346 @@
+import { useMemo, type CSSProperties, type ReactNode } from 'react'
+import { usePalette } from '../../palette/hooks/usePalette.ts'
+import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
+import {
+  MINUTES_PER_DAY,
+  arcPath,
+  assignLanes,
+  findNowAndNext,
+  laneBand,
+  minutesToAngle,
+  parseStartMinutes,
+  pointAt,
+} from '../utils/radialGeometry.ts'
+import { formatDuration } from '../utils/radialFormat.ts'
+import { labelEdgeX, layoutLabels, type LabelSide } from '../utils/radialLabels.ts'
+
+/** What the chart reads from a routine, daily or reflection task. */
+export type RadialTask = {
+  id?: string
+  name: string
+  startTime: string
+  durationMinutes: number
+  color?: string | null
+  completed?: boolean
+}
+
+type RadialDayChartProps<T extends RadialTask> = {
+  tasks: T[]
+  /** Accessible name of the chart, e.g. "Plan". Shown in the clock centre when there is no live clock. */
+  label: string
+  /** Absent = view-only: labels are plain text and arcs are not clickable. */
+  onTaskClick?: (task: T) => void
+  showCompletion?: boolean
+  /** Live clock in minutes since midnight: centre time and task, now hand and the "Now" badge. Absent = setup board. */
+  currentTime?: number
+  /** Size of the board area the chart is centred in (measured by the parent). Height 0 = unknown. */
+  width: number
+  height: number
+}
+
+// Layout in CSS pixels (research R2; design resources/radial-24h-*-elegant.png). Text never shrinks; the clock does.
+const PAD = 16
+const OUTER_BAND = 32 // outside the track: hour ticks and numbers
+const SLOT_HEIGHT = 40
+const LABEL_GAP = 4
+const LABEL_RING = 1.2 // labels sit on a ring of 1.2 x the clock radius (at least clear of the hour numbers)
+const MIN_RADIUS = 48
+const MAX_RADIUS = 240
+// Below this clock radius, labels around the ring would squeeze the clock: list the tasks under it instead.
+const MIN_RING_RADIUS = 100
+const ALL_NUMBERS_FROM_RADIUS = 80
+const CENTRE_DETAILS_FROM = 64 // centre disc radius needed for the "until" line under the current task
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max))
+
+const formatTime = (minutes: number) => {
+  const normalized = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+  const h = Math.floor(normalized / 60).toString().padStart(2, '0')
+  const m = (normalized % 60).toString().padStart(2, '0')
+  return `${h}:${m}`
+}
+
+function RadialDayChart<T extends RadialTask>({
+  tasks,
+  label,
+  onTaskClick,
+  showCompletion = false,
+  currentTime,
+  width,
+  height: boardHeight,
+}: RadialDayChartProps<T>) {
+  const { palette } = usePalette()
+
+  const items = useMemo(
+    () =>
+      tasks
+        .flatMap((task) => {
+          const start = parseStartMinutes(task.startTime)
+          if (!task.id || start === null) return []
+          return [{ task, id: task.id, start, duration: clamp(task.durationMinutes, 1, MINUTES_PER_DAY) }]
+        })
+        .sort((a, b) => a.start - b.start),
+    [tasks],
+  )
+
+  const layout = useMemo(() => {
+    if (width <= 0) return null
+
+    // Labels on a ring: the ring radius that fits, then the clock radius under it.
+    const column = clamp(0.22 * width, 170, 200)
+    const ringFit = Math.min(
+      (width - 2 * column - 2 * PAD) / 2,
+      boardHeight > 0 ? (boardHeight - 2 * PAD - SLOT_HEIGHT) / 2 : Infinity,
+    )
+    const ringRadiusFor = (r: number) => Math.max(LABEL_RING * r, r + OUTER_BAND)
+    const ringClock = Math.min(ringFit / LABEL_RING, ringFit - OUTER_BAND, MAX_RADIUS)
+    const stacked = ringClock < MIN_RING_RADIUS
+
+    const radius = stacked ? clamp((width - 2 * PAD) / 2 - OUTER_BAND, MIN_RADIUS, MAX_RADIUS) : ringClock
+    const ringRadius = ringRadiusFor(radius)
+    let cx: number
+    let cy: number
+    let boxWidth: number
+    let boxHeight: number
+    let placed: { id: string; side: LabelSide; y: number }[] = []
+    if (stacked) {
+      boxWidth = boxHeight = 2 * (radius + OUTER_BAND)
+      cx = cy = boxWidth / 2
+    } else {
+      boxWidth = width - 2 * PAD
+      cx = boxWidth / 2
+      cy = ringRadius + SLOT_HEIGHT / 2
+      const top = 0
+      const bottom = 2 * cy
+      placed = layoutLabels(
+        items.map((item) => ({ id: item.id, angle: minutesToAngle(item.start + item.duration / 2) })),
+        { cy, ringRadius, slotHeight: SLOT_HEIGHT, gap: LABEL_GAP, top, bottom },
+      )
+      // Labels that had to spill past the ring range grow the box evenly, so the clock stays its centre.
+      const minY = Math.min(top, ...placed.map((p) => p.y))
+      const maxY = Math.max(bottom, ...placed.map((p) => p.y + SLOT_HEIGHT))
+      const extra = Math.max(top - minY, maxY - bottom)
+      cy += extra
+      placed = placed.map((p) => ({ ...p, y: p.y + extra }))
+      boxHeight = 2 * cy
+    }
+
+    const track = clamp(0.11 * radius, 10, 24)
+    const discRadius = radius - track - 18
+    const { lanes, laneCount } = assignLanes(items)
+    const arcs = items.map((item, index) => {
+      const band = laneBand(lanes.get(item.id) ?? 0, laneCount, radius - track, radius)
+      const r = (band.inner + band.outer) / 2
+      const stroke = Math.max(2, band.outer - band.inner - 2)
+      const sweep = (item.duration / MINUTES_PER_DAY) * 360
+      // Round caps reach half a stroke past the path ends: trim them (plus a small gap) so the arc covers its time.
+      const capDeg = ((stroke / 2 + 1.5) / r) * (180 / Math.PI)
+      const startAngle = minutesToAngle(item.start)
+      const midAngle = minutesToAngle(item.start + item.duration / 2)
+      const dot = sweep < 360 && sweep - 2 * capDeg <= 0 ? pointAt(cx, cy, r, midAngle) : null
+
+      let labelBox: { side: LabelSide; left: number; top: number } | null = null
+      let leader: string | null = null
+      if (!stacked) {
+        const { side, y } = placed[index]
+        const x = labelEdgeX({ cx, cy, ringRadius, side, y, slotHeight: SLOT_HEIGHT })
+        labelBox = { side, left: side === 'right' ? x : x - column, top: y }
+        const from = pointAt(cx, cy, band.outer, midAngle)
+        const elbow = pointAt(cx, cy, radius + OUTER_BAND, midAngle)
+        leader = [from, elbow, { x, y: y + SLOT_HEIGHT / 2 }].map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+      }
+      return {
+        ...item,
+        stroke,
+        dot,
+        labelBox,
+        leader,
+        path: dot ? '' : sweep >= 360 ? arcPath(cx, cy, r, 0, 360) : arcPath(cx, cy, r, startAngle + capDeg, sweep - 2 * capDeg),
+      }
+    })
+
+    const marks = Array.from({ length: 24 }, (_, hour) => {
+      const angle = hour * 15
+      const major = hour % 6 === 0
+      return {
+        hour,
+        major,
+        tickFrom: pointAt(cx, cy, radius + 4, angle),
+        tickTo: pointAt(cx, cy, radius + (major ? 12 : 9), angle),
+        text: pointAt(cx, cy, radius + 21, angle),
+        showNumber: major || radius >= ALL_NUMBERS_FROM_RADIUS,
+      }
+    })
+
+    return { stacked, column, radius, cx, cy, boxWidth, boxHeight, track, discRadius, arcs, marks }
+  }, [items, width, boardHeight])
+
+  if (!layout) return <figure className="rv-chart" aria-label={label} data-board-view="radial" />
+
+  const live = currentTime !== undefined
+  const { current, minutesLeft, next } = live ? findNowAndNext(items, currentTime) : { current: null, minutesLeft: 0, next: null }
+  const { cx, cy, radius, track, discRadius } = layout
+  const nowAngle = live ? minutesToAngle(currentTime) : 0
+  const handFrom = pointAt(cx, cy, radius - track - 14, nowAngle)
+  const handTo = pointAt(cx, cy, radius + 4, nowAngle)
+  const knob = pointAt(cx, cy, radius - track / 2, nowAngle)
+  const details = discRadius >= CENTRE_DETAILS_FROM
+
+  const taskLabel = (item: (typeof layout.arcs)[number], extraClass: string, style: CSSProperties): ReactNode => {
+    const done = showCompletion && Boolean(item.task.completed)
+    const isNow = current?.id === item.id
+    const status = isNow ? 'Now' : done ? 'Done' : null
+    const end = formatTime(item.start + item.duration)
+    const duration = formatDuration(item.duration)
+    const speech = `${item.task.name}, ${formatTime(item.start)} to ${end}, ${duration}${status ? `, ${status.toLowerCase()}` : ''}`
+    const content = (
+      <>
+        <span className="rv-row-text">
+          <span className="rv-name-line">
+            <span className="rv-name">{item.task.name}</span>
+            {status ? <span className={`rv-badge${isNow ? ' is-now' : ''}`}>{status}</span> : null}
+          </span>
+          <span className="rv-time">{`${formatTime(item.start)} – ${end} · ${duration}`}</span>
+        </span>
+      </>
+    )
+    return (
+      <li
+        key={item.id}
+        className={['rv-item', extraClass, isNow ? 'is-now' : '', done ? 'is-done' : ''].filter(Boolean).join(' ')}
+        style={{ ...(resolveTaskColor(item.task.color, palette) as CSSProperties), ...style }}
+      >
+        {onTaskClick ? (
+          <button type="button" className="rv-row" aria-label={speech} title={item.task.name} onClick={() => onTaskClick(item.task)}>
+            {content}
+          </button>
+        ) : (
+          <span className="rv-row" title={item.task.name}>
+            {content}
+          </span>
+        )}
+      </li>
+    )
+  }
+
+  return (
+    <figure className={`rv-chart ${layout.stacked ? 'is-stacked' : 'is-ring'}`} aria-label={label} data-board-view="radial">
+      <div className="rv-clock" style={{ width: layout.boxWidth, height: layout.boxHeight }}>
+        <svg className="rv-svg" width={layout.boxWidth} height={layout.boxHeight} aria-hidden="true">
+          <circle className="rv-track" cx={cx} cy={cy} r={radius - track / 2} strokeWidth={track} />
+          {layout.arcs.map((arc) =>
+            arc.leader ? (
+              <polyline
+                key={arc.id}
+                className="rv-leader"
+                points={arc.leader}
+                style={resolveTaskColor(arc.task.color, palette) as CSSProperties}
+              />
+            ) : null,
+          )}
+          {layout.arcs.map((arc) => {
+            const done = showCompletion && arc.task.completed
+            const props = {
+              className: ['rv-arc', done ? 'is-done' : '', onTaskClick ? 'is-clickable' : ''].filter(Boolean).join(' '),
+              style: resolveTaskColor(arc.task.color, palette) as CSSProperties,
+              onClick: onTaskClick ? () => onTaskClick(arc.task) : undefined,
+            }
+            return arc.dot ? (
+              <circle key={arc.id} {...props} cx={arc.dot.x} cy={arc.dot.y} r={arc.stroke / 2} />
+            ) : (
+              <path key={arc.id} {...props} d={arc.path} strokeWidth={arc.stroke} />
+            )
+          })}
+          {layout.marks.map((mark) => (
+            <g key={mark.hour}>
+              <line
+                className={`rv-tick${mark.major ? ' is-major' : ''}`}
+                x1={mark.tickFrom.x}
+                y1={mark.tickFrom.y}
+                x2={mark.tickTo.x}
+                y2={mark.tickTo.y}
+              />
+              {mark.showNumber ? (
+                <text
+                  className={`rv-hour${mark.major ? ' is-major' : ''}`}
+                  x={mark.text.x}
+                  y={mark.text.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                >
+                  {mark.hour.toString().padStart(2, '0')}
+                </text>
+              ) : null}
+            </g>
+          ))}
+          {live ? (
+            <>
+              <line className="rv-hand" x1={handFrom.x} y1={handFrom.y} x2={handTo.x} y2={handTo.y} />
+              <circle className="rv-knob" cx={knob.x} cy={knob.y} r={clamp(track * 0.35, 4, 7)} />
+            </>
+          ) : null}
+        </svg>
+
+        <div
+          className={`rv-centre${current ? ' is-active' : ''}`}
+          style={{
+            ...(current ? (resolveTaskColor(current.task.color, palette) as CSSProperties) : {}),
+            left: cx,
+            top: cy,
+            width: 2 * discRadius,
+            height: 2 * discRadius,
+          }}
+        >
+          {live ? (
+            <>
+              <span className="rv-centre-time" style={{ fontSize: clamp(discRadius * 0.42, 18, 56) }}>
+                {formatTime(currentTime)}
+              </span>
+              <span
+                className="rv-centre-task"
+                style={current ? (resolveTaskColor(current.task.color, palette) as CSSProperties) : undefined}
+              >
+                {current ? <span className="rv-dot" aria-hidden="true" /> : null}
+                <span className="rv-centre-task-name">{current ? current.task.name : 'Free time'}</span>
+              </span>
+              {details ? (
+                <>
+                  <span className="rv-centre-note">
+                    {current
+                      ? `until ${formatTime(current.start + current.duration)} · ${formatDuration(minutesLeft)} left`
+                      : next
+                        ? `next: ${next.task.name} at ${formatTime(next.start)}`
+                        : null}
+                  </span>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <span className="rv-centre-day">{label}</span>
+          )}
+        </div>
+
+        {!layout.stacked && layout.arcs.length > 0 ? (
+          <ul className="rv-labels">
+            {layout.arcs.map((arc) =>
+              arc.labelBox
+                ? taskLabel(arc, `rv-${arc.labelBox.side}`, {
+                    left: arc.labelBox.left,
+                    top: arc.labelBox.top,
+                    width: layout.column,
+                    height: SLOT_HEIGHT,
+                  })
+                : null,
+            )}
+          </ul>
+        ) : null}
+      </div>
+
+      {layout.stacked && layout.arcs.length > 0 ? (
+        <ul className="rv-list">{layout.arcs.map((arc) => taskLabel(arc, 'rv-stack', {}))}</ul>
+      ) : null}
+    </figure>
+  )
+}
+
+export default RadialDayChart

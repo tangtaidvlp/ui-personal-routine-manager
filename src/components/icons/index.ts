@@ -11,6 +11,7 @@ export {
   MonitorIcon,
   MoonIcon,
   PanelLeftIcon,
+  PanelRightIcon,
   PlusIcon,
   RepeatIcon,
   SendIcon,

@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { nextCursor, prependOlder, toChatItems } from './chatHistory.ts'
+import { PanelRightIcon } from '../../../components/icons/index.ts'
 import GoalProposalCard from '../../personal-target/components/GoalProposalCard.tsx'
 
 // Load older history when the thread is scrolled to within this many px of the top.
@@ -46,6 +47,9 @@ function createChatMessage(role, text, isError = false) {
  *   topSlot?: import('react').ReactNode,
  *   compactHeader?: boolean,
  *   onGoalSaved?: () => void,
+ *   panelId?: string,
+ *   onHide?: () => void,
+ *   focusHideButton?: boolean,
  * }} props
  *
  * `loadHistory` (F004): when given, the stored conversation is shown under the greeting
@@ -54,6 +58,10 @@ function createChatMessage(role, text, isError = false) {
  * `compactHeader` (F007): a shorter header, to leave room for `topSlot`.
  * `onSend` (F013) may return a BuddyReply; a goal proposal in it is shown as a confirm card
  * under the reply, and `onAfterSend` is told so the page can keep the chat in view.
+ * `onHide` (F016): shows a "Hide Buddy chat" button in the header; the page keeps this component mounted
+ * and hides it with CSS, so the thread and unsent text survive. `panelId` is set as the `<aside>` id
+ * (for `aria-controls`). `focusHideButton` turning true (after the user shows the chat) moves focus to
+ * that button; true on mount does not.
  * `onGoalSaved` (F013 US4) is called when a proposal is confirmed, so a page listing goals can reload.
  */
 function BuddyChat({
@@ -69,7 +77,16 @@ function BuddyChat({
   topSlot = null,
   compactHeader = false,
   onGoalSaved,
+  panelId,
+  onHide,
+  focusHideButton = false,
 }) {
+  const hideButtonRef = useRef(null)
+  const wasFocusRequested = useRef(focusHideButton)
+  useEffect(() => {
+    if (focusHideButton && !wasFocusRequested.current) hideButtonRef.current?.focus()
+    wasFocusRequested.current = focusHideButton
+  }, [focusHideButton])
   const [prompt, setPrompt] = useState('')
   const inputRef = useRef(null)
   const [messages, setMessages] = useState([createChatMessage('bot', initialMessage)])
@@ -185,7 +202,7 @@ function BuddyChat({
   }
 
   return (
-    <aside className="ob-buddy-card" data-tour={tourId} style={isHidden ? { display: 'none' } : undefined}>
+    <aside id={panelId} className="ob-buddy-card" data-tour={tourId} style={isHidden ? { display: 'none' } : undefined}>
       <div className={compactHeader ? 'ob-buddy-head ob-buddy-head-compact' : 'ob-buddy-head'}>
         <div className="ob-buddy-icon">
           <SparkIcon />
@@ -194,6 +211,20 @@ function BuddyChat({
           <p className="ob-buddy-title">{title}</p>
           <p className="ob-buddy-subtitle">{subtitle}</p>
         </div>
+        {onHide ? (
+          <button
+            ref={hideButtonRef}
+            type="button"
+            className="ui-icon-btn is-plain ob-buddy-hide"
+            aria-label="Hide Buddy chat"
+            aria-expanded="true"
+            aria-controls={panelId}
+            title="Hide Buddy chat"
+            onClick={onHide}
+          >
+            <PanelRightIcon size={18} />
+          </button>
+        ) : null}
       </div>
 
       {topSlot ? <div className="ob-buddy-top-slot">{topSlot}</div> : null}

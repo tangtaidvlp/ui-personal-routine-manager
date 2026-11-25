@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import EditingBoard from '../../onboarding/components/EditingBoard.jsx'
+import RadialBoard from '../../radial-view/components/RadialBoard.tsx'
+import BoardViewSwitch from '../../radial-view/components/BoardViewSwitch.tsx'
+import { useDevicePreference } from '../../../hooks/useDevicePreference.ts'
+import { BOARD_VIEW_KEY, BOARD_VIEWS, CHAT_PANEL_KEY, CHAT_PANEL_STATES } from '../../../lib/devicePreference.ts'
+import ChatPanelRail from '../../../components/layout/ChatPanelRail.tsx'
 import TaskEditModal from '../../onboarding/components/TaskEditModal.tsx'
 import FabButton from '../../onboarding/components/FabButton.tsx'
 import BuddyChat, { SendIcon } from '../../onboarding/components/BuddyChat.jsx'
@@ -76,6 +81,11 @@ function DailyRoutinePage() {
   const [currentDailyRoutine, setCurrentDailyRoutine] = useState(null)
   const [taskModalState, setTaskModalState] = useState(null)
   const [mobileView, setMobileView] = useState('board')
+  // F016: Timeline or Circle, remembered on this device.
+  const [boardView, setBoardView] = useDevicePreference(BOARD_VIEW_KEY, BOARD_VIEWS, 'vertical')
+  // F016: Buddy chat shown or hidden (wide screens). `chatToggled`: the user toggled it on this page, so focus follows.
+  const [chatPanel, setChatPanel] = useDevicePreference(CHAT_PANEL_KEY, CHAT_PANEL_STATES, 'shown')
+  const [chatToggled, setChatToggled] = useState(false)
   // F007: Reflection mode. Kept across date changes; never active on future dates.
   const [reflectionOn, setReflectionOn] = useState(false)
   const [reflection, setReflection] = useState(null)
@@ -327,6 +337,15 @@ function DailyRoutinePage() {
     // Narrow screens: a tap first shows how the task compares to the plan (FR-012a).
     ...(isWide ? {} : { onRequestEditTask: (task) => setPopupTaskId(task.id) }),
   }
+  const hideChat = () => {
+    setChatToggled(true)
+    setChatPanel('hidden')
+  }
+  const showChat = () => {
+    setChatToggled(true)
+    setChatPanel('shown')
+  }
+  const Board = boardView === 'radial' ? RadialBoard : EditingBoard
   const popupItem = inReflection && !isWide ? itemForActualTask(reflection, popupTaskId) : null
   const modalTarget = taskModalState?.target ?? 'plan'
 
@@ -360,8 +379,10 @@ function DailyRoutinePage() {
       data-mobile-view={mobileView}
       data-reflection={inReflection ? 'on' : 'off'}
       data-layout={layout}
+      data-board-view={boardView}
+      data-chat={chatPanel}
     >
-      <PageHeader>
+      <PageHeader actions={<BoardViewSwitch value={boardView} onChange={setBoardView} />}>
         <p className="dr-breadcrumb">
           {isToday ? 'Today' : selectedDay.toLocaleDateString('en-GB', { weekday: 'long' })} · {routineLabel}
           {inReflection ? <span className="rf-badge">Reality</span> : null}
@@ -429,13 +450,15 @@ function DailyRoutinePage() {
               toolbarActions={reflectionToggle}
               onResetDay={openResetConfirm}
               resetDisabled={isPast}
+              view={boardView}
             />
           ) : (
-            <EditingBoard
+            <Board
               // The Reality board shows once the reflection exists. Until then (Reflection on, nothing
               // recorded yet) the plan is shown view-only, so reflection mode never edits the plan.
               routine={reflectionReady ? realityRoutine : currentDailyRoutine}
               {...(reflectionReady ? realityHandlers : inReflection ? {} : planHandlers)}
+              label={reflectionReady ? 'Reality' : 'Day plan'}
               showCompletion={!inReflection}
               toolbarMenuActions={inReflection ? null : cleanUpButton}
               // Reset day acts on the plan, so it isn't offered while the single board shows Reality.
@@ -464,6 +487,9 @@ function DailyRoutinePage() {
             key={`${selectedDate}:reality`}
             loadHistory={(before) => fetchReflectionChatHistory(user.id, selectedDate, before)}
             title="Routine Buddy"
+            panelId="buddy-chat"
+            onHide={hideChat}
+            focusHideButton={chatToggled && chatPanel === 'shown'}
             subtitle={`Reflecting on ${selectedDay.toLocaleDateString('en-GB', SHORT_DATE)}`}
             compactHeader
             topSlot={reflectionReady ? (
@@ -492,6 +518,9 @@ function DailyRoutinePage() {
             key={`${selectedDate}:plan`}
             loadHistory={(before) => fetchDailyRoutineChatHistory(user.id, selectedDate, before)}
             title="Routine Buddy"
+            panelId="buddy-chat"
+            onHide={hideChat}
+            focusHideButton={chatToggled && chatPanel === 'shown'}
             subtitle={`Here to help with ${selectedDay.toLocaleDateString('en-GB', SHORT_DATE)}`}
             initialMessage="Hi! Ask me to add, adjust, or check off tasks for this day."
             placeholder='Try: "Mark my workout as done"'
@@ -503,6 +532,7 @@ function DailyRoutinePage() {
             }}
           />
         )}
+        {chatPanel === 'hidden' ? <ChatPanelRail panelId="buddy-chat" autoFocus={chatToggled} onShow={showChat} /> : null}
       </main>
 
       <div className="ob-fab-group">

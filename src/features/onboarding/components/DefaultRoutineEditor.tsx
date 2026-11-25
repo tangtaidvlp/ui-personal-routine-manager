@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import EditingBoard from './EditingBoard.jsx'
+import RadialBoard from '../../radial-view/components/RadialBoard.tsx'
+import type { BoardView, ChatPanelState } from '../../../lib/devicePreference.ts'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import { copyWeekdayToWeekend } from '../api/defaultRoutine.ts'
 import TaskEditModal, { type TaskFormValue } from './TaskEditModal.tsx'
@@ -18,8 +20,8 @@ const BOARD_TITLE: Record<ScheduleTab, string> = {
 }
 
 const BOARD_SUBTITLE: Record<ScheduleTab, string> = {
-  weekday: 'Every new weekday starts as a copy of this · drag to move',
-  weekend: 'Every new weekend day starts as a copy of this · drag to move',
+  weekday: 'Every new weekday starts as a copy of this',
+  weekend: 'Every new weekend day starts as a copy of this',
 }
 
 const formatTimeOfDay = (minutes: number) => {
@@ -49,6 +51,10 @@ type DefaultRoutineEditorProps = {
   extraFabs?: ReactNode
   /** Board/chat swap on narrow screens (onboarding only). */
   mobileView?: 'board' | 'chat'
+  /** F016: 'radial' shows the 24-hour circle instead of the timeline. Onboarding never passes it. */
+  view?: BoardView
+  /** F016: Buddy chat shown/hidden, set as `data-chat` on the root (Default routine page only). */
+  chatPanel?: ChatPanelState
   /** Anything else rendered inside the page root (footers, tour, slides). */
   children?: ReactNode
 }
@@ -66,6 +72,8 @@ function DefaultRoutineEditor({
   renderAside,
   extraFabs,
   mobileView = 'board',
+  view = 'vertical',
+  chatPanel,
   children,
 }: DefaultRoutineEditorProps) {
   const routines = useDefaultRoutines(userId)
@@ -105,6 +113,7 @@ function DefaultRoutineEditor({
     }
   }
 
+  const Board = view === 'radial' ? RadialBoard : EditingBoard
   const canAddTask = Boolean(activeRoutine?.id)
   const isEmpty = isActiveLoaded && (activeRoutine?.tasks?.length ?? 0) === 0
 
@@ -126,7 +135,7 @@ function DefaultRoutineEditor({
   )
 
   return (
-    <div className={className} data-mobile-view={mobileView}>
+    <div className={className} data-mobile-view={mobileView} data-board-view={view} data-chat={chatPanel}>
       {renderHeader(switcher)}
 
       {routineError && (
@@ -147,7 +156,9 @@ function DefaultRoutineEditor({
           <div className="ob-card-header">
             <div>
               <h2>{BOARD_TITLE[scheduleMode]}</h2>
-              <p className="ob-card-subtitle">{BOARD_SUBTITLE[scheduleMode]}</p>
+              <p className="ob-card-subtitle">
+                {BOARD_SUBTITLE[scheduleMode]} · {view === 'radial' ? 'click a task to edit' : 'drag to move'}
+              </p>
             </div>
             <button
               type="button"
@@ -162,7 +173,8 @@ function DefaultRoutineEditor({
 
           {isEmpty ? <p className="ob-board-empty">No tasks yet – add one with + Add task</p> : null}
 
-          <EditingBoard
+          <Board
+            label={BOARD_TITLE[scheduleMode]}
             routine={activeRoutine}
             liveClock={false}
             onRequestCreateTask={openCreateTaskModal}

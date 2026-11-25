@@ -25,8 +25,10 @@ const formatClock = (minutes) => {
  *   resetDisabled?: boolean,
  *   actions?: import('react').ReactNode,
  *   menuActions?: import('react').ReactNode,
+ *   boardTools?: boolean,
  * }} props
  * `clock` null/undefined = no live clock (setup board): no readout.
+ * `boardTools` (default true, F016): false leaves out zoom and Gap clear, which only act on the timeline (radial view).
  * `onResetDay` absent = no Reset day button (setup boards, F012 FR-009); `resetDisabled` greys it out (past days).
  */
 function BoardToolbar({
@@ -37,44 +39,49 @@ function BoardToolbar({
   resetDisabled = false,
   actions = null,
   menuActions = null,
+  boardTools = true,
 }) {
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
   const { zoom: zoomLevel, zoomIn, zoomOut, canZoomIn, canZoomOut } = useBoardZoom()
 
   const secondaryTools = (inMenu) => (
     <>
-      <div className="ob-board-zoom" data-keep-open={inMenu ? '' : undefined}>
-        <button
-          type="button"
-          className="ui-icon-btn"
-          onClick={zoomOut}
-          disabled={!canZoomOut}
-          aria-label="Zoom out"
-          title="Zoom out"
-        >
-          <MinusIcon size={16} />
-        </button>
-        <span className="ob-board-zoom-label">{Math.round(zoomLevel * 100)}%</span>
-        <button
-          type="button"
-          className="ui-icon-btn"
-          onClick={zoomIn}
-          disabled={!canZoomIn}
-          aria-label="Zoom in"
-          title="Zoom in"
-        >
-          <PlusIcon size={16} />
-        </button>
-      </div>
-      <button
-        type="button"
-        className={['ui-btn', 'ui-btn-ghost', gapClearMode ? 'is-active' : ''].filter(Boolean).join(' ')}
-        onClick={onToggleGapClear}
-        aria-pressed={gapClearMode}
-        title="When enabled, dragging a task pulls all tasks below it with it"
-      >
-        {gapClearMode ? '✓ Gap clear' : 'Gap clear'}
-      </button>
+      {boardTools && (
+        <>
+          <div className="ob-board-zoom" data-keep-open={inMenu ? '' : undefined}>
+            <button
+              type="button"
+              className="ui-icon-btn"
+              onClick={zoomOut}
+              disabled={!canZoomOut}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <MinusIcon size={16} />
+            </button>
+            <span className="ob-board-zoom-label">{Math.round(zoomLevel * 100)}%</span>
+            <button
+              type="button"
+              className="ui-icon-btn"
+              onClick={zoomIn}
+              disabled={!canZoomIn}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <PlusIcon size={16} />
+            </button>
+          </div>
+          <button
+            type="button"
+            className={['ui-btn', 'ui-btn-ghost', gapClearMode ? 'is-active' : ''].filter(Boolean).join(' ')}
+            onClick={onToggleGapClear}
+            aria-pressed={gapClearMode}
+            title="When enabled, dragging a task pulls all tasks below it with it"
+          >
+            {gapClearMode ? '✓ Gap clear' : 'Gap clear'}
+          </button>
+        </>
+      )}
       {onResetDay && (
         <button
           type="button"
