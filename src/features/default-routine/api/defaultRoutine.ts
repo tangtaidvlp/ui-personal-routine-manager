@@ -1,8 +1,6 @@
 import { apiRequest } from '../../../lib/api.ts'
 import type { DefaultRoutine } from '../types/routine.ts'
-
-/** `DAILY` is the weekday routine; `WEEKEND` the weekend one (contracts/default-routine-api.md). */
-export type RoutineType = 'DAILY' | 'WEEKEND'
+import type { RoutineType } from '../../../types/routineType.ts'
 
 /**
  * Get one of the user's default routines. The server creates an empty weekend

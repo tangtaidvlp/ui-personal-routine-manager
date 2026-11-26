@@ -52,3 +52,15 @@ Always use the lib/api.ts
 ## 4. Tests
 - Test what the user sees: query by role, label or text (Testing Library), not by class names or internals.
 - Every bug fix starts with a failing test.
+
+## 5. Styling
+Three layers:
+1. **Tokens**: `styles/tokens.css`. Global CSS variables, both themes.
+2. **Primitives**: `styles/base.css` (`.ui-btn`, `.ui-card`, …). Global, generic, no domain knowledge.
+3. **Component styles**: `Foo.module.css` next to `Foo.tsx`. Scoped by Vite CSS Modules; replaces `App.css` one component at a time (move a component's rules out of `App.css` when you touch it; no big bang).
+
+Rules:
+1. Values come only from tokens (`noRawColors.test.ts` also scans `.module.css`).
+2. A component styles only its own elements. It never reaches into a child's classes; pass a prop or a `className` instead.
+3. Variants use `data-*` attributes or props, not new global classes.
+4. Promote a pattern to `base.css` as `.ui-*` only once a second feature needs it.

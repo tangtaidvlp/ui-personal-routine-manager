@@ -1,9 +1,9 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
 import { currentLocalTime } from '../../../lib/localTime.ts'
 import type { DailyRoutine, DailyTask } from '../types/dailyRoutine.ts'
-import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
-import type { BuddyReply } from '../../personal-target/types/goal.ts'
-import { parseBuddyReply } from '../../personal-target/utils/buddyReply.ts'
+import { assertChatHistoryPage, type ChatHistoryPage } from '../../buddy-chat/types/chatHistory.ts'
+import type { BuddyReply } from '../../buddy-chat/types/buddyReply.ts'
+import { parseBuddyReply } from '../../buddy-chat/utils/buddyReply.ts'
 
 export async function fetchDailyRoutine(userId: string, date: string): Promise<DailyRoutine> {
   return apiRequest<DailyRoutine>(`/api/routine-manager/daily-routine/${userId}?date=${date}`,

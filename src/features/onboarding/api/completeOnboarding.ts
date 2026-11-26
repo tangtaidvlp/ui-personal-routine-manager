@@ -1,7 +1,7 @@
 import { apiRequest } from '../../../lib/api.ts'
 import { currentLocalTime } from '../../../lib/localTime.ts'
-import type { BuddyReply } from '../../personal-target/types/goal.ts'
-import { parseBuddyReply } from '../../personal-target/utils/buddyReply.ts'
+import type { BuddyReply } from '../../buddy-chat/types/buddyReply.ts'
+import { parseBuddyReply } from '../../buddy-chat/utils/buddyReply.ts'
 
 export async function completeOnboarding(userId: string): Promise<void> {
   await apiRequest<unknown>(`/api/users/${userId}/onboarding/complete`, {

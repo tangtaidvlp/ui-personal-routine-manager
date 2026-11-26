@@ -1,9 +1,9 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
 import { currentLocalTime } from '../../../lib/localTime.ts'
-import type { DefaultRoutine } from '../../onboarding/types/routine.ts'
-import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
-import type { BuddyReply } from '../../personal-target/types/goal.ts'
-import { parseBuddyReply } from '../../personal-target/utils/buddyReply.ts'
+import type { DefaultRoutine } from '../types/routine.ts'
+import { assertChatHistoryPage, type ChatHistoryPage } from '../../buddy-chat/types/chatHistory.ts'
+import type { BuddyReply } from '../../buddy-chat/types/buddyReply.ts'
+import { parseBuddyReply } from '../../buddy-chat/utils/buddyReply.ts'
 
 /**
  * Ask Routine Buddy to change a default routine after onboarding. Same endpoint as the

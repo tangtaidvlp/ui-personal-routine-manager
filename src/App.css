@@ -759,27 +759,6 @@
   flex-shrink: 0;
 }
 
-.ob-board-time {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.ob-board-time strong {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.ob-board-toolbar-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: nowrap;
-  margin-left: auto;
-}
-
 .ob-board-tools-inline {
   display: flex;
   align-items: center;
@@ -841,12 +820,6 @@
   }
 }
 
-.ob-board-toolbar-divider {
-  width: 1px;
-  height: 24px;
-  background: var(--color-border);
-}
-
 .ob-board-zoom {
   display: inline-flex;
   align-items: center;
@@ -876,37 +849,6 @@
   min-height: 0;
   overflow-y: auto;
   background: var(--color-bg-surface);
-}
-
-.ob-board-track {
-  position: relative;
-  width: 100%;
-  transition: box-shadow 0.2s ease;
-}
-
-.ob-board-track.is-gap-clear-mode {
-  box-shadow: inset 0 0 0 2px var(--color-accent), inset 0 0 0 4px color-mix(in srgb, var(--color-accent) 10%, transparent);
-}
-
-.ob-board-hour-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  z-index: 1;
-}
-
-.ob-board-hour-line span {
-  margin-top: -9px;
-  margin-left: var(--space-3);
-  padding-right: var(--space-2);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-regular);
-  color: var(--color-text-muted);
-  background: var(--color-bg-surface);
-  font-variant-numeric: tabular-nums;
 }
 
 .ob-board-task-layer {
@@ -968,12 +910,6 @@
   border-top-right-radius: 0;
 }
 
-.ob-board-task-content {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .ob-board-task-name {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
@@ -990,36 +926,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.ob-board-task-check {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border-radius: 6px;
-  border: 1.5px solid var(--color-border-strong);
-  background: var(--color-bg-surface);
-  color: var(--color-text-on-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-left: auto;
-  cursor: pointer;
-}
-
-.ob-board-task-check.is-checked {
-  background: var(--color-success-muted);
-  border-color: var(--color-success-muted);
-}
-
-.ob-board-task-check.is-toggling {
-  opacity: 0.6;
-  cursor: wait;
-}
-
-.ob-board-task-check:disabled {
-  cursor: wait;
 }
 
 .ob-board-task-delete {
@@ -1133,58 +1039,6 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   font-variant-numeric: tabular-nums;
-}
-
-.ob-board-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-5);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-subtle);
-  flex-shrink: 0;
-}
-
-.ob-board-footer-label {
-  margin-right: var(--space-2);
-  color: var(--color-text-muted);
-}
-
-.ob-board-footer-now strong {
-  font-weight: var(--font-weight-medium);
-}
-
-.ob-board-tooltip {
-  position: absolute;
-  left: 50%;
-  bottom: var(--space-3);
-  transform: translateX(-50%);
-  background: var(--color-text-primary);
-  color: var(--color-text-on-accent);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  box-shadow: var(--shadow-md);
-  text-align: center;
-  pointer-events: none;
-  min-width: 220px;
-  max-width: 90%;
-  z-index: 6;
-}
-
-.ob-board-tooltip strong {
-  display: block;
-  font-size: var(--font-size-sm);
-}
-
-.ob-board-tooltip span {
-  display: block;
-  margin-top: 2px;
-  color: var(--color-border-strong);
-  font-size: var(--font-size-xs);
 }
 
 /* ── Routine Buddy chat panel ── */
@@ -1589,43 +1443,6 @@
 .ob-modal-field-row input {
   box-sizing: border-box;
   height: 44px;
-}
-
-/* Duration as hours + minutes (F010). The fieldset looks like the other fields. */
-.ob-modal-duration {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-}
-
-.ob-modal-duration legend {
-  padding: 0;
-  margin-bottom: 6px;
-}
-
-.ob-modal-duration-inputs {
-  /* One row, level with Start time: [ 0 ] hour [ 30 ] mins */
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.ob-modal-duration-inputs input {
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-}
-
-.ob-modal-duration-inputs label {
-  flex-shrink: 0;
-  font-weight: var(--font-weight-medium);
-}
-
-.ob-modal-duration-ends {
-  margin: var(--space-1) 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
 }
 
 .ob-modal-actions {

@@ -1,8 +1,8 @@
 import { ApiError, apiRequest } from '../../../lib/api.ts'
 import { currentLocalTime } from '../../../lib/localTime.ts'
-import { assertChatHistoryPage, type ChatHistoryPage } from '../../onboarding/types/chatHistory.ts'
-import type { BuddyReply } from '../types/goal.ts'
-import { parseBuddyReply } from '../utils/buddyReply.ts'
+import { assertChatHistoryPage, type ChatHistoryPage } from '../../buddy-chat/types/chatHistory.ts'
+import type { BuddyReply } from '../../buddy-chat/types/buddyReply.ts'
+import { parseBuddyReply } from '../../buddy-chat/utils/buddyReply.ts'
 
 /**
  * Buddy chat on the Personal Target page (specs/F013 US4, contracts/personal-target-chat-api.md):

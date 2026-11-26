@@ -1,4 +1,4 @@
-import type { RoutineType } from '../api/defaultRoutine.ts'
+import type { RoutineType } from '../../../types/routineType.ts'
 
 export type ScheduleTab = 'weekday' | 'weekend'
 

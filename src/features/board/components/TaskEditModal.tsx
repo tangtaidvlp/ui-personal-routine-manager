@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../../../lib/api.ts'
+import styles from './TaskEditModal.module.css'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import PaletteSwatches from '../../palette/components/PaletteSwatches.tsx'
 import { usePalette } from '../../palette/hooks/usePalette.ts'
@@ -134,9 +135,9 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
                 <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
               </label>
 
-              <fieldset className="ob-modal-field ob-modal-duration">
+              <fieldset className={`ob-modal-field ${styles.duration}`}>
                 <legend>Duration</legend>
-                <div className="ob-modal-duration-inputs">
+                <div className={styles.durationInputs}>
                   <input
                     id={hoursId}
                     type="number"
@@ -158,7 +159,7 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
                   />
                   <label htmlFor={minutesId}>mins</label>
                 </div>
-                {ends && <p className="ob-modal-duration-ends">{ends}</p>}
+                {ends && <p className={styles.durationEnds}>{ends}</p>}
               </fieldset>
             </div>
 

@@ -1,8 +1,9 @@
-import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useLayoutEffect, useCallback, type FormEvent, type ReactNode, type UIEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { nextCursor, prependOlder, toChatItems } from './chatHistory.ts'
+import { nextCursor, prependOlder, toChatItems, type ChatItem } from '../utils/chatHistory.ts'
+import type { ChatHistoryPage } from '../types/chatHistory.ts'
+import type { BuddyReply, GoalProposal } from '../types/buddyReply.ts'
 import { PanelRightIcon } from '../../../components/icons/index.ts'
-import GoalProposalCard from '../../personal-target/components/GoalProposalCard.tsx'
 
 // Load older history when the thread is scrolled to within this many px of the top.
 const LOAD_OLDER_THRESHOLD_PX = 40
@@ -24,7 +25,10 @@ export function SendIcon() {
   )
 }
 
-function createChatMessage(role, text, isError = false) {
+/** A bubble, plus the goal proposal Buddy attached to it (shown by `renderProposal`). */
+type ChatBubble = ChatItem & { goalProposal?: GoalProposal | null }
+
+function createChatMessage(role: ChatItem['role'], text: string, isError = false): ChatBubble {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     role,
@@ -33,25 +37,28 @@ function createChatMessage(role, text, isError = false) {
   }
 }
 
+type HistoryState = { status: 'idle' | 'loading' | 'error'; hasMore: boolean; nextBefore: number | null }
+
+export type BuddyChatProps = {
+  title?: string
+  subtitle?: string
+  initialMessage: string
+  placeholder?: string
+  onSend: (message: string) => Promise<string | BuddyReply>
+  onAfterSend?: (info: { hasGoalProposal: boolean }) => void
+  tourId?: string
+  isHidden?: boolean
+  loadHistory?: (before?: number | null) => Promise<ChatHistoryPage>
+  topSlot?: ReactNode
+  compactHeader?: boolean
+  /** Renders a goal proposal under Buddy's reply (the page supplies the card, so this feature never imports one). */
+  renderProposal?: (proposal: GoalProposal) => ReactNode
+  panelId?: string
+  onHide?: () => void
+  focusHideButton?: boolean
+}
+
 /**
- * @param {{
- *   title?: string,
- *   subtitle?: string,
- *   initialMessage: string,
- *   placeholder?: string,
- *   onSend: (message: string) => Promise<string | import('../../personal-target/types/goal.ts').BuddyReply>,
- *   onAfterSend?: (info: { hasGoalProposal: boolean }) => void,
- *   tourId?: string,
- *   isHidden?: boolean,
- *   loadHistory?: (before?: number | null) => Promise<import('../types/chatHistory.ts').ChatHistoryPage>,
- *   topSlot?: import('react').ReactNode,
- *   compactHeader?: boolean,
- *   onGoalSaved?: () => void,
- *   panelId?: string,
- *   onHide?: () => void,
- *   focusHideButton?: boolean,
- * }} props
- *
  * `loadHistory` (F004): when given, the stored conversation is shown under the greeting
  * (newest page first) and older pages load when the thread is scrolled to the top.
  * `topSlot` (F007): content pinned between the header and the thread (Buddy's reflection note).
@@ -62,7 +69,7 @@ function createChatMessage(role, text, isError = false) {
  * and hides it with CSS, so the thread and unsent text survive. `panelId` is set as the `<aside>` id
  * (for `aria-controls`). `focusHideButton` turning true (after the user shows the chat) moves focus to
  * that button; true on mount does not.
- * `onGoalSaved` (F013 US4) is called when a proposal is confirmed, so a page listing goals can reload.
+ * `renderProposal` (F013): renders the card for a goal proposal; the card's own `onSaved` (F013 US4) lets a page listing goals reload.
  */
 function BuddyChat({
   title = 'Routine Buddy',
@@ -76,30 +83,30 @@ function BuddyChat({
   loadHistory,
   topSlot = null,
   compactHeader = false,
-  onGoalSaved,
+  renderProposal,
   panelId,
   onHide,
   focusHideButton = false,
-}) {
-  const hideButtonRef = useRef(null)
+}: BuddyChatProps) {
+  const hideButtonRef = useRef<HTMLButtonElement>(null)
   const wasFocusRequested = useRef(focusHideButton)
   useEffect(() => {
     if (focusHideButton && !wasFocusRequested.current) hideButtonRef.current?.focus()
     wasFocusRequested.current = focusHideButton
   }, [focusHideButton])
   const [prompt, setPrompt] = useState('')
-  const inputRef = useRef(null)
-  const [messages, setMessages] = useState([createChatMessage('bot', initialMessage)])
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [messages, setMessages] = useState<ChatBubble[]>([createChatMessage('bot', initialMessage)])
   const [isSendingChat, setIsSendingChat] = useState(false)
-  const threadRef = useRef(null)
+  const threadRef = useRef<HTMLDivElement>(null)
   // History paging (F004). status: 'idle' | 'loading' | 'error'
-  const [history, setHistory] = useState({ status: 'idle', hasMore: false, nextBefore: null })
+  const [history, setHistory] = useState<HistoryState>({ status: 'idle', hasMore: false, nextBefore: null })
   const loadHistoryRef = useRef(loadHistory)
   loadHistoryRef.current = loadHistory
   const loadingRef = useRef(false)
   const mountedRef = useRef(true)
   // scrollHeight before an older page is prepended, so the reading position can be kept.
-  const prependAnchorRef = useRef(null)
+  const prependAnchorRef = useRef<number | null>(null)
 
   const lastMessageId = messages[messages.length - 1]?.id
 
@@ -122,7 +129,7 @@ function BuddyChat({
     thread.scrollTop += thread.scrollHeight - prevHeight
   }, [messages])
 
-  const loadPage = useCallback(async (before) => {
+  const loadPage = useCallback(async (before?: number | null) => {
     const load = loadHistoryRef.current
     if (!load || loadingRef.current) {
       return
@@ -167,13 +174,13 @@ function BuddyChat({
     }
   }
 
-  const handleThreadScroll = (event) => {
+  const handleThreadScroll = (event: UIEvent<HTMLDivElement>) => {
     if (event.currentTarget.scrollTop <= LOAD_OLDER_THRESHOLD_PX && history.status !== 'loading') {
       loadOlder()
     }
   }
 
-  const handleSubmitChat = async (event) => {
+  const handleSubmitChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const message = prompt.trim()
@@ -245,7 +252,7 @@ function BuddyChat({
             <div className={`ob-message ${chat.role === 'user' ? 'user' : 'bot'}`}>
               <ReactMarkdown>{chat.isError ? `Error: ${chat.text}` : chat.text}</ReactMarkdown>
             </div>
-            {chat.goalProposal ? <GoalProposalCard proposal={chat.goalProposal} onSaved={onGoalSaved} /> : null}
+            {chat.goalProposal && renderProposal ? renderProposal(chat.goalProposal) : null}
             <div className="ob-message-spacer"></div>
           </div>
         ))}

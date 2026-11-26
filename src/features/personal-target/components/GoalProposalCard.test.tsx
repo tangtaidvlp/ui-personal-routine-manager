@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AuthContext from '../../../context/AuthContext.ts'
 import { ApiError } from '../../../lib/api.ts'
 import { createGoal, updateGoal } from '../api/goals.ts'
-import type { Goal, GoalProposal } from '../types/goal.ts'
+import type { Goal } from '../types/goal.ts'
+import type { GoalProposal } from '../../buddy-chat/types/buddyReply.ts'
 import GoalProposalCard from './GoalProposalCard.tsx'
 
 vi.mock('../api/goals.ts', () => ({
@@ -27,7 +28,7 @@ const saved = { goal: savedGoal, review: null }
 
 function renderCard(proposal: GoalProposal, onSaved?: () => void) {
   return render(
-    <AuthContext.Provider value={{ user: { id: 'user-1', name: 'Tom' }, setUser: vi.fn() }}>
+    <AuthContext.Provider value={{ user: { id: 'user-1', name: 'Tom' } }}>
       <MemoryRouter>
         <GoalProposalCard proposal={proposal} onSaved={onSaved} />
       </MemoryRouter>

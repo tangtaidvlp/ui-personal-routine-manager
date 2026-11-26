@@ -1,0 +1,36 @@
+/* Duration as hours + minutes (F010). The fieldset looks like the other fields. */
+.duration {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.duration legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.durationInputs {
+  /* One row, level with Start time: [ 0 ] hour [ 30 ] mins */
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.durationInputs input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.durationInputs label {
+  flex-shrink: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.durationEnds {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}

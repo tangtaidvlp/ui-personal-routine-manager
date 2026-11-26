@@ -1,5 +1,5 @@
 import { ApiError } from '../../../lib/api.ts'
-import type { BuddyReply, GoalProposal } from '../types/goal.ts'
+import type { BuddyReply, GoalProposal } from '../types/buddyReply.ts'
 
 /**
  * Reads a Buddy chat response `{ reply, goalProposal }` (specs/F013
