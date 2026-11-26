@@ -71,12 +71,13 @@ The shell routes are children of one layout route: `RequireOnboarded` (→ `/aut
 
 Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHub Pages always serves `index.html`.
 
-### Routing & Auth flow (in [src/app/App.tsx](src/app/App.tsx))
+### Routing & Auth flow ([src/app/App.tsx](src/app/App.tsx) routes, [features/auth/hooks/useAuthSession.ts](src/features/auth/hooks/useAuthSession.ts) session)
 
 - On mount, `POST /auth/refresh` attempts silent re-auth via httpOnly cookie. If successful, the user is logged in.
 - Route guards redirect unauthenticated users to `/auth` and onboarded users past `/onboarding`.
-- `App.tsx` holds the auth state (user, form fields) and passes it as props — no global state library. The access token is not React state: `App.tsx` hands it to `setAccessToken()` in `lib/api.ts` on login and silent refresh, and clears it on logout (B008). `AuthContext` (from [src/context/AuthContext.ts](src/context/AuthContext.ts)) provides `user` / `setUser` to children.
-- **Note:** [src/context/Auth.ts](src/context/Auth.ts) is a stale/unused duplicate of `AuthContext.ts` — use `AuthContext.ts`.
+- `App.tsx` is `useAuthSession()` + `AuthContext.Provider` + routes + guards only. The hook owns `user`, `isOnboardCompleted`, `isChecking` (`isLoggedIn` is derived from `user`) and the actions `signIn`, `signUp`, `signOut`, `markOnboarded`. Sign-in and silent refresh share one `startSession`: `setAccessToken()` (`lib/api.ts`, B008), one `toAuthUser()` (built from the JWT claims `sub`/`email`/`name`), `loadUserSettings`, then the onboarding-status fetch; the user is set last, so routing goes straight to the right page. `signOut` saves pending settings, calls logout (errors only logged), then clears the user and the token. Calls to `/auth/*` and the onboarding status live in `features/auth/api/auth.ts` (also `decodeJwt`).
+- `AuthPage` owns its form fields, errors and mode; its props are only `onSignIn` / `onSignUp` (failures come back as thrown `ApiError`s). `OnboardingPage` owns its completing/error state and calls `markOnboarded()` after `completeOnboarding()`.
+- `AuthContext` (from [src/context/AuthContext.ts](src/context/AuthContext.ts)) provides `user` (read-only) to children.
 
 ### API layer ([src/lib/api.ts](src/lib/api.ts))
 
@@ -153,5 +154,5 @@ Test files are type-checked by `tsconfig.test.json` (adds Node + jest-dom types;
 - **oxlint** enforces React rules-of-hooks (error) and warns on non-constant exports. Config in [`.oxlintrc.json`](.oxlintrc.json).
 - The backend is a separate repo (`../ms-personal-routine-manager`) expected at `localhost:8080`.
 - **API calls:** only through `apiRequest` in a feature's `api/` module, with the full `/api/...` path (see API layer).
-- **Auth state:** Only `AuthContext` (from `src/context/AuthContext.ts`) is active. `src/context/Auth.ts` is a stale duplicate — don't import from it.
+- **Auth state:** the session lives in `useAuthSession` (`features/auth/hooks/`); pages read `user` from `AuthContext` (`src/context/AuthContext.ts`) and never set it.
 - **`pnpm`** is the package manager — don't use `npm` or `yarn`.

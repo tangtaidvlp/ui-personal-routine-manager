@@ -28,7 +28,7 @@ const saved = { goal: savedGoal, review: null }
 
 function renderCard(proposal: GoalProposal, onSaved?: () => void) {
   return render(
-    <AuthContext.Provider value={{ user: { id: 'user-1', name: 'Tom' }, setUser: vi.fn() }}>
+    <AuthContext.Provider value={{ user: { id: 'user-1', name: 'Tom' } }}>
       <MemoryRouter>
         <GoalProposalCard proposal={proposal} onSaved={onSaved} />
       </MemoryRouter>

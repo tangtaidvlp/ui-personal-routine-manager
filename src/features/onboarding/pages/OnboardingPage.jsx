@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { submitOnboardingChat } from '../api/completeOnboarding.ts'
+import { ApiError } from '../../../lib/api.ts'
+import { completeOnboarding, submitOnboardingChat } from '../api/completeOnboarding.ts'
 import DefaultRoutineEditor from '../../default-routine/components/DefaultRoutineEditor.tsx'
 import { SCHEDULE_TABS } from '../../default-routine/hooks/useDefaultRoutines.ts'
 import { fetchDefaultRoutineChatHistory } from '../../default-routine/api/defaultRoutineChat.ts'
@@ -28,13 +29,39 @@ function BrandMark() {
 /**
  * @param {{
  *   user: { id?: string; email?: string } | null,
- *   onComplete: () => void | Promise<void>,
- *   isCompleting?: boolean,
- *   completeError?: string | null,
+ *   onComplete: () => void,
  * }} props
  */
-function OnboardingPage({ user, onComplete, isCompleting = false, completeError = null }) {
+function OnboardingPage({ user, onComplete }) {
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [completeError, setCompleteError] = useState(null)
   const [mobileView, setMobileView] = useState('board')
+
+  const handleComplete = async () => {
+    if (!user?.id) {
+      setCompleteError('Unable to complete onboarding because user information is missing.')
+      return
+    }
+
+    setIsCompleting(true)
+    setCompleteError(null)
+
+    try {
+      await completeOnboarding(user.id)
+      onComplete()
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 500) {
+        setCompleteError('Could not complete onboarding for this user (server returned 500).')
+      } else if (error instanceof ApiError) {
+        setCompleteError(error.message)
+      } else {
+        setCompleteError('Failed to complete onboarding. Please try again.')
+      }
+    } finally {
+      setIsCompleting(false)
+    }
+  }
+
   // Opens on every visit while onboarding is unfinished: App.tsx routes those users here (spec FR-001).
   const walkthrough = useWalkthrough({ autoOpen: 'onboarding' })
 
@@ -50,7 +77,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             <HowItWorksButton onClick={() => walkthrough.open('onboarding')} />
             <ThemeControl variant="compact" />
             {switcher}
-            <button type="button" className="ui-btn ui-btn-primary ob-ready-btn" onClick={onComplete} data-tour="finish">
+            <button type="button" className="ui-btn ui-btn-primary ob-ready-btn" onClick={handleComplete} data-tour="finish">
               {isCompleting ? 'Saving...' : 'Ready to roll'}
             </button>
           </div>

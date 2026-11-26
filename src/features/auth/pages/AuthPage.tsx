@@ -1,28 +1,12 @@
-import type { FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { AuthMode } from '../types/auth.ts'
+import type { RegisterResponse } from '../api/auth.ts'
 import ThemeControl from '../../../components/ThemeControl.tsx'
 
 type AuthPageProps = {
-  mode: AuthMode
-  isLoggingIn: boolean
-  isRegistering: boolean
-  signInEmail: string
-  signInPassword: string
-  signUpFullName: string
-  signUpEmail: string
-  signUpPassword: string
-  signInError: string | null
-  signUpError: string | null
-  signUpSuccess: string | null
-  onModeChange: (mode: AuthMode) => void
-  onSignInEmailChange: (value: string) => void
-  onSignInPasswordChange: (value: string) => void
-  onSignUpFullNameChange: (value: string) => void
-  onSignUpEmailChange: (value: string) => void
-  onSignUpPasswordChange: (value: string) => void
-  onSignIn: (event: FormEvent<HTMLFormElement>) => void
-  onSignUp: (event: FormEvent<HTMLFormElement>) => void
+  onSignIn: (email: string, password: string) => Promise<void>
+  onSignUp: (email: string, password: string, username: string) => Promise<RegisterResponse>
 }
 
 function Logo({ size = 'md' }: { size?: 'sm' | 'md' }) {
@@ -166,27 +150,72 @@ function DecorativeBackground() {
   )
 }
 
-function AuthPage({
-  mode,
-  isLoggingIn,
-  isRegistering,
-  signInEmail,
-  signInPassword,
-  signUpFullName,
-  signUpEmail,
-  signUpPassword,
-  signInError,
-  signUpError,
-  signUpSuccess,
-  onModeChange,
-  onSignInEmailChange,
-  onSignInPasswordChange,
-  onSignUpFullNameChange,
-  onSignUpEmailChange,
-  onSignUpPasswordChange,
-  onSignIn,
-  onSignUp,
-}: AuthPageProps) {
+function AuthPage({ onSignIn, onSignUp }: AuthPageProps) {
+  const [mode, setMode] = useState<AuthMode>('signin')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [signInEmail, setSignInEmail] = useState('')
+  const [signInPassword, setSignInPassword] = useState('')
+  const [signUpFullName, setSignUpFullName] = useState('')
+  const [signUpEmail, setSignUpEmail] = useState('')
+  const [signUpPassword, setSignUpPassword] = useState('')
+  const [signInError, setSignInError] = useState<string | null>(null)
+  const [signUpError, setSignUpError] = useState<string | null>(null)
+  const [signUpSuccess, setSignUpSuccess] = useState<string | null>(null)
+
+  const onModeChange = (nextMode: AuthMode) => {
+    if (isLoggingIn || isRegistering) {
+      return
+    }
+
+    setMode(nextMode)
+    setSignInError(null)
+    setSignUpError(null)
+    setSignUpSuccess(null)
+  }
+
+  const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setIsLoggingIn(true)
+    setSignInError(null)
+
+    try {
+      await onSignIn(signInEmail, signInPassword)
+      setSignInEmail('')
+      setSignInPassword('')
+    } catch (err) {
+      setSignInError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsLoggingIn(false)
+    }
+  }
+
+  const handleSignUp = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setIsRegistering(true)
+    setSignUpError(null)
+    setSignUpSuccess(null)
+
+    try {
+      const data = await onSignUp(signUpEmail, signUpPassword, signUpFullName)
+      const registeredEmail = signUpEmail
+
+      setSignUpSuccess('User registered successfully. Welcome ' + data.userName)
+      setSignUpFullName('')
+      setSignUpEmail('')
+      setSignUpPassword('')
+
+      window.setTimeout(() => {
+        setMode('signin')
+        setSignInEmail(registeredEmail)
+      }, 1500)
+    } catch (err) {
+      setSignUpError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
   return (
     <div className="page">
       <DecorativeBackground />
@@ -247,7 +276,7 @@ function AuthPage({
                     <span>{signInError}</span>
                   </div>
                 )}
-                <form onSubmit={onSignIn}>
+                <form onSubmit={handleSignIn}>
                   <label className="input-field">
                     <EmailIcon />
                     <input
@@ -256,7 +285,7 @@ function AuthPage({
                       required
                       disabled={isLoggingIn}
                       value={signInEmail}
-                      onChange={(event) => onSignInEmailChange(event.target.value)}
+                      onChange={(event) => setSignInEmail(event.target.value)}
                     />
                   </label>
                   <label className="input-field">
@@ -267,7 +296,7 @@ function AuthPage({
                       required
                       disabled={isLoggingIn}
                       value={signInPassword}
-                      onChange={(event) => onSignInPasswordChange(event.target.value)}
+                      onChange={(event) => setSignInPassword(event.target.value)}
                     />
                   </label>
                   <button type="submit" className="btn btn--primary" disabled={isLoggingIn}>
@@ -309,7 +338,7 @@ function AuthPage({
                     <span>{signUpSuccess}</span>
                   </div>
                 )}
-                <form onSubmit={onSignUp}>
+                <form onSubmit={handleSignUp}>
                   <label className="input-field">
                     <UserIcon />
                     <input
@@ -317,7 +346,7 @@ function AuthPage({
                       placeholder="Full Name"
                       disabled={isRegistering}
                       value={signUpFullName}
-                      onChange={(event) => onSignUpFullNameChange(event.target.value)}
+                      onChange={(event) => setSignUpFullName(event.target.value)}
                     />
                   </label>
                   <label className="input-field">
@@ -328,7 +357,7 @@ function AuthPage({
                       required
                       disabled={isRegistering}
                       value={signUpEmail}
-                      onChange={(event) => onSignUpEmailChange(event.target.value)}
+                      onChange={(event) => setSignUpEmail(event.target.value)}
                     />
                   </label>
                   <label className="input-field">
@@ -339,7 +368,7 @@ function AuthPage({
                       required
                       disabled={isRegistering}
                       value={signUpPassword}
-                      onChange={(event) => onSignUpPasswordChange(event.target.value)}
+                      onChange={(event) => setSignUpPassword(event.target.value)}
                     />
                   </label>
                   <button type="submit" className="btn btn--secondary" disabled={isRegistering}>
