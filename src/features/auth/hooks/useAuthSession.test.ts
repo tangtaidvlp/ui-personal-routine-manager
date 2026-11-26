@@ -17,6 +17,7 @@ vi.mock('../api/auth.ts', async (importOriginal) => ({
 vi.mock('../../../lib/api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/api.ts')>()),
   setAccessToken: vi.fn(),
+  setUnauthorizedHandler: vi.fn(),
 }))
 vi.mock('../../settings/hooks/useUserSettings.ts', () => ({
   loadUserSettings: vi.fn().mockResolvedValue(undefined),
@@ -114,5 +115,28 @@ describe('useAuthSession', () => {
     expect(result.current.isOnboardCompleted).toBe(false)
     act(() => result.current.markOnboarded())
     expect(result.current.isOnboardCompleted).toBe(true)
+  })
+
+  it('registers a 401 handler that ends the session when refresh fails (B014)', async () => {
+    vi.mocked(authApi.refresh).mockResolvedValue({ accessToken: TOKEN })
+    const { result, unmount } = renderHook(() => useAuthSession())
+    await waitFor(() => expect(result.current.isLoggedIn).toBe(true))
+    const handler = vi.mocked(apiLib.setUnauthorizedHandler).mock.calls.at(-1)![0]!
+
+    vi.mocked(authApi.refresh).mockResolvedValue({ accessToken: 'renewed' })
+    await expect(handler()).resolves.toBe('renewed')
+    expect(result.current.isLoggedIn).toBe(true)
+
+    vi.mocked(authApi.refresh).mockRejectedValue(new Error('401'))
+    let renewed: string | null = 'x'
+    await act(async () => { renewed = await handler() })
+    expect(renewed).toBeNull()
+    expect(result.current.user).toBeNull()
+    expect(result.current.isOnboardCompleted).toBe(true)
+    expect(apiLib.setAccessToken).toHaveBeenLastCalledWith(null)
+    expect(authApi.logout).not.toHaveBeenCalled()
+
+    unmount()
+    expect(apiLib.setUnauthorizedHandler).toHaveBeenLastCalledWith(null)
   })
 })

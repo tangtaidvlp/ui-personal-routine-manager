@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { setAccessToken } from '../../../lib/api.ts'
+import { setAccessToken, setUnauthorizedHandler } from '../../../lib/api.ts'
 import type { AuthUser } from '../../../context/AuthContext.ts'
 import { loadUserSettings, resetUserSettings } from '../../settings/hooks/useUserSettings.ts'
 import { fetchOnboardingStatus, login, logout, refresh, register, toAuthUser } from '../api/auth.ts'
@@ -37,6 +37,23 @@ export function useAuthSession() {
     }
     void silentReauth()
   }, [startSession])
+
+  // B014: when a request gets 401, renew the access token once; if that fails the session is gone.
+  useEffect(() => {
+    setUnauthorizedHandler(async () => {
+      try {
+        const data = await refresh()
+        setAccessToken(data.accessToken)
+        return data.accessToken
+      } catch {
+        setUser(null)
+        setIsOnboardCompleted(true)
+        setAccessToken(null)
+        return null
+      }
+    })
+    return () => setUnauthorizedHandler(null)
+  }, [])
 
   const signIn = useCallback(
     async (email: string, password: string) => {
