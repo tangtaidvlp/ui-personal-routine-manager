@@ -75,12 +75,12 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
 
 - On mount, `POST /auth/refresh` attempts silent re-auth via httpOnly cookie. If successful, the user is logged in.
 - Route guards redirect unauthenticated users to `/auth` and onboarded users past `/onboarding`.
-- `App.tsx` holds all auth state (token, user, form fields) and passes them as props — no global state library. `AuthContext` (from [src/context/AuthContext.ts](src/context/AuthContext.ts)) provides `user` / `setUser` to children.
+- `App.tsx` holds the auth state (user, form fields) and passes it as props — no global state library. The access token is not React state: `App.tsx` hands it to `setAccessToken()` in `lib/api.ts` on login and silent refresh, and clears it on logout (B008). `AuthContext` (from [src/context/AuthContext.ts](src/context/AuthContext.ts)) provides `user` / `setUser` to children.
 - **Note:** [src/context/Auth.ts](src/context/Auth.ts) is a stale/unused duplicate of `AuthContext.ts` — use `AuthContext.ts`.
 
 ### API layer ([src/lib/api.ts](src/lib/api.ts))
 
-- Every HTTP call, auth included, goes through `apiRequest<T>(path, options)`: `fetch` with `credentials: 'include'` (refresh-token cookie), JSON in and out, an optional bearer `token`, and an `ApiError` (`status`, the backend's `message`) on non-2xx. A network failure is `ApiError` with status 0.
+- Every HTTP call, auth included, goes through `apiRequest<T>(path, options)`: `fetch` with `credentials: 'include'` (refresh-token cookie), JSON in and out, `Authorization: Bearer <access token>` on every call (the token is kept in memory only, set with `setAccessToken()`; a per-call `token` option overrides it), and an `ApiError` (`status`, the backend's `message`) on non-2xx. A network failure is `ApiError` with status 0.
 - Pass the full backend path (`/api/v1/...`, `/api/routine-manager/...`, `/api/ai/...`); `VITE_API_BASE_URL`, set in both `.env` files, is the backend origin.
 
 ### Feature behavior (structure rules are in `codingrules.md`)

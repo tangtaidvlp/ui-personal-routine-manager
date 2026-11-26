@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import '../App.css'
-import { ApiError, apiRequest } from '../lib/api.ts'
+import { ApiError, apiRequest, setAccessToken } from '../lib/api.ts'
 import AuthPage from '../features/auth/pages/AuthPage.tsx'
 import type { AuthMode } from '../features/auth/types/auth.ts'
 import type { AuthUser } from '../context/AuthContext.ts'
@@ -62,19 +62,12 @@ function App() {
   const [signUpFullName, setSignUpFullName] = useState('')
   const [signUpEmail, setSignUpEmail] = useState('')
   const [signUpPassword, setSignUpPassword] = useState('')
-  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [user, setUser] = useState<AuthUser>(null)
   const [signInError, setSignInError] = useState<string | null>(null)
   const [signUpError, setSignUpError] = useState<string | null>(null)
   const [signUpSuccess, setSignUpSuccess] = useState<string | null>(null)
   const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false)
   const [onboardingError, setOnboardingError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (accessToken) {
-      return
-    }
-  }, [accessToken])
 
   const clearAuthMessages = () => {
     setSignInError(null)
