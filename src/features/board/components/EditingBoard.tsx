@@ -1,8 +1,9 @@
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import styles from './EditingBoard.module.css'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import { CheckIcon } from '../../../components/icons/index.ts'
-import { formatMinutesLeft, nowAndNext } from '../../daily/utils/nowAndNext.ts'
+import { formatMinutesLeft, nowAndNext } from '../utils/nowAndNext.ts'
 import {
   minutesForScrollTop,
   scrollTopForMinutes,
@@ -14,7 +15,8 @@ import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
 import { useBoardZoom } from '../../settings/hooks/useUserSettings.ts'
 import { getCurrentMinutes, useBoardClock } from '../hooks/useBoardClock.ts'
 import { taskSegments } from '../utils/taskSegments.ts'
-import BoardToolbar from './BoardToolbar.jsx'
+import BoardToolbar from './BoardToolbar.tsx'
+import type { BoardProps, BoardTask } from '../types/board.ts'
 
 const MINUTES_PER_DAY = 1440
 const BASE_BOARD_HEIGHT_PX = 2400
@@ -24,7 +26,7 @@ const CLICK_DISTANCE_THRESHOLD_PX = 5
 // The live board opens with "now" this far below the top of the view.
 const LIVE_SCROLL_OFFSET_PX = 260
 
-const parseLocalTimeToMinutes = (value, fallback = 0) => {
+const parseLocalTimeToMinutes = (value: unknown, fallback = 0) => {
   if (typeof value === 'string') {
     const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
     if (match) {
@@ -39,7 +41,7 @@ const parseLocalTimeToMinutes = (value, fallback = 0) => {
   return fallback
 }
 
-const showTaskDuration = (minutesDuration) => {
+const showTaskDuration = (minutesDuration: number) => {
     const h = Math.floor(minutesDuration / 60)
     const m = minutesDuration % 60
     if (h > 0 && m > 0) return `${h}h ${m}m`
@@ -48,7 +50,7 @@ const showTaskDuration = (minutesDuration) => {
     return `${m}m`
 }
 
-const formatTime = (minutes) => {
+const formatTime = (minutes: number) => {
   const normalized = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
   const h = Math.floor(normalized / 60)
     .toString()
@@ -59,9 +61,23 @@ const formatTime = (minutes) => {
   return `${h}:${m}`
 }
 
-const snapMinutes = (minutes, step = SNAP_MINUTES) => Math.round(minutes / step) * step
+const snapMinutes = (minutes: number, step = SNAP_MINUTES) => Math.round(minutes / step) * step
 
-const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max))
+
+type DragState = {
+  taskId: string | undefined
+  mode: 'move' | 'resize'
+  pointerId: number
+  startClientY: number
+  originalStartMinutes: number
+  originalDurationMinutes: number
+  liveStartMinutes: number
+  liveDurationMinutes: number
+  /** Gap clear only: where every task started when the drag began. */
+  originalTaskPositions: { id: string | undefined; originalStart: number }[] | null
+  draggedTaskOriginalStart: number
+}
 
 /**
  * `liveClock` (default true): the clock readout, now-line, current-task highlight and Now/Next
@@ -79,29 +95,9 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max))
  * receives the scrolling element (for scroll sync).
  * `onResetDay` / `resetDisabled` (F012) go to the toolbar; without `onResetDay` there is no Reset day.
  * `showCompletion` (default true) false hides the "Mark as done" checks (F007 Reality board).
- *
- * @param {{
- *   routine: any,
- *   liveClock?: boolean,
- *   toolbarActions?: import('react').ReactNode,
- *   toolbarMenuActions?: import('react').ReactNode,
- *   showFooter?: boolean,
- *   onRequestCreateTask?: (draft: any) => void,
- *   onRequestEditTask?: (task: any) => void,
- *   onPersistTaskChange?: (tasks: any[]) => unknown,
- *   onPersistError?: (error: unknown) => void,
- *   onToggleComplete?: (task: any) => Promise<unknown>,
- *   onRequestDeleteTask?: (task: any) => Promise<unknown> | void,
- *   showToolbar?: boolean,
- *   clock?: import('../hooks/useBoardClock.ts').BoardClock,
- *   gapClearMode?: boolean,
- *   onResetDay?: () => void,
- *   resetDisabled?: boolean,
- *   scrollContainerRef?: (element: HTMLElement | null) => void,
- *   showCompletion?: boolean,
- * }} props
+ * `label` is declared in `BoardProps` but ignored: the board always says "Timeline board" (changing that would change what screen readers announce).
  */
-function EditingBoard({
+function EditingBoard<T extends BoardTask>({
   routine,
   liveClock = true,
   toolbarActions = null,
@@ -120,34 +116,33 @@ function EditingBoard({
   resetDisabled = false,
   scrollContainerRef,
   showCompletion = true,
-}) {
-
+}: BoardProps<T>) {
   // Task colours come from the backend palette; the stylesheet picks the light/dark pair (specs/F005).
   const { palette } = usePalette()
   // The board's own clock ticks only when no shared clock is passed.
   const ownClock = useBoardClock(liveClock && !sharedClock)
   const clock = sharedClock ?? ownClock
   const { currentTime } = clock
-  const [hoveredTask, setHoveredTask] = useState(null)
-  const [dragState, setDragState] = useState(null)
+  const [hoveredTask, setHoveredTask] = useState<T | null>(null)
+  const [dragState, setDragState] = useState<DragState | null>(null)
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
   const { zoom: zoomLevel } = useBoardZoom()
-  const [deleteConfirmTask, setDeleteConfirmTask] = useState(null)
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<T | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isToggling, setIsToggling] = useState(new Set())
+  const [isToggling, setIsToggling] = useState(new Set<string | undefined>())
   const [ownGapClearMode, setGapClearMode] = useState(false)
   const gapClearMode = sharedGapClearMode ?? ownGapClearMode
-  const containerRef = useRef(null)
+  const containerRef = useRef<HTMLElement | null>(null)
   const scrollContainerRefRef = useRef(scrollContainerRef)
   scrollContainerRefRef.current = scrollContainerRef
-  const setScrollContainer = (element) => {
+  const setScrollContainer = (element: HTMLElement | null) => {
     containerRef.current = element
     scrollContainerRefRef.current?.(element)
   }
-  const trackRef = useRef(null)
+  const trackRef = useRef<HTMLDivElement>(null)
   // Each task's `main` part, by id. A drag captures the pointer there, because a `wrap` part
   // (or the handle on it) can unmount mid-drag when the task stops crossing midnight (F011).
-  const mainPartsRef = useRef(new Map())
+  const mainPartsRef = useRef(new Map<string | undefined, HTMLElement | null>())
   // With the capture on `main`, a press on a `wrap` part ends on `main`, so the browser sends the
   // click to their common parent (the track). Ignore that one click so it doesn't open "Add task".
   const ignoreTrackClickRef = useRef(false)
@@ -155,9 +150,9 @@ function EditingBoard({
   const boardHeightPx = useMemo(() => BASE_BOARD_HEIGHT_PX * zoomLevel, [zoomLevel])
   const minutesPerPixel = useMemo(() => MINUTES_PER_DAY / boardHeightPx, [boardHeightPx])
 
-  const tasks = routine?.tasks || [];
+  const tasks: T[] = routine?.tasks || [];
 
-const [completedTasks, setCompletedTasks] = useState(() => {
+const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(() => {
     return {}
   })
 
@@ -203,7 +198,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
 
   const footer = liveClock && showFooter ? nowAndNext(tasks, currentTime) : null
 
-  const toggleTaskCompletion = async (task, index, event) => {
+  const toggleTaskCompletion = async (task: T, index: number, event: MouseEvent) => {
     event.stopPropagation()
     if (onToggleComplete) {
       // Optimistic update: toggle immediately in local state for instant feedback
@@ -236,7 +231,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     }))
   }
 
-  const handleTrackClick = (event) => {
+  const handleTrackClick = (event: MouseEvent) => {
     if (ignoreTrackClickRef.current) {
       ignoreTrackClickRef.current = false
       return
@@ -252,7 +247,13 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     onRequestCreateTask({ name: '', startTime: formatTime(startMinutes), durationMinutes: 30 })
   }
 
-  const beginDrag = (event, mode, task, originalStartMinutes, originalDurationMinutes) => {
+  const beginDrag = (
+    event: PointerEvent<HTMLElement>,
+    mode: DragState['mode'],
+    task: T,
+    originalStartMinutes: number,
+    originalDurationMinutes: number,
+  ) => {
     event.stopPropagation()
     const captureTarget = mainPartsRef.current.get(task.id) ?? event.currentTarget
     captureTarget.setPointerCapture(event.pointerId)
@@ -276,7 +277,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     })
   }
 
-  const handleDragPointerMove = (event) => {
+  const handleDragPointerMove = (event: PointerEvent) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return
     }
@@ -292,7 +293,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     }
   }
 
-  const handleDragPointerUp = (event, task) => {
+  const handleDragPointerUp = (event: PointerEvent, task: T) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return
     }
@@ -324,14 +325,14 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     const deltaMinutes = finished.liveStartMinutes - finished.originalStartMinutes
 
     // Base updated tasks list
-    let tasksToUpdate = []
+    let tasksToUpdate: BoardTask[] = []
 
     if (gapClearMode && finished.mode === 'move' && finished.originalTaskPositions) {
       // Gap-clear mode: move all tasks that were originally below this one by the same delta
       const draggedOriginalStart = finished.draggedTaskOriginalStart
 
       // Create updates for every task affected
-      const updateMap = new Map()
+      const updateMap = new Map<string | undefined, BoardTask>()
 
       // First, add the dragged task itself
       updateMap.set(task.id, {
@@ -390,7 +391,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
     }
   }
 
-  const handleDragPointerCancel = (event) => {
+  const handleDragPointerCancel = (event: PointerEvent) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return
     }
@@ -415,8 +416,8 @@ const [completedTasks, setCompletedTasks] = useState(() => {
         <div
           ref={trackRef}
           className={[
-            'ob-board-track',
-            gapClearMode ? 'is-gap-clear-mode' : ''
+            styles.track,
+            gapClearMode ? styles.gapClear : ''
           ].filter(Boolean).join(' ')}
           style={{ height: `${boardHeightPx}px` }}
           onClick={handleTrackClick}
@@ -424,7 +425,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           {Array.from({ length: 25 }).map((_, index) => (
             <div
               key={`grid-${index}`}
-              className="ob-board-hour-line"
+              className={styles.hourLine}
               style={{ top: `${(index * 60 * 100) / MINUTES_PER_DAY}%` }}
             >
               <span>{`${index.toString().padStart(2, '0')}:00`}</span>
@@ -437,7 +438,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
               // endTime wraps past midnight (22:00 + 8h → 06:00), so the duration comes from durationMinutes (F011).
               const storedDuration = task.durationMinutes
 
-              const isDragging = dragState?.taskId === task.id
+              const isDragging = dragState !== null && dragState.taskId === task.id
               const taskStartTime = isDragging ? dragState.liveStartMinutes : storedStartTime
               const taskDuration = isDragging ? dragState.liveDurationMinutes : storedDuration
               const taskEndTime = taskStartTime + taskDuration
@@ -460,7 +461,9 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                   key={`${task.id}-${part}`}
                   ref={part === 'main' ? (element) => {
                     mainPartsRef.current.set(task.id, element)
-                    return () => mainPartsRef.current.delete(task.id)
+                    return () => {
+                      mainPartsRef.current.delete(task.id)
+                    }
                   } : undefined}
                   data-part={part}
                   onPointerDown={(event) => beginDrag(event, 'move', task, storedStartTime, storedDuration)}
@@ -480,7 +483,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     .join(' ')}
                   style={{ top: `${top}%`, height: `${height}%`, ...resolveTaskColor(task.color, palette) }}
                 >
-                  <div className="ob-board-task-content">
+                  <div className={styles.taskContent}>
                     <span className="ob-board-task-name">{task.name}</span>
                     <span className="ob-board-task-time">
                       {formatTime(taskStartTime)} – {formatTime(taskEndTime)} · {showTaskDuration(taskDuration)}
@@ -493,9 +496,9 @@ const [completedTasks, setCompletedTasks] = useState(() => {
                     onClick={(event) => toggleTaskCompletion(task, index, event)}
                     onPointerDown={(event) => event.stopPropagation()}
                     className={[
-                      'ob-board-task-check',
-                      isDone ? 'is-checked' : '',
-                      isTogglingThis ? 'is-toggling' : '',
+                      styles.taskCheck,
+                      isDone ? styles.checked : '',
+                      isTogglingThis ? styles.toggling : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
@@ -561,15 +564,15 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       </div>
 
       {footer && (
-        <div className="ob-board-footer" aria-live="polite">
-          <span className="ob-board-footer-now">
+        <div className={styles.footer} aria-live="polite">
+          <span className={styles.footerNow}>
             {footer.now ? (
               <>
-                <span className="ob-board-footer-label">Now</span>
+                <span className={styles.footerLabel}>Now</span>
                 <strong>{footer.now.name}</strong> · {formatMinutesLeft(footer.now.minutesLeft)}
               </>
             ) : (
-              <span className="ob-board-footer-label">Nothing scheduled right now</span>
+              <span className={styles.footerLabel}>Nothing scheduled right now</span>
             )}
           </span>
           {footer.next ? (
@@ -581,7 +584,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
       )}
 
       {hoveredTask && (
-        <div className="ob-board-tooltip">
+        <div className={styles.tooltip}>
           <strong>{hoveredTask.name}</strong>
           <span>
             {hoveredTask.startTime} - {hoveredTask.endTime} ({showTaskDuration(hoveredTask.durationMinutes)})
@@ -599,7 +602,7 @@ const [completedTasks, setCompletedTasks] = useState(() => {
           if (!deleteConfirmTask) return
           setIsDeleting(true)
           try {
-            await onRequestDeleteTask(deleteConfirmTask)
+            await onRequestDeleteTask?.(deleteConfirmTask)
           } finally {
             setIsDeleting(false)
             setDeleteConfirmTask(null)

@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import AuthContext from '../../../context/AuthContext.ts'
 import { ApiError } from '../../../lib/api.ts'
 import { createGoal, updateGoal } from '../api/goals.ts'
-import type { GoalProposal, GoalReview } from '../types/goal.ts'
+import type { GoalReview } from '../types/goal.ts'
+import type { GoalProposal } from '../../buddy-chat/types/buddyReply.ts'
 
 type Outcome =
   | { kind: 'open' }

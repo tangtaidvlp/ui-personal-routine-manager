@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import EditingBoard from '../../onboarding/components/EditingBoard.jsx'
+import EditingBoard from '../../board/components/EditingBoard.tsx'
 import RadialBoard from '../../radial-view/components/RadialBoard.tsx'
 import BoardViewSwitch from '../../radial-view/components/BoardViewSwitch.tsx'
 import { useDevicePreference } from '../../../hooks/useDevicePreference.ts'
 import { BOARD_VIEW_KEY, BOARD_VIEWS, CHAT_PANEL_KEY, CHAT_PANEL_STATES } from '../../../lib/devicePreference.ts'
 import ChatPanelRail from '../../../components/layout/ChatPanelRail.tsx'
-import TaskEditModal from '../../onboarding/components/TaskEditModal.tsx'
-import FabButton from '../../onboarding/components/FabButton.tsx'
-import BuddyChat, { SendIcon } from '../../onboarding/components/BuddyChat.jsx'
+import TaskEditModal from '../../board/components/TaskEditModal.tsx'
+import FabButton from '../../../components/FabButton.tsx'
+import BuddyChat, { SendIcon } from '../../buddy-chat/components/BuddyChat.tsx'
+import { goalProposalRenderer } from '../../personal-target/components/renderGoalProposal.tsx'
 import PageHeader from '../../../components/layout/PageHeader.tsx'
 import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import { useShellContext } from '../../../components/layout/shellContext.ts'
 import { ChevronLeftIcon, ChevronRightIcon } from '../../../components/icons/index.ts'
-import { routineTypeForDate, routineTypeLabel } from '../../onboarding/utils/routineTypeForDate.ts'
+import { routineTypeForDate, routineTypeLabel } from '../../../utils/routineTypeForDate.ts'
 import {
   fetchDailyRoutine,
   ensureDailyRoutine,
@@ -41,6 +42,8 @@ import {
   fetchReflectionChatHistory,
 } from '../../reflection/api/reflection.ts'
 import { FUTURE_REFLECTION_HINT, isFutureDate } from '../../reflection/utils/reflectionAvailability.ts'
+
+const renderProposal = goalProposalRenderer()
 
 const MINUTES_PER_DAY = 1440
 // F007 FR-012: Plan and Reality side by side from this width; one board below it.
@@ -506,6 +509,7 @@ function DailyRoutinePage() {
               }
               return submitReflectionChat(user.id, selectedDate, message)
             }}
+            renderProposal={renderProposal}
             onAfterSend={({ hasGoalProposal }) => {
               refreshReflection()
               // A goal proposal (F013) waits for the user in the chat.
@@ -525,6 +529,7 @@ function DailyRoutinePage() {
             initialMessage="Hi! Ask me to add, adjust, or check off tasks for this day."
             placeholder='Try: "Mark my workout as done"'
             onSend={(message) => submitDailyRoutineChat(user.id, currentDailyRoutine, selectedDate, message)}
+            renderProposal={renderProposal}
             onAfterSend={({ hasGoalProposal }) => {
               refreshDailyRoutine()
               // A goal proposal (F013) waits for the user in the chat.

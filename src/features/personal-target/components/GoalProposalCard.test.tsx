@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AuthContext from '../../../context/AuthContext.ts'
 import { ApiError } from '../../../lib/api.ts'
 import { createGoal, updateGoal } from '../api/goals.ts'
-import type { Goal, GoalProposal } from '../types/goal.ts'
+import type { Goal } from '../types/goal.ts'
+import type { GoalProposal } from '../../buddy-chat/types/buddyReply.ts'
 import GoalProposalCard from './GoalProposalCard.tsx'
 
 vi.mock('../api/goals.ts', () => ({

@@ -3,7 +3,8 @@ import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import PageHeader from '../../../components/layout/PageHeader.tsx'
 import { useShellContext } from '../../../components/layout/shellContext.ts'
 import { ApiError } from '../../../lib/api.ts'
-import BuddyChat, { SendIcon } from '../../onboarding/components/BuddyChat.jsx'
+import BuddyChat, { SendIcon } from '../../buddy-chat/components/BuddyChat.tsx'
+import { goalProposalRenderer } from '../components/renderGoalProposal.tsx'
 import { fetchUserSettings, saveUserSettings } from '../../settings/api/userSettings.ts'
 import type { BuddyToneId } from '../../settings/types/settings.ts'
 import { DEFAULT_BUDDY_TONE } from '../../settings/utils/settingsSchema.ts'
@@ -296,7 +297,7 @@ function PersonalTargetPage() {
           placeholder='Try: "Help me set a sleep goal"'
           loadHistory={(before?: number | null) => fetchPersonalTargetChatHistory(userId, before)}
           onSend={(message: string) => submitPersonalTargetChat(userId, message)}
-          onGoalSaved={refreshGoals}
+          renderProposal={goalProposalRenderer(refreshGoals)}
         />
       ) : null}
       <div className="ob-fab-group">

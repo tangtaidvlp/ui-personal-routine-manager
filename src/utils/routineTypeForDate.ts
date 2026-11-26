@@ -1,4 +1,4 @@
-import type { RoutineType } from '../api/defaultRoutine.ts'
+import type { RoutineType } from '../types/routineType.ts'
 
 /**
  * Which default routine a calendar date uses: Saturday and Sunday → WEEKEND, every other day → DAILY.

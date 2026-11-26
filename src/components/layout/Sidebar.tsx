@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import type { AuthUser } from '../../context/AuthContext.ts'
-import { routineTypeForDate, routineTypeLabel } from '../../features/onboarding/utils/routineTypeForDate.ts'
+import { routineTypeForDate, routineTypeLabel } from '../../utils/routineTypeForDate.ts'
 import { PanelLeftIcon, SparkIcon, XIcon } from '../icons/index.ts'
 import { NAV_ENTRIES } from './navEntries.ts'
 import { SIDEBAR_ID } from './shellContext.ts'

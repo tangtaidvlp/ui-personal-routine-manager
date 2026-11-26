@@ -2,9 +2,10 @@ import { useState } from 'react'
 import PageHeader from '../../../components/layout/PageHeader.tsx'
 import { useShellContext } from '../../../components/layout/shellContext.ts'
 import { SendIcon } from '../../../components/icons/index.ts'
-import DefaultRoutineEditor from '../../onboarding/components/DefaultRoutineEditor.tsx'
-import BuddyChat from '../../onboarding/components/BuddyChat.jsx'
-import { SCHEDULE_TABS } from '../../onboarding/hooks/useDefaultRoutines.ts'
+import DefaultRoutineEditor from '../components/DefaultRoutineEditor.tsx'
+import BuddyChat from '../../buddy-chat/components/BuddyChat.tsx'
+import { goalProposalRenderer } from '../../personal-target/components/renderGoalProposal.tsx'
+import { SCHEDULE_TABS } from '../hooks/useDefaultRoutines.ts'
 import ChatPanelRail from '../../../components/layout/ChatPanelRail.tsx'
 import BoardViewSwitch from '../../radial-view/components/BoardViewSwitch.tsx'
 import { useDevicePreference } from '../../../hooks/useDevicePreference.ts'
@@ -15,6 +16,8 @@ import {
   CHAT_PANEL_STATES,
 } from '../../../lib/devicePreference.ts'
 import { fetchDefaultRoutineChatHistory, submitDefaultRoutineChat } from '../api/defaultRoutineChat.ts'
+
+const renderProposal = goalProposalRenderer()
 
 const GREETING = {
   weekday: 'Hi! Ask me to add, move or remove tasks in your weekday routine.',
@@ -82,6 +85,7 @@ function DefaultRoutinePage() {
             initialMessage={GREETING[tab]}
             placeholder='Try: "Move my run to 6:30"'
             onSend={(message: string) => submitDefaultRoutineChat(userId, routines[tab], message)}
+            renderProposal={renderProposal}
             onAfterSend={({ hasGoalProposal }) => {
               void refreshRoutine(tab)
               // A goal proposal (F013) waits for the user in the chat.

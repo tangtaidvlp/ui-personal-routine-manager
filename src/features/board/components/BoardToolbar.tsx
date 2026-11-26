@@ -1,12 +1,31 @@
+import type { ReactNode } from 'react'
+import styles from './BoardToolbar.module.css'
 import { MinusIcon, PlusIcon } from '../../../components/icons/index.ts'
 import { useBoardZoom } from '../../settings/hooks/useUserSettings.ts'
 import ToolbarMoreMenu from './ToolbarMoreMenu.tsx'
+import type { BoardClock } from '../hooks/useBoardClock.ts'
 
-const formatClock = (minutes) => {
+const formatClock = (minutes: number) => {
   const normalized = ((minutes % 1440) + 1440) % 1440
   const h = Math.floor(normalized / 60).toString().padStart(2, '0')
   const m = Math.floor(normalized % 60).toString().padStart(2, '0')
   return `${h}:${m}`
+}
+
+type BoardToolbarProps = {
+  /** null/undefined = no live clock (setup board): no readout. */
+  clock?: BoardClock | null
+  gapClearMode: boolean
+  onToggleGapClear: () => void
+  /** Absent = no Reset day button (setup boards, F012 FR-009). */
+  onResetDay?: () => void
+  /** Greys Reset day out (past days). */
+  resetDisabled?: boolean
+  /** Always visible, at the right end. */
+  actions?: ReactNode
+  menuActions?: ReactNode
+  /** Default true (F016): false leaves out zoom and Gap clear, which only act on the timeline (radial view). */
+  boardTools?: boolean
 }
 
 /**
@@ -16,20 +35,6 @@ const formatClock = (minutes) => {
  * Secondary tools (zoom, Gap clear, Reset day, `menuActions`) show inline when the toolbar is wide
  * and fold into a "More" menu when it is narrow (F010 US3, container query in App.css). They are
  * rendered in both places; CSS shows exactly one. `actions` always stay visible.
- *
- * @param {{
- *   clock?: import('../hooks/useBoardClock.ts').BoardClock | null,
- *   gapClearMode: boolean,
- *   onToggleGapClear: () => void,
- *   onResetDay?: () => void,
- *   resetDisabled?: boolean,
- *   actions?: import('react').ReactNode,
- *   menuActions?: import('react').ReactNode,
- *   boardTools?: boolean,
- * }} props
- * `clock` null/undefined = no live clock (setup board): no readout.
- * `boardTools` (default true, F016): false leaves out zoom and Gap clear, which only act on the timeline (radial view).
- * `onResetDay` absent = no Reset day button (setup boards, F012 FR-009); `resetDisabled` greys it out (past days).
  */
 function BoardToolbar({
   clock = null,
@@ -40,13 +45,13 @@ function BoardToolbar({
   actions = null,
   menuActions = null,
   boardTools = true,
-}) {
+}: BoardToolbarProps) {
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
   const { zoom: zoomLevel, zoomIn, zoomOut, canZoomIn, canZoomOut } = useBoardZoom()
 
   const hasTools = Boolean(boardTools || onResetDay || menuActions)
 
-  const secondaryTools = (inMenu) => (
+  const secondaryTools = (inMenu: boolean) => (
     <>
       {boardTools && (
         <>
@@ -101,12 +106,12 @@ function BoardToolbar({
   return (
     <div className="ob-board-toolbar">
       {clock && (
-        <div className="ob-board-time">
+        <div className={styles.time}>
           <strong>{formatClock(clock.currentTime)}</strong>
           <span className="ui-pill ui-pill-success">Live</span>
         </div>
       )}
-      <div className="ob-board-toolbar-controls">
+      <div className={styles.controls}>
         {hasTools && (
           <>
             <div className="ob-board-tools-inline">{secondaryTools(false)}</div>
@@ -115,7 +120,7 @@ function BoardToolbar({
         )}
         {actions ? (
           <>
-            <span className="ob-board-toolbar-divider" aria-hidden="true" />
+            <span className={styles.divider} aria-hidden="true" />
             {actions}
           </>
         ) : null}

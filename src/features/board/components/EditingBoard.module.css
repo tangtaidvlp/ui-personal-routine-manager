@@ -1,0 +1,118 @@
+.track {
+  position: relative;
+  width: 100%;
+  transition: box-shadow 0.2s ease;
+}
+
+.track.gapClear {
+  box-shadow: inset 0 0 0 2px var(--color-accent), inset 0 0 0 4px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.hourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  z-index: 1;
+}
+
+.hourLine span {
+  margin-top: -9px;
+  margin-left: var(--space-3);
+  padding-right: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.taskContent {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.taskCheck {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-bg-surface);
+  color: var(--color-text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.taskCheck.checked {
+  background: var(--color-success-muted);
+  border-color: var(--color-success-muted);
+}
+
+.taskCheck.toggling {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.taskCheck:disabled {
+  cursor: wait;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+  flex-shrink: 0;
+}
+
+.footerLabel {
+  margin-right: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.footerNow strong {
+  font-weight: var(--font-weight-medium);
+}
+
+.tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-3);
+  transform: translateX(-50%);
+  background: var(--color-text-primary);
+  color: var(--color-text-on-accent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  pointer-events: none;
+  min-width: 220px;
+  max-width: 90%;
+  z-index: 6;
+}
+
+.tooltip strong {
+  display: block;
+  font-size: var(--font-size-sm);
+}
+
+.tooltip span {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-border-strong);
+  font-size: var(--font-size-xs);
+}

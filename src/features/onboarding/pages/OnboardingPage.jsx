@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { submitOnboardingChat } from '../api/completeOnboarding.ts'
-import DefaultRoutineEditor from '../components/DefaultRoutineEditor.tsx'
-import { SCHEDULE_TABS } from '../hooks/useDefaultRoutines.ts'
+import DefaultRoutineEditor from '../../default-routine/components/DefaultRoutineEditor.tsx'
+import { SCHEDULE_TABS } from '../../default-routine/hooks/useDefaultRoutines.ts'
 import { fetchDefaultRoutineChatHistory } from '../../default-routine/api/defaultRoutineChat.ts'
-import BuddyChat, { SendIcon } from '../components/BuddyChat.jsx'
+import BuddyChat, { SendIcon } from '../../buddy-chat/components/BuddyChat.tsx'
+import { goalProposalRenderer } from '../../personal-target/components/renderGoalProposal.tsx'
 import { useWalkthrough } from '../../walkthrough/hooks/useWalkthrough.ts'
 import IntroSlides from '../../walkthrough/components/IntroSlides.tsx'
 import GuidedTour from '../../walkthrough/components/GuidedTour.tsx'
 import HowItWorksButton from '../../walkthrough/components/HowItWorksButton.tsx'
 import ThemeControl from '../../../components/ThemeControl.tsx'
+
+const renderProposal = goalProposalRenderer()
 
 const BUDDY_GREETING =
   'Hi! I\'m your Routine Buddy. Tell me about your day, like "I wake up at 7:00 and work 9 to 5", and I\'ll build the routine. Or tap + to add tasks yourself.'
@@ -78,6 +81,7 @@ function OnboardingPage({ user, onComplete, isCompleting = false, completeError 
             initialMessage={BUDDY_GREETING}
             placeholder='Try: "I work from 9 to 5"'
             onSend={(message) => submitOnboardingChat(user.id, routines[tab], message)}
+            renderProposal={renderProposal}
             onAfterSend={({ hasGoalProposal }) => {
               refreshRoutine(tab)
               // A goal proposal (F013) waits for the user in the chat.

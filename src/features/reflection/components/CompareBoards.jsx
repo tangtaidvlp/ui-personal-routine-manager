@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import EditingBoard from '../../onboarding/components/EditingBoard.jsx'
+import EditingBoard from '../../board/components/EditingBoard.tsx'
 import RadialBoard from '../../radial-view/components/RadialBoard.tsx'
-import BoardToolbar from '../../onboarding/components/BoardToolbar.jsx'
-import { useBoardClock } from '../../onboarding/hooks/useBoardClock.ts'
+import BoardToolbar from '../../board/components/BoardToolbar.tsx'
+import { useBoardClock } from '../../board/hooks/useBoardClock.ts'
 import { useSyncedScroll } from '../hooks/useSyncedScroll.ts'
 
 /**
