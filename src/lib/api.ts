@@ -25,10 +25,18 @@ export class ApiError extends Error {
   }
 }
 
+// Current access token, kept in memory only (never localStorage/sessionStorage).
+let currentAccessToken: string | null = null
+
+/** Set on login/refresh, cleared (null) on logout; attached to every request. */
+export function setAccessToken(token: string | null): void {
+  currentAccessToken = token
+}
+
 export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   /** Plain object serialized as a JSON body (sets Content-Type for you). */
   json?: unknown
-  /** Bearer token attached as the Authorization header. */
+  /** Bearer token for this call; overrides the stored access token. */
   token?: string | null
 }
 
@@ -48,8 +56,9 @@ export async function apiRequest<T = unknown>(
   if (json !== undefined && !finalHeaders.has('Content-Type')) {
     finalHeaders.set('Content-Type', 'application/json')
   }
-  if (token) {
-    finalHeaders.set('Authorization', `Bearer ${token}`)
+  const bearer = token || currentAccessToken
+  if (bearer) {
+    finalHeaders.set('Authorization', `Bearer ${bearer}`)
   }
 
   const url = path.startsWith('http')
