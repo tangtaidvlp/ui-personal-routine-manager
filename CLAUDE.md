@@ -10,7 +10,7 @@ Coding rules for this repo (loaded automatically):
 - **Phase:** pre-production, like the backend. A push to `main` deploys to GitHub Pages.
 - **Done:** onboarding and guided tour (002, 003), F002 app shell, F004 Buddy chat history, F005 task colours and dark mode, F006 profile and account settings, F007 reflection, F008 testing strategy, F009 reflection scroll sync, F010 Today board UX, F011 overnight tasks, F012 reset day (`specs/.done.*`), F016 radial 24h view and hideable Buddy chat (`specs/.done.F016-radial-24h-view/`).
 - **Not built:** Analytics (`/analytics` is a placeholder page).
-- **Open bugs:** none in this repo. Backend bug-0003 shows up here: the silent refresh fails after 15 minutes, so users get signed out (`AI-project-docs/bugs/`).
+- **Open bugs:** B011–B013 (frontend, `AI-project-docs/bugs/`).
 
 ## Commands
 
@@ -75,7 +75,7 @@ Uses `HashRouter` (not `BrowserRouter`) — all routes appear after `#` so GitHu
 
 - On mount, `POST /auth/refresh` attempts silent re-auth via httpOnly cookie. If successful, the user is logged in.
 - Route guards redirect unauthenticated users to `/auth` and onboarded users past `/onboarding`.
-- `App.tsx` is `useAuthSession()` + `AuthContext.Provider` + routes + guards only. The hook owns `user`, `isOnboardCompleted`, `isChecking` (`isLoggedIn` is derived from `user`) and the actions `signIn`, `signUp`, `signOut`, `markOnboarded`. Sign-in and silent refresh share one `startSession`: `setAccessToken()` (`lib/api.ts`, B008), one `toAuthUser()` (built from the JWT claims `sub`/`email`/`name`), `loadUserSettings`, then the onboarding-status fetch; the user is set last, so routing goes straight to the right page. `signOut` saves pending settings, calls logout (errors only logged), then clears the user and the token. Calls to `/auth/*` and the onboarding status live in `features/auth/api/auth.ts` (also `decodeJwt`).
+- `App.tsx` is `useAuthSession()` + `AuthContext.Provider` + routes + guards only. The hook owns `user`, `isOnboardCompleted`, `isChecking` (`isLoggedIn` is derived from `user`) and the actions `signIn`, `signUp`, `signOut`, `markOnboarded`. Sign-in and silent refresh share one `startSession`: `setAccessToken()` (`lib/api.ts`, B008), one `toAuthUser()` (built from the JWT claims `sub`/`email`/`name`), `loadUserSettings`, then the onboarding-status fetch; the user is set last, so routing goes straight to the right page. `signOut` saves pending settings, calls logout (errors only logged), then clears the user and the token. A 401 from any non-`/auth/` call triggers one shared `refresh()` (handler registered by the hook via `setUnauthorizedHandler`), then the request is retried once; if the refresh fails the session is cleared and routing shows the sign-in page. Calls to `/auth/*` and the onboarding status live in `features/auth/api/auth.ts` (also `decodeJwt`).
 - `AuthPage` owns its form fields, errors and mode; its props are only `onSignIn` / `onSignUp` (failures come back as thrown `ApiError`s). `OnboardingPage` owns its completing/error state and calls `markOnboarded()` after `completeOnboarding()`.
 - `AuthContext` (from [src/context/AuthContext.ts](src/context/AuthContext.ts)) provides `user` (read-only) to children.
 

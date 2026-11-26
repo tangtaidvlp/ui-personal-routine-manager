@@ -33,6 +33,27 @@ export function setAccessToken(token: string | null): void {
   currentAccessToken = token
 }
 
+/** Returns a fresh access token, or null when the session can't be renewed. */
+export type UnauthorizedHandler = () => Promise<string | null>
+
+let unauthorizedHandler: UnauthorizedHandler | null = null
+// One in-flight renewal shared by all concurrent 401s.
+let renewal: Promise<string | null> | null = null
+
+/** Register (or clear with null) the handler that renews the access token after a 401. */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler
+}
+
+function renewAccessToken(handler: UnauthorizedHandler): Promise<string | null> {
+  renewal ??= handler()
+    .catch(() => null)
+    .finally(() => {
+      renewal = null
+    })
+  return renewal
+}
+
 export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   /** Plain object serialized as a JSON body (sets Content-Type for you). */
   json?: unknown
@@ -42,6 +63,8 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
 
 /**
  * Perform an API request and return the parsed JSON body.
+ * On a 401 from a non-`/auth/` endpoint the registered unauthorized handler renews the
+ * access token and the request is retried once (B014).
  *
  * @throws {ApiError} when the response status is not in the 2xx range.
  */
@@ -49,7 +72,25 @@ export async function apiRequest<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  console.log("Sending request to " + API_BASE_URL)
+  try {
+    return await send<T>(path, options)
+  } catch (error) {
+    if (
+      !(error instanceof ApiError) ||
+      error.status !== 401 ||
+      path.includes('/auth/') ||
+      !unauthorizedHandler
+    ) {
+      throw error
+    }
+    const newToken = await renewAccessToken(unauthorizedHandler)
+    if (!newToken) throw error
+    setAccessToken(newToken)
+    return send<T>(path, { ...options, token: newToken })
+  }
+}
+
+async function send<T>(path: string, options: ApiRequestOptions): Promise<T> {
   const { json, token, headers, ...init } = options
 
   const finalHeaders = new Headers(headers)
