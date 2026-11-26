@@ -21,7 +21,7 @@ test('today board: always live, hours + minutes with color, and the "More" menu'
   await expect(page.locator('.page-header').getByRole('button', { name: 'Sign out' })).toHaveCount(0)
 
   // Wide toolbar: every tool inline, no "More".
-  await expect(toolbar.getByRole('button', { name: 'Gap clear' })).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Push mode' })).toBeVisible()
   await expect(toolbar.getByRole('button', { name: 'More' })).toBeHidden()
 
   // Task dialog: hours + minutes and a color.
@@ -49,11 +49,11 @@ test('today board: always live, hours + minutes with color, and the "More" menu'
   await more.click()
   await expect(more).toHaveAttribute('aria-expanded', 'true')
   const panel = toolbar.locator('.ob-board-more-panel')
-  await panel.getByRole('button', { name: 'Gap clear' }).click()
+  await panel.getByRole('button', { name: 'Push mode' }).click()
   await expect(panel).toBeHidden()
 
   await more.click()
-  await expect(panel.getByRole('button', { name: /Gap clear/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(panel.getByRole('button', { name: /Push mode/ })).toHaveAttribute('aria-pressed', 'true')
   await page.keyboard.press('Escape')
   await expect(panel).toBeHidden()
   await expect(more).toBeFocused()
@@ -162,4 +162,63 @@ test('today board: Reset day replaces the day with the default routine after con
   // Past days can't be reset.
   await page.getByRole('button', { name: 'Previous day' }).click()
   await expect(resetButton).toBeDisabled()
+})
+
+// T002 (specs/T002-improvement-for-ux-at-timeline-change): hold to drag, Push mode notice, a failed save reverts.
+test('today board: hold to drag, push mode notice, failed save reverts', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+
+  await board.getByRole('button', { name: '+ Add task' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Hold me')
+  await dialog.locator('input[type="time"]').fill('09:00')
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog).toBeHidden()
+
+  const task = board.locator('.ob-board-task').filter({ hasText: 'Hold me' })
+  const timeLabel = task.locator('.ob-board-task-time')
+  await expect(timeLabel).toContainText('09:00')
+
+  // The board is 2400px tall at zoom 1.0: 100px per hour.
+  const centre = async () => {
+    await task.scrollIntoViewIfNeeded()
+    const box = (await task.boundingBox())!
+    return { x: box.x + box.width / 2, y: box.y + 20 }
+  }
+  const holdDrag = async (hours: number) => {
+    const { x, y } = await centre()
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.waitForTimeout(400)
+    await page.mouse.move(x, y + hours * 100, { steps: 10 })
+    await page.mouse.up()
+  }
+
+  // A quick press-move-release does not drag.
+  {
+    const { x, y } = await centre()
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x, y + 100, { steps: 5 })
+    await page.mouse.up()
+    await expect(timeLabel).toContainText('09:00')
+  }
+
+  // Hold 0.4s, then move down one hour: the new time shows and survives a reload.
+  await holdDrag(1)
+  await expect(timeLabel).toContainText('10:00')
+  await page.reload()
+  await expect(timeLabel).toContainText('10:00')
+
+  // Push mode on: the status notice appears.
+  await board.locator('.ob-board-toolbar').getByRole('button', { name: 'Push mode' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Push mode is on' })).toBeVisible()
+
+  // A failed save puts the task back and shows an alert.
+  await page.route('**/daily-routine/tasks', (route) => route.abort())
+  await holdDrag(1)
+  await expect(timeLabel).toContainText('10:00')
+  await expect(page.getByRole('alert').filter({ hasText: "Your change wasn't saved" })).toBeVisible()
 })

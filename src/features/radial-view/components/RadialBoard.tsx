@@ -6,7 +6,7 @@ import RadialDayChart from './RadialDayChart.tsx'
 
 /**
  * Drop-in for EditingBoard that shows the day as a 24-hour circle (specs/F016). Click a task to edit it, drag its arc to move it.
- * Both boards take `BoardProps`; the props a circle has no use for (gap clear, footer, create/delete/toggle…) are declared there and ignored here.
+ * Both boards take `BoardProps`; the props a circle has no use for (push mode, footer, create/delete/toggle…) are declared there and ignored here.
  */
 function RadialBoard<T extends BoardTask>({
   routine,
@@ -45,8 +45,8 @@ function RadialBoard<T extends BoardTask>({
         <BoardToolbar
           boardTools={false}
           clock={clock}
-          gapClearMode={false}
-          onToggleGapClear={() => {}}
+          pushMode={false}
+          onTogglePushMode={() => {}}
           onResetDay={onResetDay}
           resetDisabled={resetDisabled}
           actions={toolbarActions}

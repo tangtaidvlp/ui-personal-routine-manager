@@ -15,6 +15,11 @@ import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
 import { useBoardZoom } from '../../settings/hooks/useUserSettings.ts'
 import { getCurrentMinutes, useBoardClock } from '../hooks/useBoardClock.ts'
 import { taskSegments } from '../utils/taskSegments.ts'
+import { previewPositions, type Position, type TimedTask } from '../utils/dragPreview.ts'
+import { breaksOverlapCap, OVERLAP_CAP_MESSAGE } from '../utils/overlapCap.ts'
+import { layoutLanes } from '../utils/taskLanes.ts'
+import { ApiError } from '../../../lib/api.ts'
+import BoardNotice from './BoardNotice.tsx'
 import BoardToolbar from './BoardToolbar.tsx'
 import type { BoardProps, BoardTask } from '../types/board.ts'
 
@@ -23,6 +28,9 @@ const BASE_BOARD_HEIGHT_PX = 2400
 const SNAP_MINUTES = 5
 const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
+// A press must be held this long, without moving, before it starts a drag (T002 R1).
+const HOLD_TO_DRAG_MS = 300
+const SAVE_FAILED_MESSAGE = "Something went wrong. Your change wasn't saved."
 // The live board opens with "now" this far below the top of the view.
 const LIVE_SCROLL_OFFSET_PX = 260
 
@@ -74,9 +82,6 @@ type DragState = {
   originalDurationMinutes: number
   liveStartMinutes: number
   liveDurationMinutes: number
-  /** Gap clear only: where every task started when the drag began. */
-  originalTaskPositions: { id: string | undefined; originalStart: number }[] | null
-  draggedTaskOriginalStart: number
 }
 
 /**
@@ -91,10 +96,11 @@ type DragState = {
  *
  * Side by side (F007 R11/R12), a parent can share one toolbar between boards:
  * `showToolbar` false hides this board's toolbar; `clock` (from useBoardClock) replaces
- * the board's own clock; `gapClearMode` replaces its own Gap clear state; `scrollContainerRef`
+ * the board's own clock; `pushMode` replaces its own Push mode state; `scrollContainerRef`
  * receives the scrolling element (for scroll sync).
  * `onResetDay` / `resetDisabled` (F012) go to the toolbar; without `onResetDay` there is no Reset day.
  * `showCompletion` (default true) false hides the "Mark as done" checks (F007 Reality board).
+ * Hold-to-drag, instant drop with a locked "Saving…" state, side-by-side lanes, the 3-task cap and Push mode: T002.
  * `label` is declared in `BoardProps` but ignored: the board always says "Timeline board" (changing that would change what screen readers announce).
  */
 function EditingBoard<T extends BoardTask>({
@@ -106,12 +112,11 @@ function EditingBoard<T extends BoardTask>({
   onRequestCreateTask,
   onRequestEditTask,
   onPersistTaskChange,
-  onPersistError,
   onToggleComplete,
   onRequestDeleteTask,
   showToolbar = true,
   clock: sharedClock,
-  gapClearMode: sharedGapClearMode,
+  pushMode: sharedPushMode,
   onResetDay,
   resetDisabled = false,
   scrollContainerRef,
@@ -130,8 +135,14 @@ function EditingBoard<T extends BoardTask>({
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<T | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(new Set<string | undefined>())
-  const [ownGapClearMode, setGapClearMode] = useState(false)
-  const gapClearMode = sharedGapClearMode ?? ownGapClearMode
+  const [ownPushMode, setPushMode] = useState(false)
+  const pushMode = sharedPushMode ?? ownPushMode
+  // Where the dropped tasks stay while the save runs (T002 R2), and the bottom message.
+  const [pending, setPending] = useState<Map<string | undefined, Position> | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  // The press waiting to become a drag (null once armed, cancelled or released), and whether a drag is armed.
+  const pressRef = useRef<{ timer: ReturnType<typeof setTimeout>; detach: () => void } | null>(null)
+  const armedRef = useRef(false)
   const containerRef = useRef<HTMLElement | null>(null)
   const scrollContainerRefRef = useRef(scrollContainerRef)
   scrollContainerRefRef.current = scrollContainerRef
@@ -151,6 +162,41 @@ function EditingBoard<T extends BoardTask>({
   const minutesPerPixel = useMemo(() => MINUTES_PER_DAY / boardHeightPx, [boardHeightPx])
 
   const tasks: T[] = routine?.tasks || [];
+  const timedTasks: TimedTask[] = tasks.map((task) => ({
+    id: task.id,
+    start: parseLocalTimeToMinutes(task.startTime),
+    duration: task.durationMinutes,
+  }))
+
+  const previewFor = (drag: DragState) =>
+    previewPositions(
+      timedTasks,
+      {
+        mode: drag.mode,
+        taskId: drag.taskId,
+        originalStart: drag.originalStartMinutes,
+        originalDuration: drag.originalDurationMinutes,
+        liveStart: drag.liveStartMinutes,
+        liveDuration: drag.liveDurationMinutes,
+      },
+      pushMode,
+    )
+
+  // The 3-task cap, checked on the tasks the drag changes.
+  const capIsBroken = (positions: Map<string | undefined, Position>) => {
+    const changed = new Set<string | undefined>()
+    const next = timedTasks.map((task) => {
+      const position = positions.get(task.id)
+      if (!position) return task
+      if (position.start !== task.start || position.duration !== task.duration) changed.add(task.id)
+      return { ...task, ...position }
+    })
+    return breaksOverlapCap(next, changed)
+  }
+
+  // What the board shows: the live drag, else the dropped result while saving, else what is stored.
+  const preview = dragState ? previewFor(dragState) : null
+  const blocked = preview !== null && capIsBroken(preview)
 
 const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(() => {
     return {}
@@ -196,6 +242,20 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
 
 
 
+  // React's onTouchMove is passive, so the listener that stops the page scrolling while a drag is
+  // armed is added by hand (T002 R1).
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const stopScroll = (event: TouchEvent) => {
+      if (armedRef.current && event.cancelable) event.preventDefault()
+    }
+    container.addEventListener('touchmove', stopScroll, { passive: false })
+    return () => container.removeEventListener('touchmove', stopScroll)
+  }, [])
+
+  useEffect(() => () => clearPress(), [])
+
   const footer = liveClock && showFooter ? nowAndNext(tasks, currentTime) : null
 
   const toggleTaskCompletion = async (task: T, index: number, event: MouseEvent) => {
@@ -232,6 +292,9 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
   }
 
   const handleTrackClick = (event: MouseEvent) => {
+    if (pending) {
+      return
+    }
     if (ignoreTrackClickRef.current) {
       ignoreTrackClickRef.current = false
       return
@@ -247,7 +310,18 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     onRequestCreateTask({ name: '', startTime: formatTime(startMinutes), durationMinutes: 30 })
   }
 
-  const beginDrag = (
+  const clearPress = () => {
+    const press = pressRef.current
+    if (!press) return
+    clearTimeout(press.timer)
+    press.detach()
+    pressRef.current = null
+  }
+
+  // Hold-to-drag (T002 R1): a press only becomes a drag after HOLD_TO_DRAG_MS without moving more
+  // than the tolerance. Before that, a swipe scrolls the board and a tap opens the task. Until the
+  // drag is armed the pointer is not captured; window listeners watch the press.
+  const beginPress = (
     event: PointerEvent<HTMLElement>,
     mode: DragState['mode'],
     task: T,
@@ -255,26 +329,70 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     originalDurationMinutes: number,
   ) => {
     event.stopPropagation()
+    if (pending || (event.pointerType === 'mouse' && event.button !== 0)) {
+      return
+    }
+    clearPress()
+    const { pointerId, clientX: startX, clientY: startY } = event
     const captureTarget = mainPartsRef.current.get(task.id) ?? event.currentTarget
-    captureTarget.setPointerCapture(event.pointerId)
+    const movedFar = (e: globalThis.PointerEvent) => Math.hypot(e.clientX - startX, e.clientY - startY) > CLICK_DISTANCE_THRESHOLD_PX
 
-    // When in gap-clear mode, capture original positions of all tasks
-    const originalTaskPositions = gapClearMode && mode === 'move'
-      ? tasks.map(t => ({ id: t.id, originalStart: parseLocalTimeToMinutes(t.startTime) }))
-      : null
+    // Moving past the tolerance cancels the hold, but the release is still watched: the click that
+    // follows it must not reach the track and open "Add task".
+    let moved = false
+    const onMove = (e: globalThis.PointerEvent) => {
+      if (e.pointerId === pointerId && !armedRef.current && !moved && movedFar(e)) {
+        moved = true
+        clearTimeout(pressRef.current?.timer)
+      }
+    }
+    const onUp = (e: globalThis.PointerEvent) => {
+      if (e.pointerId !== pointerId || armedRef.current) return
+      const isTap = !moved && !movedFar(e)
+      clearPress()
+      if (isTap && mode === 'move') {
+        onRequestEditTask?.(task)
+      } else if (!isTap) {
+        ignoreTrackClickRef.current = true
+        setTimeout(() => {
+          ignoreTrackClickRef.current = false
+        }, 0)
+      }
+    }
+    const onCancel = (e: globalThis.PointerEvent) => {
+      if (e.pointerId === pointerId && !armedRef.current) clearPress()
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
 
-    setDragState({
-      taskId: task.id,
-      mode,
-      pointerId: event.pointerId,
-      startClientY: event.clientY,
-      originalStartMinutes,
-      originalDurationMinutes,
-      liveStartMinutes: originalStartMinutes,
-      liveDurationMinutes: originalDurationMinutes,
-      originalTaskPositions,
-      draggedTaskOriginalStart: originalStartMinutes,
-    })
+    const timer = setTimeout(() => {
+      armedRef.current = true
+      try {
+        captureTarget.setPointerCapture(pointerId)
+      } catch {
+        // The pointer is already gone.
+      }
+      setDragState({
+        taskId: task.id,
+        mode,
+        pointerId,
+        startClientY: startY,
+        originalStartMinutes,
+        originalDurationMinutes,
+        liveStartMinutes: originalStartMinutes,
+        liveDurationMinutes: originalDurationMinutes,
+      })
+    }, HOLD_TO_DRAG_MS)
+
+    pressRef.current = {
+      timer,
+      detach: () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        window.removeEventListener('pointercancel', onCancel)
+      },
+    }
   }
 
   const handleDragPointerMove = (event: PointerEvent) => {
@@ -293,101 +411,62 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     }
   }
 
-  const handleDragPointerUp = (event: PointerEvent, task: T) => {
+  const handleDragPointerUp = async (event: PointerEvent) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return
     }
     const finished = dragState
     setDragState(null)
+    armedRef.current = false
+    clearPress()
     // The click (if any) follows this pointerup in the same turn; clear the flag after it.
     ignoreTrackClickRef.current = true
     setTimeout(() => {
       ignoreTrackClickRef.current = false
     }, 0)
 
-    const movedDistance = Math.abs(event.clientY - finished.startClientY)
-
-    if (finished.mode === 'move' && movedDistance < CLICK_DISTANCE_THRESHOLD_PX) {
-      onRequestEditTask?.(task)
+    const positions = previewFor(finished)
+    const dragged = positions.get(finished.taskId)
+    const stored = timedTasks.find((task) => task.id === finished.taskId)
+    if (!dragged || !stored || (dragged.start === stored.start && dragged.duration === stored.duration)) {
+      return
+    }
+    if (capIsBroken(positions)) {
+      setNotice(OVERLAP_CAP_MESSAGE)
       return
     }
 
-    const hasChanged =
-      finished.mode === 'move'
-        ? finished.liveStartMinutes !== finished.originalStartMinutes
-        : finished.liveDurationMinutes !== finished.originalDurationMinutes
-
-    if (!hasChanged) {
-      return
-    }
-
-    // Calculate how far we moved the dragged task
-    const deltaMinutes = finished.liveStartMinutes - finished.originalStartMinutes
-
-    // Base updated tasks list
-    let tasksToUpdate: BoardTask[] = []
-
-    if (gapClearMode && finished.mode === 'move' && finished.originalTaskPositions) {
-      // Gap-clear mode: move all tasks that were originally below this one by the same delta
-      const draggedOriginalStart = finished.draggedTaskOriginalStart
-
-      // Create updates for every task affected
-      const updateMap = new Map<string | undefined, BoardTask>()
-
-      // First, add the dragged task itself
-      updateMap.set(task.id, {
-        id: task.id,
-        name: task.name,
-        description: task.description,
-        color: task.color,
-        startTime: formatTime(finished.liveStartMinutes),
-        durationMinutes: finished.liveDurationMinutes,
-        completed: task.completed,
-      })
-
-      // Now find every task that was *originally* below the dragged one
-      finished.originalTaskPositions.forEach(origPos => {
-        if (origPos.id === task.id) return
-
-        if (origPos.originalStart >= draggedOriginalStart) {
-          // This task was below the dragged one — move it by the same delta
-          const existingTask = tasks.find(t => t.id === origPos.id)
-          if (existingTask) {
-            const newStart = snapMinutes(origPos.originalStart + deltaMinutes)
-            const clampedStart = clamp(newStart, 0, MINUTES_PER_DAY - SNAP_MINUTES)
-
-            updateMap.set(existingTask.id, {
-              id: existingTask.id,
-              name: existingTask.name,
-              description: existingTask.description,
-              color: existingTask.color,
-              startTime: formatTime(clampedStart),
-              durationMinutes: existingTask.durationMinutes,
-              completed: existingTask.completed,
-            })
-          }
+    // The dragged task, plus every task Push mode moved.
+    const tasksToUpdate: BoardTask[] = tasks
+      .filter((task) => positions.has(task.id))
+      .map((task) => {
+        const position = positions.get(task.id)!
+        return {
+          id: task.id,
+          name: task.name,
+          description: task.description,
+          color: task.color,
+          startTime: formatTime(position.start),
+          durationMinutes: position.duration,
+          completed: task.completed,
         }
       })
 
-      tasksToUpdate = Array.from(updateMap.values())
-    } else {
-      // Normal mode: only update the dragged task
-      tasksToUpdate = [{
-        id: task.id,
-        name: task.name,
-        description: task.description,
-        color: task.color,
-        startTime: formatTime(finished.liveStartMinutes),
-        durationMinutes: finished.liveDurationMinutes,
-        completed: task.completed,
-      }]
+    if (!onPersistTaskChange) {
+      return
     }
-
-    // Persist all changes
-    if (onPersistTaskChange) {
-      Promise.resolve(onPersistTaskChange(tasksToUpdate)).catch((error) =>
-        onPersistError ? onPersistError(error) : console.error('Failed to update tasks', error)
+    // Show the drop at once and lock the board until the save settles (T002 R2).
+    setPending(positions)
+    try {
+      await onPersistTaskChange(tasksToUpdate)
+    } catch (error) {
+      setNotice(
+        error instanceof ApiError && error.status >= 400 && error.status < 500
+          ? error.message
+          : SAVE_FAILED_MESSAGE,
       )
+    } finally {
+      setPending(null)
     }
   }
 
@@ -395,21 +474,25 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return
     }
+    armedRef.current = false
+    clearPress()
     setDragState(null)
   }
 
   return (
-    <section className="ob-timeline-board" aria-label="Timeline board">
+    <section className="ob-timeline-board" aria-label="Timeline board" aria-busy={pending !== null}>
       {showToolbar && (
-        <BoardToolbar
-          clock={liveClock ? clock : null}
-          gapClearMode={gapClearMode}
-          onToggleGapClear={() => setGapClearMode(!gapClearMode)}
-          onResetDay={onResetDay}
-          resetDisabled={resetDisabled}
-          actions={toolbarActions}
-          menuActions={toolbarMenuActions}
-        />
+        <div className={styles.toolbarWrap} inert={pending !== null}>
+          <BoardToolbar
+            clock={liveClock ? clock : null}
+            pushMode={pushMode}
+            onTogglePushMode={() => setPushMode(!pushMode)}
+            onResetDay={onResetDay}
+            resetDisabled={resetDisabled}
+            actions={toolbarActions}
+            menuActions={toolbarMenuActions}
+          />
+        </div>
       )}
 
       <div ref={setScrollContainer} className="ob-board-scroll">
@@ -417,10 +500,15 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
           ref={trackRef}
           className={[
             styles.track,
-            gapClearMode ? styles.gapClear : ''
+            pushMode ? styles.pushMode : ''
           ].filter(Boolean).join(' ')}
           style={{ height: `${boardHeightPx}px` }}
+          data-saving={pending !== null ? 'true' : undefined}
           onClick={handleTrackClick}
+          onContextMenu={(event) => {
+            // A long press must not open the browser menu while it waits to become a drag.
+            if (pressRef.current || armedRef.current) event.preventDefault()
+          }}
         >
           {Array.from({ length: 25 }).map((_, index) => (
             <div
@@ -433,17 +521,21 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
           ))}
 
           <div className="ob-board-task-layer">
-            {tasks.flatMap((task, index) => {
-              const storedStartTime = parseLocalTimeToMinutes(task.startTime);
-              // endTime wraps past midnight (22:00 + 8h → 06:00), so the duration comes from durationMinutes (F011).
-              const storedDuration = task.durationMinutes
-
+            {(() => {
+              const items = tasks.map((task, index) => {
+                const stored = timedTasks[index]
+                const shown = preview?.get(task.id) ?? pending?.get(task.id) ?? stored
+                // endTime wraps past midnight (22:00 + 8h → 06:00), so the duration comes from durationMinutes (F011).
+                return { task, index, start: shown.start, duration: shown.duration, storedStart: stored.start, storedDuration: stored.duration, segments: taskSegments(shown.start, shown.duration) }
+              })
+              const lanes = layoutLanes(
+                items.flatMap((item) =>
+                  item.segments.map((segment) => ({ key: `${item.task.id}-${segment.part}`, start: segment.start, end: segment.end })),
+                ),
+              )
+              return items.flatMap(({ task, index, start: taskStartTime, duration: taskDuration, storedStart: storedStartTime, storedDuration, segments }) => {
               const isDragging = dragState !== null && dragState.taskId === task.id
-              const taskStartTime = isDragging ? dragState.liveStartMinutes : storedStartTime
-              const taskDuration = isDragging ? dragState.liveDurationMinutes : storedDuration
               const taskEndTime = taskStartTime + taskDuration
-              // One block per part: `main` and, for an overnight task, `wrap` at the top of the board.
-              const segments = taskSegments(taskStartTime, taskDuration)
 
               const isTogglingThis = isToggling.has(task.id)
               const isDone = onToggleComplete
@@ -455,6 +547,7 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
                 const { part } = segment
                 const top = (segment.start * 100) / MINUTES_PER_DAY
                 const height = ((segment.end - segment.start) * 100) / MINUTES_PER_DAY
+                const { lane, lanes: laneCount } = lanes.get(`${task.id}-${part}`) ?? { lane: 0, lanes: 1 }
 
                 return (
                 <div
@@ -466,9 +559,10 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
                     }
                   } : undefined}
                   data-part={part}
-                  onPointerDown={(event) => beginDrag(event, 'move', task, storedStartTime, storedDuration)}
+                  data-blocked={isDragging && blocked ? 'true' : undefined}
+                  onPointerDown={(event) => beginPress(event, 'move', task, storedStartTime, storedDuration)}
                   onPointerMove={handleDragPointerMove}
-                  onPointerUp={(event) => handleDragPointerUp(event, task)}
+                  onPointerUp={handleDragPointerUp}
                   onPointerCancel={handleDragPointerCancel}
                   onClick={(event) => event.stopPropagation()}
                   onMouseEnter={() => setHoveredTask(task)}
@@ -481,7 +575,14 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={{ top: `${top}%`, height: `${height}%`, ...resolveTaskColor(task.color, palette) }}
+                  style={{
+                    top: `${top}%`,
+                    height: `${height}%`,
+                    left: `${(lane * 100) / laneCount}%`,
+                    width: `${100 / laneCount}%`,
+                    right: 'auto',
+                    ...resolveTaskColor(task.color, palette),
+                  }}
                 >
                   <div className={styles.taskContent}>
                     <span className="ob-board-task-name">{task.name}</span>
@@ -528,14 +629,14 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
                   {segmentIndex === segments.length - 1 && (
                   <div
                     className="ob-board-task-resize-handle"
-                    onPointerDown={(event) => beginDrag(event, 'resize', task, storedStartTime, storedDuration)}
+                    onPointerDown={(event) => beginPress(event, 'resize', task, storedStartTime, storedDuration)}
                     onPointerMove={(event) => {
                       event.stopPropagation()
                       handleDragPointerMove(event)
                     }}
                     onPointerUp={(event) => {
                       event.stopPropagation()
-                      handleDragPointerUp(event, task)
+                      handleDragPointerUp(event)
                     }}
                     onPointerCancel={(event) => {
                       event.stopPropagation()
@@ -548,7 +649,8 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
                 </div>
                 )
               })
-            })}
+              })
+            })()}
           </div>
 
           {liveClock && (
@@ -562,6 +664,15 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
           )}
         </div>
       </div>
+
+      {pending !== null && (
+        <div role="status" className={styles.saving}>
+          <span className="visually-hidden">Saving…</span>
+          <span className={styles.dot} aria-hidden="true" />
+          <span className={styles.dot} aria-hidden="true" />
+          <span className={styles.dot} aria-hidden="true" />
+        </div>
+      )}
 
       {footer && (
         <div className={styles.footer} aria-live="polite">
@@ -591,6 +702,8 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
           </span>
         </div>
       )}
+
+      <BoardNotice message={notice} tone="error" onDismiss={() => setNotice(null)} />
 
       <ConfirmDialog
         isOpen={deleteConfirmTask !== null}

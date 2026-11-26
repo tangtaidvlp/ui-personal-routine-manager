@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import styles from './BoardToolbar.module.css'
 import { MinusIcon, PlusIcon } from '../../../components/icons/index.ts'
 import { useBoardZoom } from '../../settings/hooks/useUserSettings.ts'
 import ToolbarMoreMenu from './ToolbarMoreMenu.tsx'
+import BoardNotice from './BoardNotice.tsx'
 import type { BoardClock } from '../hooks/useBoardClock.ts'
 
 const formatClock = (minutes: number) => {
@@ -15,8 +16,8 @@ const formatClock = (minutes: number) => {
 type BoardToolbarProps = {
   /** null/undefined = no live clock (setup board): no readout. */
   clock?: BoardClock | null
-  gapClearMode: boolean
-  onToggleGapClear: () => void
+  pushMode: boolean
+  onTogglePushMode: () => void
   /** Absent = no Reset day button (setup boards, F012 FR-009). */
   onResetDay?: () => void
   /** Greys Reset day out (past days). */
@@ -24,7 +25,7 @@ type BoardToolbarProps = {
   /** Always visible, at the right end. */
   actions?: ReactNode
   menuActions?: ReactNode
-  /** Default true (F016): false leaves out zoom and Gap clear, which only act on the timeline (radial view). */
+  /** Default true (F016): false leaves out zoom and Push mode, which only act on the timeline (radial view). */
   boardTools?: boolean
 }
 
@@ -32,14 +33,14 @@ type BoardToolbarProps = {
  * The timeline toolbar (extracted from EditingBoard for F007 R11), so one toolbar can drive two
  * boards side by side. The clock is always live: no pause or time slider (F010).
  *
- * Secondary tools (zoom, Gap clear, Reset day, `menuActions`) show inline when the toolbar is wide
+ * Secondary tools (zoom, Push mode, Reset day, `menuActions`) show inline when the toolbar is wide
  * and fold into a "More" menu when it is narrow (F010 US3, container query in App.css). They are
  * rendered in both places; CSS shows exactly one. `actions` always stay visible.
  */
 function BoardToolbar({
   clock = null,
-  gapClearMode,
-  onToggleGapClear,
+  pushMode,
+  onTogglePushMode,
   onResetDay,
   resetDisabled = false,
   actions = null,
@@ -48,6 +49,13 @@ function BoardToolbar({
 }: BoardToolbarProps) {
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
   const { zoom: zoomLevel, zoomIn, zoomOut, canZoomIn, canZoomOut } = useBoardZoom()
+
+  // Shown once, when Push mode goes from off to on.
+  const [showPushNotice, setShowPushNotice] = useState(false)
+  const togglePushMode = () => {
+    setShowPushNotice(!pushMode)
+    onTogglePushMode()
+  }
 
   const hasTools = Boolean(boardTools || onResetDay || menuActions)
 
@@ -80,12 +88,12 @@ function BoardToolbar({
           </div>
           <button
             type="button"
-            className={['ui-btn', 'ui-btn-ghost', gapClearMode ? 'is-active' : ''].filter(Boolean).join(' ')}
-            onClick={onToggleGapClear}
-            aria-pressed={gapClearMode}
-            title="When enabled, dragging a task pulls all tasks below it with it"
+            className={['ui-btn', 'ui-btn-ghost', pushMode ? 'is-active' : ''].filter(Boolean).join(' ')}
+            onClick={togglePushMode}
+            aria-pressed={pushMode}
+            title="When on, moving or resizing a task pushes the other tasks"
           >
-            {gapClearMode ? '✓ Gap clear' : 'Gap clear'}
+            {pushMode ? '✓ Push mode' : 'Push mode'}
           </button>
         </>
       )}
@@ -104,6 +112,7 @@ function BoardToolbar({
   )
 
   return (
+    <>
     <div className="ob-board-toolbar">
       {clock && (
         <div className={styles.time}>
@@ -126,6 +135,13 @@ function BoardToolbar({
         ) : null}
       </div>
     </div>
+    {/* Outside the toolbar: its container query would trap the fixed notice inside it. */}
+    <BoardNotice
+      tone="info"
+      message={showPushNotice ? 'Push mode is on: moving or resizing a task pushes the other tasks.' : null}
+      onDismiss={() => setShowPushNotice(false)}
+    />
+    </>
   )
 }
 

@@ -49,15 +49,19 @@ export type BoardProps<T extends BoardTask = BoardTask> = {
   resetDisabled?: boolean
   /** Default true. False hides the "Mark as done" checks (Reality board). */
   showCompletion?: boolean
-  /** Shared Gap clear state. Timeline only. */
-  gapClearMode?: boolean
+  /** Shared Push mode state. Timeline only. */
+  pushMode?: boolean
   /** Receives the scrolling element (for scroll sync). Timeline only. */
   scrollContainerRef?: (element: HTMLElement | null) => void
   /** Timeline only. */
   onRequestCreateTask?: (draft: TaskDraft) => void
   onRequestEditTask?: (task: T) => void
-  /** Called with the changed tasks after a drag. */
+  /**
+   * Called with the changed tasks after a drag (the dragged task, plus the tasks Push mode moved).
+   * The returned promise must settle after `routine` shows the saved data, and reject on failure.
+   */
   onPersistTaskChange?: (tasks: BoardTask[]) => unknown
+  /** The circle view reports a failed drag here. The timeline doesn't: it shows its own bottom message. */
   onPersistError?: (error: unknown) => void
   /** Timeline only. */
   onToggleComplete?: (task: T) => Promise<unknown>
