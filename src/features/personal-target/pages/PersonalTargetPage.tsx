@@ -25,7 +25,7 @@ const editButtonId = (goalId: string) => `pt-edit-${goalId}`
 
 /**
  * Personal Target: the user's goals and Buddy's tone, which Buddy uses in every chat
- * (specs/F013-personal-goals US1, specs/F014-buddy-tone US1, contracts/ui.md), with Buddy's
+ * (specs/.done.F013-personal-goals US1, specs/.done.F014-buddy-tone US1, contracts/ui.md), with Buddy's
  * goals chat beside them (F013 US4; on phones the page switches between goals and chat).
  */
 function PersonalTargetPage() {

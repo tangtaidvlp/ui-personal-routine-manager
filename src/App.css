@@ -2697,7 +2697,7 @@
   }
 }
 
-/* ── Personal Target (specs/F013-personal-goals, contracts/ui.md) ── */
+/* ── Personal Target (specs/.done.F013-personal-goals, contracts/ui.md) ── */
 
 /* Cards on the left, Buddy's goals chat on the right, like Today (F013 US4). */
 .pt-layout {
@@ -3029,7 +3029,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
-/* Buddy tone picker (specs/F014-buddy-tone, contracts/ui.md) */
+/* Buddy tone picker (specs/.done.F014-buddy-tone, contracts/ui.md) */
 .pt-tone {
   display: flex;
   flex-direction: column;
