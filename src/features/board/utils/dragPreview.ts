@@ -23,9 +23,10 @@ export type Position = { start: number; duration: number }
  * The new `{start, duration}` of the dragged task plus every task Push mode pushes with it.
  * The tasks that start at or after the dragged one move with it, down or up (keeping the gaps). Moving up
  * also pushes the tasks above only when `pushUp` is on (`PUSH_UP_ENABLED`); with it off, an Overlay-off
- * task stops at the end of the task above. Making a task longer pushes the tasks after its old end.
- * Shrinking pushes nothing. Pushing down never passes the end of the day: the empty gaps close from the
- * bottom up (`packDown`), and then the push stops. Moved starts stay within 00:00–23:55.
+ * task stops at the end of the task above. Making a task longer pushes the tasks after its old end;
+ * making it shorter brings them up with its end (B015). Pushing down never passes the end of the day:
+ * the empty gaps close from the bottom up (`packDown`), and then the push stops. Moved starts stay
+ * within 00:00–23:55.
  * Push mode only pushes, it never swaps (F017: a swap cut the push short). Swapping is the Normal mode
  * rule for Overlay-off tasks, below.
  */
@@ -90,12 +91,20 @@ export function previewPositions(
   }
 
   let delta = change.liveDuration - change.originalDuration
-  if (!pushMode || delta <= 0) {
+  if (!pushMode || delta === 0) {
     result.set(change.taskId, { start: change.originalStart, duration: change.liveDuration })
     return result
   }
   const oldEnd = change.originalStart + change.originalDuration
   const pushed = others.filter((task) => task.start >= oldEnd)
+  if (delta < 0) {
+    // A shorter task brings the tasks after its old end up with its end, keeping the gaps (B015).
+    result.set(change.taskId, { start: change.originalStart, duration: change.liveDuration })
+    for (const task of pushed) {
+      result.set(task.id, { start: task.start + delta, duration: task.duration })
+    }
+    return result
+  }
   const shifts = packDown(pushed, delta, latestStart)
   // The end can't pass the first pushed task once that one has stopped moving.
   const firstStart = Math.min(...pushed.map((task) => task.start + (shifts.get(task) ?? 0)))

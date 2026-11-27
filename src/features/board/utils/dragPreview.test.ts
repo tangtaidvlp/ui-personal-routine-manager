@@ -153,10 +153,16 @@ describe('previewPositions', () => {
     expect(result.get('b')?.duration).toBe(90)
   })
 
-  it('shrinking pushes nothing', () => {
-    const result = previewPositions(tasks, resize(30), true)
-    expect([...result.keys()]).toEqual(['b'])
+  it('B015: in Push mode a shorter task brings the tasks below up with its end', () => {
+    const result = previewPositions(tasks, resize(30), true) // b 08:00-09:00 → 08:00-08:30
     expect(result.get('b')?.duration).toBe(30)
+    expect(result.get('c')?.start).toBe(570) // 10:00 → 09:30, gap kept
+    expect(result.has('a')).toBe(false)
+  })
+
+  it('B015: without Push mode a shorter task moves nothing else', () => {
+    const result = previewPositions(tasks, resize(30), false)
+    expect([...result.keys()]).toEqual(['b'])
   })
 
   it('a longer resize stops a pushed task at the day end and keeps pushing the others (overnight tasks on: 23:55)', () => {
