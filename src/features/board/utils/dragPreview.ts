@@ -1,7 +1,8 @@
 /** Live positions while a task is dragged, and what Push mode moves with it (T002 R3). Minutes from 00:00. */
 const MAX_START_MINUTES = 1435
 
-export type TimedTask = { id: string | undefined; start: number; duration: number }
+/** `overlay === false` gets the strict rules (F017 R2); `true` or missing keeps the T002 behaviour. */
+export type TimedTask = { id: string | undefined; start: number; duration: number; overlay?: boolean }
 
 export type DragChange = {
   mode: 'move' | 'resize'
@@ -29,6 +30,11 @@ export function previewPositions(
 ): Map<string | undefined, Position> {
   const result = new Map<string | undefined, Position>()
   const others = tasks.filter((task) => task.id !== change.taskId)
+
+  if (tasks.find((task) => task.id === change.taskId)?.overlay === false) {
+    if (change.mode === 'move') return previewStrictMove(others, change)
+    if (!pushMode) return previewStrictResize(others, change)
+  }
 
   if (change.mode === 'move') {
     const swapped = pushMode ? swapPassed(others, change) : null
@@ -93,4 +99,40 @@ function swapPassed(others: TimedTask[], change: DragChange): Map<string | undef
   }
   result.set(change.taskId, { start: clampStart(draggedStart), duration })
   return result
+}
+
+const overlaps = (a: Position, b: Position) => a.start < b.start + b.duration && b.start < a.start + a.duration
+
+/**
+ * Overlay-off move (F017 R2): swap with each passed task, never push. With none passed the task is
+ * dropped where it is, but a new overlap snaps against that task's near edge; a snap that still
+ * overlaps, or leaves 00:00-24:00, goes back to the original slot. Overlaps present at the original slot are ignored.
+ */
+function previewStrictMove(others: TimedTask[], change: DragChange): Map<string | undefined, Position> {
+  const swapped = swapPassed(others, change)
+  if (swapped) return swapped
+
+  const { originalStart, originalDuration: duration, liveStart } = change
+  const original: Position = { start: originalStart, duration }
+  const blockers = others.filter((task) => !overlaps(original, task))
+  const live: Position = { start: liveStart, duration }
+  const hits = blockers.filter((task) => overlaps(live, task))
+
+  let slot = live
+  if (hits.length > 0) {
+    slot =
+      liveStart > originalStart
+        ? { start: Math.min(...hits.map((task) => task.start)) - duration, duration }
+        : { start: Math.max(...hits.map((task) => task.start + task.duration)), duration }
+  }
+  const valid = slot.start >= 0 && slot.start <= MAX_START_MINUTES && !blockers.some((task) => overlaps(slot, task))
+  return new Map([[change.taskId, valid ? slot : original]])
+}
+
+/** Overlay-off resize in Normal mode: the end stops at the start of the nearest task at or after the original end. */
+function previewStrictResize(others: TimedTask[], change: DragChange): Map<string | undefined, Position> {
+  const oldEnd = change.originalStart + change.originalDuration
+  const nextStarts = others.filter((task) => task.start >= oldEnd).map((task) => task.start)
+  const limit = nextStarts.length > 0 ? Math.min(...nextStarts) - change.originalStart : Infinity
+  return new Map([[change.taskId, { start: change.originalStart, duration: Math.min(change.liveDuration, limit) }]])
 }

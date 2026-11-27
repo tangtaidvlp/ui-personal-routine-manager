@@ -212,3 +212,54 @@ test('today board: mouse drag, push mode notice, failed save reverts', async ({ 
   await expect(timeLabel).toContainText('10:00')
   await expect(page.getByRole('alert').filter({ hasText: "Your change wasn't saved" })).toBeVisible()
 })
+
+// F017 (specs/F017-task-overlay): the Overlay switch is saved, and an Overlay-off task swaps instead of overlapping.
+test('today board: Overlay switch is saved, Overlay-off tasks swap on drag', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+  const dialog = page.getByRole('dialog')
+
+  const addTask = async (name: string, start: string, hours: string, mins: string, overlay = false) => {
+    await board.getByRole('button', { name: '+ Add task' }).click()
+    await dialog.getByPlaceholder('e.g. Morning walk').fill(name)
+    await dialog.locator('input[type="time"]').fill(start)
+    await dialog.getByLabel('hour', { exact: true }).fill(hours)
+    await dialog.getByLabel('mins', { exact: true }).fill(mins)
+    const overlaySwitch = dialog.getByRole('switch', { name: /Overlay/ })
+    await expect(overlaySwitch).not.toBeChecked() // off for a new task
+    if (overlay) await overlaySwitch.check()
+    await dialog.locator('button[type="submit"]').click()
+    await expect(dialog).toBeHidden()
+  }
+
+  await addTask('Swap A', '09:00', '1', '0')
+  await addTask('Swap B', '10:30', '0', '30')
+  await addTask('Overlay on', '14:00', '1', '0', true)
+
+  // The switch is saved: reload, reopen.
+  await page.reload()
+  const taskA = board.locator('.ob-board-task').filter({ hasText: 'Swap A' })
+  const taskB = board.locator('.ob-board-task').filter({ hasText: 'Swap B' })
+  const onTask = board.locator('.ob-board-task').filter({ hasText: 'Overlay on' })
+  await onTask.scrollIntoViewIfNeeded()
+  await onTask.click({ position: { x: 20, y: 20 } })
+  await expect(dialog.getByRole('switch', { name: /Overlay/ })).toBeChecked()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+
+  // Drag A down 1h (its end passes B's midpoint): A and B swap, B keeps its place relative to the gap.
+  await taskA.scrollIntoViewIfNeeded()
+  const box = (await taskA.boundingBox())!
+  const x = box.x + box.width / 2
+  const y = box.y + 20
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x, y + 100, { steps: 10 })
+  await page.mouse.up()
+  await expect(taskA.locator('.ob-board-task-time')).toContainText('10:00')
+  await expect(taskB.locator('.ob-board-task-time')).toContainText('09:00')
+
+  await page.reload()
+  await expect(taskA.locator('.ob-board-task-time')).toContainText('10:00')
+  await expect(taskB.locator('.ob-board-task-time')).toContainText('09:00')
+})

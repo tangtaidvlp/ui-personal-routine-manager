@@ -166,6 +166,7 @@ function EditingBoard<T extends BoardTask>({
     id: task.id,
     start: parseLocalTimeToMinutes(task.startTime),
     duration: task.durationMinutes,
+    overlay: task.overlay,
   }))
 
   const previewFor = (drag: DragState) =>
@@ -533,14 +534,22 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
             {(() => {
               const items = tasks.map((task, index) => {
                 const stored = timedTasks[index]
-                const shown = preview?.get(task.id) ?? pending?.get(task.id) ?? stored
+                // An Overlay-off task follows the pointer while it is moved; the map holds its drop slot (F017 R2).
+                const followsPointer = dragState?.mode === 'move' && dragState.taskId === task.id && task.overlay === false
+                const shown = followsPointer
+                  ? { start: dragState.liveStartMinutes, duration: stored.duration }
+                  : preview?.get(task.id) ?? pending?.get(task.id) ?? stored
                 // endTime wraps past midnight (22:00 + 8h → 06:00), so the duration comes from durationMinutes (F011).
                 return { task, index, start: shown.start, duration: shown.duration, storedStart: stored.start, storedDuration: stored.duration, segments: taskSegments(shown.start, shown.duration) }
               })
+              // The dragged task floats full width on top (`.is-dragging`) and stays out of the lanes, so the
+              // other tasks never shift sideways during a drag. Lanes are worked out again after the drop.
               const lanes = layoutLanes(
-                items.flatMap((item) =>
-                  item.segments.map((segment) => ({ key: `${item.task.id}-${segment.part}`, start: segment.start, end: segment.end })),
-                ),
+                items
+                  .filter((item) => item.task.id !== dragState?.taskId)
+                  .flatMap((item) =>
+                    item.segments.map((segment) => ({ key: `${item.task.id}-${segment.part}`, start: segment.start, end: segment.end })),
+                  ),
               )
               return items.flatMap(({ task, index, start: taskStartTime, duration: taskDuration, storedStart: storedStartTime, storedDuration, segments }) => {
               const isDragging = dragState !== null && dragState.taskId === task.id

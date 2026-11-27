@@ -9,6 +9,8 @@ export type DailyTask = {
   completed: boolean
   /** Palette id or #RRGGBB; server-assigned when omitted on create (specs/F005). */
   color?: string | null
+  /** F017: may overlap other tasks; the server keeps the stored value when omitted. */
+  overlay?: boolean
 }
 
 export type DailyRoutine = {

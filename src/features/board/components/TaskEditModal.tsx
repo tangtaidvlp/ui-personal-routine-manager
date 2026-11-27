@@ -14,6 +14,8 @@ export type TaskFormValue = {
   description?: string
   /** Palette id or #RRGGBB (specs/F005). */
   color?: string | null
+  /** F017: may overlap other tasks. */
+  overlay?: boolean
 }
 
 export type TaskEditModalProps = {
@@ -25,9 +27,11 @@ export type TaskEditModalProps = {
   onSaved: () => void | Promise<void>
   onDeleteTask?: (task: TaskFormValue) => void
   showColor?: boolean
+  /** Default true. False hides the Overlay switch (Reality tasks). */
+  showOverlay?: boolean
 }
 
-function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved, onDeleteTask, showColor = true }: TaskEditModalProps) {
+function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved, onDeleteTask, showColor = true, showOverlay = true }: TaskEditModalProps) {
   const [name, setName] = useState('')
   const [startTime, setStartTime] = useState('09:00')
   // Duration is entered as hours + minutes and saved as total minutes (F010 US4).
@@ -37,6 +41,8 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
   const minutesId = useId()
   const [description, setDescription] = useState('')
   const [color, setColor] = useState<string | null>(null)
+  const [overlay, setOverlay] = useState(false)
+  const overlayId = useId()
   const { palette } = usePalette()
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -54,6 +60,7 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
     setDescription(draftTask?.description ?? '')
     // Create drafts arrive with the routine's next round-robin colour pre-selected (FR-004).
     setColor(draftTask?.color ?? null)
+    setOverlay(draftTask?.overlay ?? false)
     setError(null)
   }, [isOpen, draftTask])
 
@@ -85,6 +92,7 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
       durationMinutes,
       description: description.trim() || undefined,
       color: color ?? undefined,
+      ...(showOverlay ? { overlay } : {}),
     }
 
     setIsSaving(true)
@@ -162,6 +170,23 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
                 {ends && <p className={styles.durationEnds}>{ends}</p>}
               </fieldset>
             </div>
+
+            {showOverlay && (
+              <div className={styles.overlayRow}>
+                <label htmlFor={overlayId} className={styles.overlayText}>
+                  <span className={styles.overlayLabel}>Overlay</span>
+                  <span className={styles.overlayHint}>Allow this task to overlap other tasks</span>
+                </label>
+                <input
+                  id={overlayId}
+                  type="checkbox"
+                  role="switch"
+                  className={styles.switch}
+                  checked={overlay}
+                  onChange={(event) => setOverlay(event.target.checked)}
+                />
+              </div>
+            )}
 
             <label className="ob-modal-field">
               <span>Notes</span>

@@ -14,6 +14,8 @@ export type BoardTask = {
   /** Palette id or #RRGGBB (specs/F005). */
   color?: string | null
   completed?: boolean
+  /** F017: may overlap other tasks. Read from the server; sent only by the task dialog. */
+  overlay?: boolean
 }
 
 export type BoardRoutine<T extends BoardTask = BoardTask> = {
