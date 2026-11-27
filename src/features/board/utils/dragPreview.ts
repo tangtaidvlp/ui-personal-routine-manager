@@ -24,8 +24,8 @@ export type Position = { start: number; duration: number }
  * The tasks that start at or after the dragged one move with it, down or up (keeping the gaps). Moving up
  * also pushes the tasks above only when `pushUp` is on (`PUSH_UP_ENABLED`); with it off, an Overlay-off
  * task stops at the end of the task above. Making a task longer pushes the tasks after its old end.
- * Shrinking pushes nothing.
- * The shift is clamped so every moved start stays within 00:00–23:55.
+ * Shrinking pushes nothing. Pushing down never passes the end of the day: the empty gaps close from the
+ * bottom up (`packDown`), and then the push stops. Moved starts stay within 00:00–23:55.
  * Push mode only pushes, it never swaps (F017: a swap cut the push short). Swapping is the Normal mode
  * rule for Overlay-off tasks, below.
  */
@@ -69,6 +69,14 @@ export function previewPositions(
         .filter((end) => end <= change.originalStart)
       if (aboveEnds.length > 0) delta = Math.max(delta, Math.max(...aboveEnds) - change.originalStart)
     }
+    if (delta > 0 && pushed.length > 0) {
+      const head: TimedTask = { id: change.taskId, start: change.originalStart, duration: change.originalDuration }
+      const shifts = packDown([head, ...pushed], delta, latestStart)
+      for (const task of [head, ...pushed]) {
+        result.set(task.id, { start: task.start + (shifts.get(task) ?? 0), duration: task.duration })
+      }
+      return result
+    }
     const moving = [{ start: change.originalStart, duration: change.originalDuration }, ...pushed]
     delta =
       delta > 0
@@ -88,14 +96,41 @@ export function previewPositions(
   }
   const oldEnd = change.originalStart + change.originalDuration
   const pushed = others.filter((task) => task.start >= oldEnd)
-  if (pushed.length > 0) {
-    delta = Math.max(0, Math.min(delta, ...pushed.map((task) => latestStart(task) - task.start)))
-  }
-  result.set(change.taskId, { start: change.originalStart, duration: change.originalDuration + delta })
+  const shifts = packDown(pushed, delta, latestStart)
+  // The end can't pass the first pushed task once that one has stopped moving.
+  const firstStart = Math.min(...pushed.map((task) => task.start + (shifts.get(task) ?? 0)))
+  result.set(change.taskId, { start: change.originalStart, duration: Math.min(oldEnd + delta, firstStart) - change.originalStart })
   for (const task of pushed) {
-    result.set(task.id, { start: task.start + delta, duration: task.duration })
+    result.set(task.id, { start: task.start + (shifts.get(task) ?? 0), duration: task.duration })
   }
   return result
+}
+
+/**
+ * Push down by `delta` without passing the end of the day (F017). Tasks that overlap move as one block.
+ * Every block moves by `delta` until it reaches its limit (`latestStart`); then the empty gaps close from
+ * the bottom up, so a block stops when it touches the block below. Returns each task's shift.
+ */
+function packDown(group: TimedTask[], delta: number, latestStart: (task: TimedTask) => number): Map<TimedTask, number> {
+  const blocks: { tasks: TimedTask[]; start: number; end: number }[] = []
+  for (const task of [...group].sort((a, b) => a.start - b.start)) {
+    const last = blocks.at(-1)
+    if (last && task.start < last.end) {
+      last.tasks.push(task)
+      last.end = Math.max(last.end, task.start + task.duration)
+    } else {
+      blocks.push({ tasks: [task], start: task.start, end: task.start + task.duration })
+    }
+  }
+  const shifts = new Map<TimedTask, number>()
+  let nextStart = Infinity
+  for (const block of blocks.reverse()) {
+    const limit = Math.min(...block.tasks.map((task) => latestStart(task) - task.start))
+    const shift = Math.max(0, Math.min(delta, limit, nextStart - block.end))
+    for (const task of block.tasks) shifts.set(task, shift)
+    nextStart = block.start + shift
+  }
+  return shifts
 }
 
 const clampStart = (start: number) => Math.max(0, Math.min(MAX_START_MINUTES, start))

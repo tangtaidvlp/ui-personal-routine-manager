@@ -35,17 +35,62 @@ describe('previewPositions', () => {
     expect(result.get('c')?.start).toBe(540)
   })
 
-  it('clamps a downward push at 23:55 (overnight tasks on)', () => {
+  it('a downward push stops each task at the day end and closes the gaps above it (overnight tasks on: 23:55)', () => {
     const result = previewPositions([...tasks, { id: 'd', start: 1400, duration: 30 }], move(540), true, { overnight: true })
     expect(result.get('d')?.start).toBe(1435)
-    expect(result.get('b')?.start).toBe(480 + 35)
-    expect(result.get('c')?.start).toBe(635)
+    expect(result.get('b')?.start).toBe(540)
+    expect(result.get('c')?.start).toBe(660)
   })
 
-  it('overnight tasks off (the default): a downward push stops when a pushed task ends at 24:00', () => {
+  it('overnight tasks off (the default): the last task stops at 24:00 and the others keep moving', () => {
     const result = previewPositions([...tasks, { id: 'd', start: 1400, duration: 30 }], move(540), true)
     expect(result.get('d')?.start).toBe(1410) // ends 24:00
-    expect(result.get('b')?.start).toBe(480 + 10)
+    expect(result.get('b')?.start).toBe(540)
+    expect(result.get('c')?.start).toBe(660)
+  })
+
+  describe('pushing down near 24:00 (F017)', () => {
+    // A 20:00-21:00 dragged, B 22:00-23:00
+    const evening: TimedTask[] = [
+      { id: 'A', start: 1200, duration: 60 },
+      { id: 'B', start: 1320, duration: 60 },
+    ]
+    const dragA = (liveStart: number): DragChange => ({
+      mode: 'move', taskId: 'A', originalStart: 1200, originalDuration: 60, liveStart, liveDuration: 60,
+    })
+
+    it('uses the space at the bottom first, then closes the gap above', () => {
+      const result = previewPositions(evening, dragA(1290), true) // 90 min down
+      expect(result.get('B')?.start).toBe(1380) // 23:00-24:00
+      expect(result.get('A')?.start).toBe(1290) // 21:30-22:30, gap 60 → 30
+    })
+
+    it('stops when no gap is left', () => {
+      const result = previewPositions(evening, dragA(1400), true)
+      expect(result.get('B')?.start).toBe(1380)
+      expect(result.get('A')?.start).toBe(1320) // touches B
+    })
+
+    it('overlapping tasks move as one block and keep their overlap', () => {
+      // Gym 21:00-22:00 dragged, Reading 21:30-22:30 (overlaps Gym), Dinner 23:00-23:30
+      const withOverlap: TimedTask[] = [
+        { id: 'gym', start: 1260, duration: 60 },
+        { id: 'reading', start: 1290, duration: 60, overlay: true },
+        { id: 'dinner', start: 1380, duration: 30 },
+      ]
+      const dragGym: DragChange = { mode: 'move', taskId: 'gym', originalStart: 1260, originalDuration: 60, liveStart: 1350, liveDuration: 60 }
+      const result = previewPositions(withOverlap, dragGym, true)
+      expect(result.get('dinner')?.start).toBe(1410)
+      expect(result.get('gym')?.start).toBe(1320)
+      expect(result.get('reading')?.start).toBe(1350) // still 30 min after Gym; block ends at Dinner's start
+    })
+
+    it('a longer resize closes the gaps the same way', () => {
+      const resizeA: DragChange = { mode: 'resize', taskId: 'A', originalStart: 1200, originalDuration: 60, liveStart: 1200, liveDuration: 240 }
+      const result = previewPositions(evening, resizeA, true)
+      expect(result.get('B')?.start).toBe(1380)
+      expect(result.get('A')?.duration).toBe(180) // ends at B's start, 23:00
+    })
   })
 
   it('overnight tasks off: an existing overnight task is still pushed past midnight', () => {
@@ -114,17 +159,19 @@ describe('previewPositions', () => {
     expect(result.get('b')?.duration).toBe(30)
   })
 
-  it('a longer resize stops when a pushed task reaches 23:55 (overnight tasks on)', () => {
+  it('a longer resize stops a pushed task at the day end and keeps pushing the others (overnight tasks on: 23:55)', () => {
     const result = previewPositions([...tasks, { id: 'd', start: 1420, duration: 10 }], resize(200), true, { overnight: true })
     expect(result.get('d')?.start).toBe(1435)
-    expect(result.get('b')?.duration).toBe(75)
+    expect(result.get('c')?.start).toBe(740)
+    expect(result.get('b')?.duration).toBe(200)
   })
 
-  it('overnight tasks off: a resize ends by 24:00, and a push stops when a pushed task ends at 24:00', () => {
+  it('overnight tasks off: a resize ends by 24:00, and a pushed task stops at 24:00', () => {
     expect(previewPositions(tasks, resize(2000), false).get('b')?.duration).toBe(960) // 08:00 → 24:00
     const result = previewPositions([...tasks, { id: 'd', start: 1420, duration: 10 }], resize(200), true)
     expect(result.get('d')?.start).toBe(1430)
-    expect(result.get('b')?.duration).toBe(70)
+    expect(result.get('c')?.start).toBe(740)
+    expect(result.get('b')?.duration).toBe(200)
   })
 
   describe('Push mode never swaps (F017)', () => {

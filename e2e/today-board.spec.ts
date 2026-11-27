@@ -282,3 +282,32 @@ test('today board: Overlay switch is saved, Overlay-off tasks swap on drag', asy
   await expect(taskA.locator('.ob-board-task-time')).toContainText('10:00')
   await expect(taskB.locator('.ob-board-task-time')).toContainText('09:00')
 })
+
+// F017: in Push mode a downward push closes the gaps from the bottom up and says when there's no room left.
+test('today board: Push mode squeezes the gaps before 24:00, then says there is no room', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+  for (const [name, time] of [['Late A', '22:00'], ['Late B', '23:00']]) {
+    await board.getByRole('button', { name: '+ Add task' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByPlaceholder('e.g. Morning walk').fill(name)
+    await dialog.locator('input[type="time"]').fill(time)
+    await dialog.locator('button[type="submit"]').click()
+    await expect(dialog).toBeHidden()
+  }
+  await board.locator('.ob-board-toolbar').getByRole('button', { name: 'Push mode' }).click()
+
+  // Drag Late A down 2 hours (100px per hour): Late B stops at 23:30-24:00, Late A closes the gap up to it.
+  const taskA = board.locator('.ob-board-task').filter({ hasText: 'Late A' })
+  await taskA.scrollIntoViewIfNeeded()
+  const box = (await taskA.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + 10)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + 10 + 200, { steps: 10 })
+  await expect(page.getByText('No space left to push. The day ends at 24:00.')).toBeVisible()
+  await page.mouse.up()
+
+  await expect(taskA.locator('.ob-board-task-time')).toContainText('23:00 – 23:30')
+  await expect(board.locator('.ob-board-task').filter({ hasText: 'Late B' }).locator('.ob-board-task-time')).toContainText('23:30 – 00:00')
+})

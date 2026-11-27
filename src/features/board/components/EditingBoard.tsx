@@ -32,6 +32,7 @@ const CLICK_DISTANCE_THRESHOLD_PX = 5
 // Touch only: a press must be held this long, without moving, before it starts a drag (T002 R1).
 const HOLD_TO_DRAG_MS = 100
 const SAVE_FAILED_MESSAGE = "Something went wrong. Your change wasn't saved."
+const NO_ROOM_MESSAGE = 'No space left to push. The day ends at 24:00.'
 // The live board opens with "now" this far below the top of the view.
 const LIVE_SCROLL_OFFSET_PX = 260
 
@@ -420,12 +421,17 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
         : MINUTES_PER_DAY - dragState.originalDurationMinutes
       const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, latestStart)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveStartMinutes } : current))
+      // Push mode: say so once a downward push has no gap left to close (F017).
+      const shown = pushMode ? previewFor({ ...dragState, liveStartMinutes }).get(dragState.taskId) : undefined
+      if (shown && liveStartMinutes > dragState.originalStartMinutes && shown.start < liveStartMinutes) setNotice(NO_ROOM_MESSAGE)
     } else {
       const longest = mayCrossMidnight(dragState.originalStartMinutes, dragState.originalDurationMinutes)
         ? MINUTES_PER_DAY
         : MINUTES_PER_DAY - dragState.originalStartMinutes
       const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, longest)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveDurationMinutes } : current))
+      const shown = pushMode ? previewFor({ ...dragState, liveDurationMinutes }).get(dragState.taskId) : undefined
+      if (shown && shown.duration < liveDurationMinutes) setNotice(NO_ROOM_MESSAGE)
     }
   }
 
