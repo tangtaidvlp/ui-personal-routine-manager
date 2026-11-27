@@ -29,7 +29,7 @@ const SNAP_MINUTES = 5
 const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
 // A press must be held this long, without moving, before it starts a drag (T002 R1).
-const HOLD_TO_DRAG_MS = 300
+const HOLD_TO_DRAG_MS = 150
 const SAVE_FAILED_MESSAGE = "Something went wrong. Your change wasn't saved."
 // The live board opens with "now" this far below the top of the view.
 const LIVE_SCROLL_OFFSET_PX = 260

@@ -19,6 +19,8 @@ export type Position = { start: number; duration: number }
  * Moving down pushes the tasks that start at or after the dragged one; moving up pushes those that
  * start at or before it; making a task longer pushes the tasks after its old end. Shrinking pushes nothing.
  * The shift is clamped so every moved start stays within 00:00–23:55.
+ * Push mode, move only: once the dragged task has passed at least half of another task, nothing is pushed.
+ * The dragged task swaps places with each passed task (the gap between them is kept) and the rest stay put.
  */
 export function previewPositions(
   tasks: TimedTask[],
@@ -29,6 +31,8 @@ export function previewPositions(
   const others = tasks.filter((task) => task.id !== change.taskId)
 
   if (change.mode === 'move') {
+    const swapped = pushMode ? swapPassed(others, change) : null
+    if (swapped) return swapped
     let delta = change.liveStart - change.originalStart
     const pushed =
       !pushMode || delta === 0
@@ -57,5 +61,36 @@ export function previewPositions(
   for (const task of pushed) {
     result.set(task.id, { start: task.start + delta, duration: task.duration })
   }
+  return result
+}
+
+const clampStart = (start: number) => Math.max(0, Math.min(MAX_START_MINUTES, start))
+const midpoint = (task: TimedTask) => task.start + task.duration / 2
+
+/** Push mode move: swap with every task passed by at least half; null when none was passed. */
+function swapPassed(others: TimedTask[], change: DragChange): Map<string | undefined, Position> | null {
+  const { originalStart, originalDuration: duration, liveStart } = change
+  const down = liveStart > originalStart
+  const passed = down
+    ? others
+        .filter((t) => t.start >= originalStart && midpoint(t) > originalStart + duration && midpoint(t) <= liveStart + duration)
+        .sort((a, b) => midpoint(a) - midpoint(b))
+    : others
+        .filter((t) => t.start <= originalStart && midpoint(t) < originalStart && midpoint(t) >= liveStart)
+        .sort((a, b) => midpoint(b) - midpoint(a))
+  if (liveStart === originalStart || passed.length === 0) return null
+
+  const result = new Map<string | undefined, Position>()
+  let draggedStart = originalStart
+  for (const task of passed) {
+    if (down) {
+      result.set(task.id, { start: clampStart(draggedStart), duration: task.duration })
+      draggedStart = task.start + task.duration - duration
+    } else {
+      result.set(task.id, { start: clampStart(draggedStart + duration - task.duration), duration: task.duration })
+      draggedStart = task.start
+    }
+  }
+  result.set(change.taskId, { start: clampStart(draggedStart), duration })
   return result
 }
