@@ -687,10 +687,17 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
             const endPosition = end > MINUTES_PER_DAY ? end - MINUTES_PER_DAY : end
             const middle = (start + Math.min(end, MINUTES_PER_DAY)) / 2
             const at = (minutes: number) => ({ top: `${(minutes * 100) / MINUTES_PER_DAY}%` })
+            const mark = (minutes: number, label: string) => (
+              <div className={styles.dragMark} style={at(minutes)}>
+                <i className={styles.dragLineLeft} />
+                <span>{label}</span>
+                <div className={styles.dragLineTrack}><i className={styles.dragLineRight} /></div>
+              </div>
+            )
             return (
               <div aria-hidden="true">
-                <div className={styles.dragMark} style={at(start)}><span>{formatTime(start)}</span></div>
-                <div className={styles.dragMark} style={at(endPosition)}><span>{formatTime(end)}</span></div>
+                {mark(start, formatTime(start))}
+                {mark(endPosition, formatTime(end))}
                 <div className={styles.dragDuration} style={at(middle)}>{showTaskDuration(duration)}</div>
               </div>
             )
