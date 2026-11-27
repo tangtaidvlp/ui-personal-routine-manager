@@ -150,8 +150,10 @@ describe('previewPositions', () => {
       mode: 'move', taskId: 'd', originalStart: 540, originalDuration: 60, liveStart, liveDuration: 60,
     })
 
-    for (const pushMode of [false, true]) {
-      const label = pushMode ? 'Push mode' : 'Normal mode'
+    // The strict rules are Normal mode only; Push mode is covered below.
+    describe('Normal mode', () => {
+      const pushMode = false
+      const label = 'Normal mode'
 
       it(`${label}: swaps down with a passed task and keeps the gap`, () => {
         const result = previewPositions(off(), drag(600), pushMode)
@@ -193,7 +195,22 @@ describe('previewPositions', () => {
         const result = previewPositions(tasksWithOverlap, drag(550), pushMode)
         expect(result.get('d')).toEqual({ start: 550, duration: 60 })
       })
-    }
+    })
+
+    it('Push mode pushes every task after it, Overlay on or off, as in T002', () => {
+      const withOverlayOn = off().map((t) => (t.id === 'p' ? { ...t, overlay: true } : t))
+      const result = previewPositions(withOverlayOn, drag(584), true) // 44 min down, p not yet passed by half
+      expect(result.get('d')).toEqual({ start: 584, duration: 60 })
+      expect(result.get('p')?.start).toBe(674)
+      expect(result.get('q')?.start).toBe(734)
+      expect(result.has('u')).toBe(false)
+    })
+
+    it('Push mode still swaps once half of a task is passed (T002)', () => {
+      const result = previewPositions(off(), drag(600), true)
+      expect(result.get('p')).toEqual({ start: 540, duration: 30 })
+      expect(result.get('d')).toEqual({ start: 600, duration: 60 })
+    })
 
     it('free movement is kept when nothing is touched', () => {
       expect(previewPositions(off(), drag(500), false).get('d')).toEqual({ start: 500, duration: 60 })

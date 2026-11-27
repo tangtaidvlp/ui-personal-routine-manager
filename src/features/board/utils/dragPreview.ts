@@ -1,7 +1,7 @@
 /** Live positions while a task is dragged, and what Push mode moves with it (T002 R3). Minutes from 00:00. */
 const MAX_START_MINUTES = 1435
 
-/** `overlay === false` gets the strict rules (F017 R2); `true` or missing keeps the T002 behaviour. */
+/** In Normal mode `overlay === false` gets the strict rules (F017 R2); otherwise the T002 behaviour. */
 export type TimedTask = { id: string | undefined; start: number; duration: number; overlay?: boolean }
 
 export type DragChange = {
@@ -31,9 +31,9 @@ export function previewPositions(
   const result = new Map<string | undefined, Position>()
   const others = tasks.filter((task) => task.id !== change.taskId)
 
-  if (tasks.find((task) => task.id === change.taskId)?.overlay === false) {
-    if (change.mode === 'move') return previewStrictMove(others, change)
-    if (!pushMode) return previewStrictResize(others, change)
+  // Push mode pushes every task, whatever its Overlay setting; the Overlay-off rules are for Normal mode.
+  if (!pushMode && tasks.find((task) => task.id === change.taskId)?.overlay === false) {
+    return change.mode === 'move' ? previewStrictMove(others, change) : previewStrictResize(others, change)
   }
 
   if (change.mode === 'move') {
