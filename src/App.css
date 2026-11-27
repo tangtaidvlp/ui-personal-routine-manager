@@ -877,9 +877,15 @@
   justify-content: space-between;
   gap: var(--space-2);
   cursor: grab;
-  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+  /* top/height/left/width: Push mode and lanes animate the blocks (T002). */
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease, top 0.2s ease, height 0.2s ease,
+    left 0.2s ease, width 0.2s ease;
   overflow: hidden;
-  touch-action: none;
+  /* A swipe scrolls the board; a 0.3s hold starts a drag (T002 R1). */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Dark theme: palette colours switch to their dark pair; exact colours stay (specs/F005 FR-011). */
@@ -989,6 +995,21 @@
   transform: scale(1.01);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-task-current) 32%, transparent), var(--shadow-md);
   z-index: 4;
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* The 4th task at the same moment is refused (T002 R4). */
+.ob-board-task[data-blocked='true'] {
+  outline: 2px solid var(--color-danger);
+  outline-offset: -2px;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-board-task,
+  .ob-board-task.is-dragging {
+    transition: none;
+  }
 }
 
 .ob-board-task-resize-handle {
@@ -998,7 +1019,7 @@
   bottom: -8px;
   height: 24px;
   cursor: ns-resize;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .ob-board-task-resize-handle::after {
@@ -2579,7 +2600,7 @@
   /* No overflow clipping: the "More" panel (F010) opens below this box. */
 }
 
-.rf-compare-toolbar .ob-board-toolbar:last-child {
+.rf-compare-toolbar .ob-board-toolbar {
   border-bottom: 0;
 }
 

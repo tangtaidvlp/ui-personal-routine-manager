@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { registerAndOnboard } from './helpers.ts'
+import { OVERNIGHT_TASKS_ENABLED } from '../src/config/featureFlags.ts'
 
 /**
  * F010 UX optimise (specs/.done.F010-ux-optimise/quickstart.md): the Today board is always live (no time
@@ -21,7 +22,7 @@ test('today board: always live, hours + minutes with color, and the "More" menu'
   await expect(page.locator('.page-header').getByRole('button', { name: 'Sign out' })).toHaveCount(0)
 
   // Wide toolbar: every tool inline, no "More".
-  await expect(toolbar.getByRole('button', { name: 'Gap clear' })).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Push mode' })).toBeVisible()
   await expect(toolbar.getByRole('button', { name: 'More' })).toBeHidden()
 
   // Task dialog: hours + minutes and a color.
@@ -49,11 +50,11 @@ test('today board: always live, hours + minutes with color, and the "More" menu'
   await more.click()
   await expect(more).toHaveAttribute('aria-expanded', 'true')
   const panel = toolbar.locator('.ob-board-more-panel')
-  await panel.getByRole('button', { name: 'Gap clear' }).click()
+  await panel.getByRole('button', { name: 'Push mode' }).click()
   await expect(panel).toBeHidden()
 
   await more.click()
-  await expect(panel.getByRole('button', { name: /Gap clear/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(panel.getByRole('button', { name: /Push mode/ })).toHaveAttribute('aria-pressed', 'true')
   await page.keyboard.press('Escape')
   await expect(panel).toBeHidden()
   await expect(more).toBeFocused()
@@ -73,7 +74,25 @@ test('today board: always live, hours + minutes with color, and the "More" menu'
 })
 
 // F011 (specs/.done.F011-sleep-task): one task crossing midnight is drawn as two linked parts and stays one task.
+test('today board: with overnight tasks off, a task must end by 24:00', async ({ page }) => {
+  test.skip(OVERNIGHT_TASKS_ENABLED, 'Overnight tasks are on (src/config/featureFlags.ts)')
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+
+  await board.getByRole('button', { name: '+ Add task' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Sleep')
+  await dialog.locator('input[type="time"]').fill('22:00')
+  await dialog.getByLabel('hour', { exact: true }).fill('8')
+  await dialog.getByLabel('mins', { exact: true }).fill('0')
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog.getByText('The task must end by 24:00.')).toBeVisible()
+})
+
 test('today board: an overnight task is one task in two parts', async ({ page }) => {
+  // Existing overnight tasks still show in two parts, but new ones can't be made with the toggle off.
+  test.skip(!OVERNIGHT_TASKS_ENABLED, 'Overnight tasks are off (src/config/featureFlags.ts)')
   await page.setViewportSize({ width: 1600, height: 900 })
   await registerAndOnboard(page)
   const board = page.locator('.dr-canvas-card')
@@ -162,4 +181,133 @@ test('today board: Reset day replaces the day with the default routine after con
   // Past days can't be reset.
   await page.getByRole('button', { name: 'Previous day' }).click()
   await expect(resetButton).toBeDisabled()
+})
+
+// T002 (specs/T002-improvement-for-ux-at-timeline-change): mouse drag (the hold is touch only, checked by hand), Push mode notice, a failed save reverts.
+test('today board: mouse drag, push mode notice, failed save reverts', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+
+  await board.getByRole('button', { name: '+ Add task' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Hold me')
+  await dialog.locator('input[type="time"]').fill('09:00')
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog).toBeHidden()
+
+  const task = board.locator('.ob-board-task').filter({ hasText: 'Hold me' })
+  const timeLabel = task.locator('.ob-board-task-time')
+  await expect(timeLabel).toContainText('09:00')
+
+  // The board is 2400px tall at zoom 1.0: 100px per hour.
+  const centre = async () => {
+    await task.scrollIntoViewIfNeeded()
+    const box = (await task.boundingBox())!
+    return { x: box.x + box.width / 2, y: box.y + 20 }
+  }
+  // With a mouse there is no hold: pressing and moving drags at once (the hold is touch only).
+  const mouseDrag = async (hours: number) => {
+    const { x, y } = await centre()
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x, y + hours * 100, { steps: 10 })
+    await page.mouse.up()
+  }
+
+  // Move down one hour: the new time shows and survives a reload.
+  await mouseDrag(1)
+  await expect(timeLabel).toContainText('10:00')
+  await page.reload()
+  await expect(timeLabel).toContainText('10:00')
+
+  // Push mode on: the status notice appears.
+  await board.locator('.ob-board-toolbar').getByRole('button', { name: 'Push mode' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Push mode is on' })).toBeVisible()
+
+  // A failed save puts the task back and shows an alert.
+  await page.route('**/daily-routine/tasks', (route) => route.abort())
+  await mouseDrag(1)
+  await expect(timeLabel).toContainText('10:00')
+  await expect(page.getByRole('alert').filter({ hasText: "Your change wasn't saved" })).toBeVisible()
+})
+
+// F017 (specs/F017-task-overlay): the Overlay switch is saved, and an Overlay-off task swaps instead of overlapping.
+test('today board: Overlay switch is saved, Overlay-off tasks swap on drag', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+  const dialog = page.getByRole('dialog')
+
+  const addTask = async (name: string, start: string, hours: string, mins: string, overlay = false) => {
+    await board.getByRole('button', { name: '+ Add task' }).click()
+    await dialog.getByPlaceholder('e.g. Morning walk').fill(name)
+    await dialog.locator('input[type="time"]').fill(start)
+    await dialog.getByLabel('hour', { exact: true }).fill(hours)
+    await dialog.getByLabel('mins', { exact: true }).fill(mins)
+    const overlaySwitch = dialog.getByRole('switch', { name: /Overlay/ })
+    await expect(overlaySwitch).not.toBeChecked() // off for a new task
+    if (overlay) await overlaySwitch.check()
+    await dialog.locator('button[type="submit"]').click()
+    await expect(dialog).toBeHidden()
+  }
+
+  await addTask('Swap A', '09:00', '1', '0')
+  await addTask('Swap B', '10:30', '0', '30')
+  await addTask('Overlay on', '14:00', '1', '0', true)
+
+  // The switch is saved: reload, reopen.
+  await page.reload()
+  const taskA = board.locator('.ob-board-task').filter({ hasText: 'Swap A' })
+  const taskB = board.locator('.ob-board-task').filter({ hasText: 'Swap B' })
+  const onTask = board.locator('.ob-board-task').filter({ hasText: 'Overlay on' })
+  await onTask.scrollIntoViewIfNeeded()
+  await onTask.click({ position: { x: 20, y: 20 } })
+  await expect(dialog.getByRole('switch', { name: /Overlay/ })).toBeChecked()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+
+  // Drag A down 1h (its end passes B's midpoint): A and B swap, B keeps its place relative to the gap.
+  await taskA.scrollIntoViewIfNeeded()
+  const box = (await taskA.boundingBox())!
+  const x = box.x + box.width / 2
+  const y = box.y + 20
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x, y + 100, { steps: 10 })
+  await page.mouse.up()
+  await expect(taskA.locator('.ob-board-task-time')).toContainText('10:00')
+  await expect(taskB.locator('.ob-board-task-time')).toContainText('09:00')
+
+  await page.reload()
+  await expect(taskA.locator('.ob-board-task-time')).toContainText('10:00')
+  await expect(taskB.locator('.ob-board-task-time')).toContainText('09:00')
+})
+
+// F017: in Push mode a downward push closes the gaps from the bottom up and says when there's no room left.
+test('today board: Push mode squeezes the gaps before 24:00, then says there is no room', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+  for (const [name, time] of [['Late A', '22:00'], ['Late B', '23:00']]) {
+    await board.getByRole('button', { name: '+ Add task' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByPlaceholder('e.g. Morning walk').fill(name)
+    await dialog.locator('input[type="time"]').fill(time)
+    await dialog.locator('button[type="submit"]').click()
+    await expect(dialog).toBeHidden()
+  }
+  await board.locator('.ob-board-toolbar').getByRole('button', { name: 'Push mode' }).click()
+
+  // Drag Late A down 2 hours (100px per hour): Late B stops at 23:30-24:00, Late A closes the gap up to it.
+  const taskA = board.locator('.ob-board-task').filter({ hasText: 'Late A' })
+  await taskA.scrollIntoViewIfNeeded()
+  const box = (await taskA.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + 10)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + 10 + 200, { steps: 10 })
+  await expect(page.getByText('No space left to push. The day ends at 24:00.')).toBeVisible()
+  await page.mouse.up()
+
+  await expect(taskA.locator('.ob-board-task-time')).toContainText('23:00 – 23:30')
+  await expect(board.locator('.ob-board-task').filter({ hasText: 'Late B' }).locator('.ob-board-task-time')).toContainText('23:30 – 00:00')
 })

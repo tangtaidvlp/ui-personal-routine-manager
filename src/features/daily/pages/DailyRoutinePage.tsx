@@ -281,6 +281,7 @@ function DailyRoutinePage() {
         isOpen={Boolean(taskModalState)}
         mode={taskModalState?.mode ?? 'create'}
         draftTask={taskModalState?.draft ?? null}
+        showOverlay={modalTarget !== 'reality'}
         onSubmitTask={(mode, task) => modalActions.submitTask(mode, task)}
         onClose={() => setTaskModalState(null)}
         // The plan's onSaved reloads the plan (and the reflection while reflecting); the reality's reloads the reflection.

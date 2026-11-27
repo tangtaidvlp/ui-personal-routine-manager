@@ -9,8 +9,8 @@ import { useSyncedScroll } from '../hooks/useSyncedScroll.ts'
  * F007 FR-012 (wide screens): the Plan and Reality boards side by side under one toolbar.
  * Both are editable. One clock drives both now-lines, zoom is the shared account setting,
  * and scrolling one board scrolls the other, so the same times line up (research R11/R12).
- * `view` 'radial' (F016) swaps both boards for the 24-hour circle; zoom and Gap clear leave the toolbar.
- * Gap clear and Reset day act on the plan only (spec Assumptions; F012 FR-007).
+ * `view` 'radial' (F016) swaps both boards for the 24-hour circle; zoom and Push mode leave the toolbar.
+ * Push mode and Reset day act on the plan only (spec Assumptions; F012 FR-007).
  *
  * @param {{
  *   planRoutine: any,
@@ -52,7 +52,7 @@ function CompareBoards({
 }) {
   const Board = view === 'radial' ? RadialBoard : EditingBoard
   const clock = useBoardClock()
-  const [gapClearMode, setGapClearMode] = useState(false)
+  const [pushMode, setPushMode] = useState(false)
   const registerScroll = useSyncedScroll()
 
   return (
@@ -60,8 +60,8 @@ function CompareBoards({
       <div className="rf-compare-toolbar">
         <BoardToolbar
           clock={clock}
-          gapClearMode={gapClearMode}
-          onToggleGapClear={() => setGapClearMode((current) => !current)}
+          pushMode={pushMode}
+          onTogglePushMode={() => setPushMode((current) => !current)}
           onResetDay={onResetDay}
           resetDisabled={resetDisabled}
           actions={toolbarActions}
@@ -85,7 +85,7 @@ function CompareBoards({
             routine={planRoutine}
             showToolbar={false}
             clock={clock}
-            gapClearMode={gapClearMode}
+            pushMode={pushMode}
             scrollContainerRef={registerScroll}
             {...planHandlers}
           />
@@ -105,7 +105,7 @@ function CompareBoards({
             routine={realityRoutine}
             showToolbar={false}
             clock={clock}
-            gapClearMode={false}
+            pushMode={false}
             showCompletion={false}
             scrollContainerRef={registerScroll}
             {...realityHandlers}
