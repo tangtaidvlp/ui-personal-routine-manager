@@ -19,6 +19,9 @@ export type DragChange = {
 
 export type Position = { start: number; duration: number }
 
+/** The latest start a task may be pushed to. */
+type LatestStart = (task: Position) => number
+
 /**
  * The new `{start, duration}` of the dragged task plus every task Push mode pushes with it.
  * The tasks that start at or after the dragged one move with it, down or up (keeping the gaps). Moving up
@@ -36,11 +39,10 @@ export function previewPositions(
   pushMode: boolean,
   { pushUp = PUSH_UP_ENABLED, overnight = OVERNIGHT_TASKS_ENABLED }: { pushUp?: boolean; overnight?: boolean } = {},
 ): Map<string | undefined, Position> {
-  const result = new Map<string | undefined, Position>()
   const others = tasks.filter((task) => task.id !== change.taskId)
   const dragged = tasks.find((task) => task.id === change.taskId)
   // With overnight tasks off, no task is moved past 24:00 unless it already crosses midnight.
-  const latestStart = (task: { start: number; duration: number }) =>
+  const latestStart: LatestStart = (task) =>
     mayCrossMidnight(task.start, task.duration, overnight) ? MAX_START_MINUTES : MINUTES_PER_DAY - task.duration
   if (!mayCrossMidnight(change.originalStart, change.originalDuration, overnight)) {
     change = {
@@ -55,42 +57,65 @@ export function previewPositions(
     return change.mode === 'move' ? previewStrictMove(others, change) : previewStrictResize(others, change)
   }
 
-  if (change.mode === 'move') {
-    let delta = change.liveStart - change.originalStart
-    // The tasks after the dragged one move with it both ways; moving up also pushes the ones above only
-    // with Push-up on.
-    const pushed =
-      !pushMode || delta === 0
-        ? []
-        : others.filter((task) => task.start >= change.originalStart || (delta < 0 && pushUp))
-    if (pushMode && delta < 0 && !pushUp && dragged?.overlay === false) {
-      // Overlay-off moving up stops at the end of the task above (one it did not already overlap).
-      const aboveEnds = others
-        .map((task) => task.start + task.duration)
-        .filter((end) => end <= change.originalStart)
-      if (aboveEnds.length > 0) delta = Math.max(delta, Math.max(...aboveEnds) - change.originalStart)
-    }
-    if (delta > 0 && pushed.length > 0) {
-      const head: TimedTask = { id: change.taskId, start: change.originalStart, duration: change.originalDuration }
-      const shifts = packDown([head, ...pushed], delta, latestStart)
-      for (const task of [head, ...pushed]) {
-        result.set(task.id, { start: task.start + (shifts.get(task) ?? 0), duration: task.duration })
-      }
-      return result
-    }
-    const moving = [{ start: change.originalStart, duration: change.originalDuration }, ...pushed]
-    delta =
-      delta > 0
-        ? Math.min(delta, ...moving.map((task) => latestStart(task) - task.start))
-        : Math.max(delta, -Math.min(...moving.map((task) => task.start)))
-    result.set(change.taskId, { start: change.originalStart + delta, duration: change.originalDuration })
-    for (const task of pushed) {
-      result.set(task.id, { start: task.start + delta, duration: task.duration })
-    }
+  return change.mode === 'move'
+    ? previewMove(others, dragged, change, pushMode, pushUp, latestStart)
+    : previewResize(others, change, pushMode, latestStart)
+}
+
+/** Writes `task` into `result` moved by `shift` minutes. */
+function setShifted(result: Map<string | undefined, Position>, task: TimedTask, shift: number) {
+  result.set(task.id, { start: task.start + shift, duration: task.duration })
+}
+
+/** Move preview: the dragged task and, in Push mode, the tasks it pushes. */
+function previewMove(
+  others: TimedTask[],
+  dragged: TimedTask | undefined,
+  change: DragChange,
+  pushMode: boolean,
+  pushUp: boolean,
+  latestStart: LatestStart,
+): Map<string | undefined, Position> {
+  const result = new Map<string | undefined, Position>()
+  let delta = change.liveStart - change.originalStart
+  // The tasks after the dragged one move with it both ways; moving up also pushes the ones above only
+  // with Push-up on.
+  const pushed =
+    !pushMode || delta === 0
+      ? []
+      : others.filter((task) => task.start >= change.originalStart || (delta < 0 && pushUp))
+  if (pushMode && delta < 0 && !pushUp && dragged?.overlay === false) {
+    // Overlay-off moving up stops at the end of the task above (one it did not already overlap).
+    const aboveEnds = others
+      .map((task) => task.start + task.duration)
+      .filter((end) => end <= change.originalStart)
+    if (aboveEnds.length > 0) delta = Math.max(delta, Math.max(...aboveEnds) - change.originalStart)
+  }
+  if (delta > 0 && pushed.length > 0) {
+    const head: TimedTask = { id: change.taskId, start: change.originalStart, duration: change.originalDuration }
+    const shifts = packDown([head, ...pushed], delta, latestStart)
+    for (const task of [head, ...pushed]) setShifted(result, task, shifts.get(task) ?? 0)
     return result
   }
+  const moving = [{ start: change.originalStart, duration: change.originalDuration }, ...pushed]
+  delta =
+    delta > 0
+      ? Math.min(delta, ...moving.map((task) => latestStart(task) - task.start))
+      : Math.max(delta, -Math.min(...moving.map((task) => task.start)))
+  result.set(change.taskId, { start: change.originalStart + delta, duration: change.originalDuration })
+  for (const task of pushed) setShifted(result, task, delta)
+  return result
+}
 
-  let delta = change.liveDuration - change.originalDuration
+/** Resize preview: the dragged task and, in Push mode, the tasks after its old end. */
+function previewResize(
+  others: TimedTask[],
+  change: DragChange,
+  pushMode: boolean,
+  latestStart: LatestStart,
+): Map<string | undefined, Position> {
+  const result = new Map<string | undefined, Position>()
+  const delta = change.liveDuration - change.originalDuration
   if (!pushMode || delta === 0) {
     result.set(change.taskId, { start: change.originalStart, duration: change.liveDuration })
     return result
@@ -100,18 +125,14 @@ export function previewPositions(
   if (delta < 0) {
     // A shorter task brings the tasks after its old end up with its end, keeping the gaps (B015).
     result.set(change.taskId, { start: change.originalStart, duration: change.liveDuration })
-    for (const task of pushed) {
-      result.set(task.id, { start: task.start + delta, duration: task.duration })
-    }
+    for (const task of pushed) setShifted(result, task, delta)
     return result
   }
   const shifts = packDown(pushed, delta, latestStart)
   // The end can't pass the first pushed task once that one has stopped moving.
   const firstStart = Math.min(...pushed.map((task) => task.start + (shifts.get(task) ?? 0)))
   result.set(change.taskId, { start: change.originalStart, duration: Math.min(oldEnd + delta, firstStart) - change.originalStart })
-  for (const task of pushed) {
-    result.set(task.id, { start: task.start + (shifts.get(task) ?? 0), duration: task.duration })
-  }
+  for (const task of pushed) setShifted(result, task, shifts.get(task) ?? 0)
   return result
 }
 
