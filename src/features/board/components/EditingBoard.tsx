@@ -18,6 +18,7 @@ import { taskSegments } from '../utils/taskSegments.ts'
 import { previewPositions, type Position, type TimedTask } from '../utils/dragPreview.ts'
 import { breaksOverlapCap, OVERLAP_CAP_MESSAGE } from '../utils/overlapCap.ts'
 import { layoutLanes } from '../utils/taskLanes.ts'
+import { mayCrossMidnight } from '../utils/overnight.ts'
 import { ApiError } from '../../../lib/api.ts'
 import BoardNotice from './BoardNotice.tsx'
 import BoardToolbar from './BoardToolbar.tsx'
@@ -31,6 +32,7 @@ const CLICK_DISTANCE_THRESHOLD_PX = 5
 // Touch only: a press must be held this long, without moving, before it starts a drag (T002 R1).
 const HOLD_TO_DRAG_MS = 100
 const SAVE_FAILED_MESSAGE = "Something went wrong. Your change wasn't saved."
+const NO_ROOM_MESSAGE = 'No space left to push. The day ends at 24:00.'
 // The live board opens with "now" this far below the top of the view.
 const LIVE_SCROLL_OFFSET_PX = 260
 
@@ -166,6 +168,7 @@ function EditingBoard<T extends BoardTask>({
     id: task.id,
     start: parseLocalTimeToMinutes(task.startTime),
     duration: task.durationMinutes,
+    overlay: task.overlay,
   }))
 
   const previewFor = (drag: DragState) =>
@@ -412,11 +415,23 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
 
     if (dragState.mode === 'move') {
       // The end may pass 24:00: the task then wraps to the top of the board (F011).
-      const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, MINUTES_PER_DAY - SNAP_MINUTES)
+      // With overnight tasks off, a task that ends by 24:00 stays within the day (featureFlags).
+      const latestStart = mayCrossMidnight(dragState.originalStartMinutes, dragState.originalDurationMinutes)
+        ? MINUTES_PER_DAY - SNAP_MINUTES
+        : MINUTES_PER_DAY - dragState.originalDurationMinutes
+      const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, latestStart)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveStartMinutes } : current))
+      // Push mode: say so once a downward push has no gap left to close (F017).
+      const shown = pushMode ? previewFor({ ...dragState, liveStartMinutes }).get(dragState.taskId) : undefined
+      if (shown && liveStartMinutes > dragState.originalStartMinutes && shown.start < liveStartMinutes) setNotice(NO_ROOM_MESSAGE)
     } else {
-      const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, MINUTES_PER_DAY)
+      const longest = mayCrossMidnight(dragState.originalStartMinutes, dragState.originalDurationMinutes)
+        ? MINUTES_PER_DAY
+        : MINUTES_PER_DAY - dragState.originalStartMinutes
+      const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, longest)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveDurationMinutes } : current))
+      const shown = pushMode ? previewFor({ ...dragState, liveDurationMinutes }).get(dragState.taskId) : undefined
+      if (shown && shown.duration < liveDurationMinutes) setNotice(NO_ROOM_MESSAGE)
     }
   }
 
@@ -488,6 +503,18 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     setDragState(null)
   }
 
+  // Where a task is drawn: in Normal mode an Overlay-off task follows the pointer while it is moved and the
+  // map holds its drop slot (F017 R2); otherwise the live preview, then the pending drop, then the stored slot.
+  const shownPosition = (task: T, index: number) => {
+    const stored = timedTasks[index]
+    if (!pushMode && dragState?.mode === 'move' && dragState.taskId === task.id && task.overlay === false) {
+      return { start: dragState.liveStartMinutes, duration: stored.duration }
+    }
+    return preview?.get(task.id) ?? pending?.get(task.id) ?? stored
+  }
+  const draggedIndex = dragState ? tasks.findIndex((task) => task.id === dragState.taskId) : -1
+  const draggedShown = draggedIndex >= 0 ? shownPosition(tasks[draggedIndex], draggedIndex) : null
+
   return (
     <section className="ob-timeline-board" aria-label="Timeline board" aria-busy={pending !== null}>
       {showToolbar && (
@@ -533,14 +560,18 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
             {(() => {
               const items = tasks.map((task, index) => {
                 const stored = timedTasks[index]
-                const shown = preview?.get(task.id) ?? pending?.get(task.id) ?? stored
+                const shown = shownPosition(task, index)
                 // endTime wraps past midnight (22:00 + 8h → 06:00), so the duration comes from durationMinutes (F011).
                 return { task, index, start: shown.start, duration: shown.duration, storedStart: stored.start, storedDuration: stored.duration, segments: taskSegments(shown.start, shown.duration) }
               })
+              // The dragged task floats full width on top (`.is-dragging`) and stays out of the lanes, so the
+              // other tasks never shift sideways during a drag. Lanes are worked out again after the drop.
               const lanes = layoutLanes(
-                items.flatMap((item) =>
-                  item.segments.map((segment) => ({ key: `${item.task.id}-${segment.part}`, start: segment.start, end: segment.end })),
-                ),
+                items
+                  .filter((item) => item.task.id !== dragState?.taskId)
+                  .flatMap((item) =>
+                    item.segments.map((segment) => ({ key: `${item.task.id}-${segment.part}`, start: segment.start, end: segment.end })),
+                  ),
               )
               return items.flatMap(({ task, index, start: taskStartTime, duration: taskDuration, storedStart: storedStartTime, storedDuration, segments }) => {
               const isDragging = dragState !== null && dragState.taskId === task.id
@@ -661,6 +692,30 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
               })
             })()}
           </div>
+
+          {draggedShown && (() => {
+            // While dragging: start and end times and the duration in the time column (F017, resources/drag-time-indicator.png).
+            const { start, duration } = draggedShown
+            const end = start + duration
+            // A task past midnight ends on the next day's top part (F011).
+            const endPosition = end > MINUTES_PER_DAY ? end - MINUTES_PER_DAY : end
+            const middle = (start + Math.min(end, MINUTES_PER_DAY)) / 2
+            const at = (minutes: number) => ({ top: `${(minutes * 100) / MINUTES_PER_DAY}%` })
+            const mark = (minutes: number, label: string) => (
+              <div className={styles.dragMark} style={at(minutes)}>
+                <i className={styles.dragLineLeft} />
+                <span>{label}</span>
+                <div className={styles.dragLineTrack}><i className={styles.dragLineRight} /></div>
+              </div>
+            )
+            return (
+              <div aria-hidden="true">
+                {mark(start, formatTime(start))}
+                {mark(endPosition, formatTime(end))}
+                <div className={styles.dragDuration} style={at(middle)}>{showTaskDuration(duration)}</div>
+              </div>
+            )
+          })()}
 
           {liveClock && (
             <div

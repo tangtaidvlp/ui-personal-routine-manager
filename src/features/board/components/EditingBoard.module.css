@@ -25,7 +25,7 @@
 .hourLine span {
   margin-top: -9px;
   margin-left: var(--space-3);
-  padding-right: var(--space-2);
+  padding: 0 var(--space-2);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-regular);
   color: var(--color-text-muted);
@@ -172,5 +172,69 @@
 @media (prefers-reduced-motion: reduce) {
   .dot {
     animation: none;
+  }
+}
+
+/* Drag time indicator (F017, resources/drag-time-indicator.png): start/end marks and the duration in the time column. */
+.dragMark {
+  position: absolute;
+  left: 0;
+  width: 80px; /* the time column: `.ob-board-task-layer` starts here */
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-now-line);
+  font-variant-numeric: tabular-nums;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Drawn in two pieces around the text, so nothing runs behind it (the text has no background). */
+.dragLineLeft,
+.dragLineRight {
+  height: 1px;
+  background: var(--color-now-line);
+}
+
+.dragLineLeft {
+  width: var(--space-3);
+  flex-shrink: 0;
+}
+
+.dragMark span {
+  padding: 0 var(--space-2);
+}
+
+/* The right line stops at 70% of the way to the task. */
+.dragLineTrack {
+  flex: 1;
+  display: flex;
+}
+
+.dragLineRight {
+  display: block;
+  width: 70%;
+}
+
+.dragDuration {
+  position: absolute;
+  left: 0;
+  width: 80px;
+  transform: translateY(-50%);
+  padding-right: var(--space-2);
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-now-line);
+  font-variant-numeric: tabular-nums;
+  z-index: 3;
+  pointer-events: none;
+}
+
+@media (max-width: 480px) {
+  .dragMark,
+  .dragDuration {
+    width: 56px;
   }
 }
