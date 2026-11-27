@@ -1,6 +1,6 @@
 import type { BuddyToneId } from '../../settings/types/settings.ts'
 
-/** What the tone picker shows for each tone (specs/F014-buddy-tone, spec.md "Tone catalogue"). */
+/** What the tone picker shows for each tone (specs/.done.F014-buddy-tone, spec.md "Tone catalogue"). */
 export type BuddyToneInfo = {
   id: BuddyToneId
   name: string

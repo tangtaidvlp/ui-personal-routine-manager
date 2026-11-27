@@ -3,7 +3,7 @@
 /** 'system' = follow the operating system's light/dark setting. */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
-/** Buddy's tone (specs/F014-buddy-tone). Ids are stored on the server: never rename one. */
+/** Buddy's tone (specs/.done.F014-buddy-tone). Ids are stored on the server: never rename one. */
 export type BuddyToneId = 'BALANCED' | 'CHIEF_OF_STAFF' | 'STOIC' | 'SOCRATIC_PEER' | 'WARM_ANCHOR' | 'ACCOUNTABILITY_COACH'
 
 export type UserSettings = {

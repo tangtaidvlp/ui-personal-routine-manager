@@ -183,7 +183,7 @@ test('today board: Reset day replaces the day with the default routine after con
   await expect(resetButton).toBeDisabled()
 })
 
-// T002 (specs/T002-improvement-for-ux-at-timeline-change): mouse drag (the hold is touch only, checked by hand), Push mode notice, a failed save reverts.
+// T002 (specs/.done.T002-improvement-for-ux-at-timeline-change): mouse drag (the hold is touch only, checked by hand), Push mode notice, a failed save reverts.
 test('today board: mouse drag, push mode notice, failed save reverts', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await registerAndOnboard(page)
@@ -232,7 +232,7 @@ test('today board: mouse drag, push mode notice, failed save reverts', async ({ 
   await expect(page.getByRole('alert').filter({ hasText: "Your change wasn't saved" })).toBeVisible()
 })
 
-// F017 (specs/F017-task-overlay): the Overlay switch is saved, and an Overlay-off task swaps instead of overlapping.
+// F017 (specs/.done.F017-task-overlay): the Overlay switch is saved, and an Overlay-off task swaps instead of overlapping.
 test('today board: Overlay switch is saved, Overlay-off tasks swap on drag', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await registerAndOnboard(page)

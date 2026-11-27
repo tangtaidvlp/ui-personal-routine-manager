@@ -1,4 +1,4 @@
-/** Personal goals (specs/F013-personal-goals, contracts/goals-api.md). */
+/** Personal goals (specs/.done.F013-personal-goals, contracts/goals-api.md). */
 
 export type Goal = {
   id: string
