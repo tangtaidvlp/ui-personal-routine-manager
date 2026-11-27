@@ -83,9 +83,9 @@ describe('previewPositions', () => {
     expect(result.get('b')?.duration).toBe(75)
   })
 
-  describe('Push mode swap', () => {
+  describe('Push mode never swaps (F017)', () => {
     // d: 09:00-10:00 dragged; p: 10:30-11:00; q: 11:30-12:00
-    const swapTasks: TimedTask[] = [
+    const pushTasks: TimedTask[] = [
       { id: 'd', start: 540, duration: 60 },
       { id: 'p', start: 630, duration: 30 },
       { id: 'q', start: 690, duration: 30 },
@@ -94,46 +94,27 @@ describe('previewPositions', () => {
       mode: 'move', taskId: 'd', originalStart: 540, originalDuration: 60, liveStart, liveDuration: 60,
     })
 
-    it('swaps with a passed task below and keeps the gap', () => {
-      const result = previewPositions(swapTasks, drag(600), true) // live end 11:00 >= midpoint 10:45
-      expect(result.get('p')).toEqual({ start: 540, duration: 30 })
+    it('keeps pushing past the middle of the next task', () => {
+      const result = previewPositions(pushTasks, drag(600), true) // the old swap point
       expect(result.get('d')).toEqual({ start: 600, duration: 60 })
-      expect(result.has('q')).toBe(false)
+      expect(result.get('p')?.start).toBe(690)
+      expect(result.get('q')?.start).toBe(750)
     })
 
-    it('swaps with a passed task above', () => {
+    it('keeps pushing far down', () => {
+      const result = previewPositions(pushTasks, drag(660), true)
+      expect(result.get('p')?.start).toBe(750)
+      expect(result.get('q')?.start).toBe(810)
+    })
+
+    it('pushes the task above when moving up', () => {
       const up: TimedTask[] = [
-        { id: 'p', start: 480, duration: 30 }, // 08:00-08:30, midpoint 08:15
+        { id: 'p', start: 480, duration: 30 },
         { id: 'd', start: 540, duration: 60 },
       ]
       const result = previewPositions(up, { ...drag(480), originalStart: 540 }, true)
-      expect(result.get('p')).toEqual({ start: 570, duration: 30 }) // ends where D ended before: 10:00 - 30
-      expect(result.get('d')).toEqual({ start: 480, duration: 60 })
-    })
-
-    it('still pushes before the midpoint is passed', () => {
-      const result = previewPositions(swapTasks, drag(584), true) // live end 10:44 < 10:45
-      expect(result.get('d')?.start).toBe(584)
-      expect(result.get('p')?.start).toBe(674)
-      expect(result.get('q')?.start).toBe(734)
-    })
-
-    it('swaps when exactly half is passed', () => {
-      const result = previewPositions(swapTasks, drag(585), true) // live end 10:45 == midpoint
-      expect(result.get('p')?.start).toBe(540)
-      expect(result.get('d')?.start).toBe(660 - 60)
-    })
-
-    it('swaps successively with two passed tasks', () => {
-      const result = previewPositions(swapTasks, drag(660), true) // live end 12:00
-      expect(result.get('p')).toEqual({ start: 540, duration: 30 })
-      expect(result.get('q')).toEqual({ start: 600, duration: 30 })
-      expect(result.get('d')).toEqual({ start: 660, duration: 60 })
-    })
-
-    it('does not swap when Push mode is off', () => {
-      const result = previewPositions(swapTasks, drag(600), false)
-      expect([...result.keys()]).toEqual(['d'])
+      expect(result.get('p')?.start).toBe(420)
+      expect(result.get('d')?.start).toBe(480)
     })
   })
 
@@ -206,10 +187,10 @@ describe('previewPositions', () => {
       expect(result.has('u')).toBe(false)
     })
 
-    it('Push mode still swaps once half of a task is passed (T002)', () => {
+    it('Push mode does not swap an Overlay-off task either', () => {
       const result = previewPositions(off(), drag(600), true)
-      expect(result.get('p')).toEqual({ start: 540, duration: 30 })
       expect(result.get('d')).toEqual({ start: 600, duration: 60 })
+      expect(result.get('p')?.start).toBe(690)
     })
 
     it('free movement is kept when nothing is touched', () => {

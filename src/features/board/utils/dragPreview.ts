@@ -20,8 +20,8 @@ export type Position = { start: number; duration: number }
  * Moving down pushes the tasks that start at or after the dragged one; moving up pushes those that
  * start at or before it; making a task longer pushes the tasks after its old end. Shrinking pushes nothing.
  * The shift is clamped so every moved start stays within 00:00–23:55.
- * Push mode, move only: once the dragged task has passed at least half of another task, nothing is pushed.
- * The dragged task swaps places with each passed task (the gap between them is kept) and the rest stay put.
+ * Push mode only pushes, it never swaps (F017: a swap cut the push short). Swapping is the Normal mode
+ * rule for Overlay-off tasks, below.
  */
 export function previewPositions(
   tasks: TimedTask[],
@@ -37,8 +37,6 @@ export function previewPositions(
   }
 
   if (change.mode === 'move') {
-    const swapped = pushMode ? swapPassed(others, change) : null
-    if (swapped) return swapped
     let delta = change.liveStart - change.originalStart
     const pushed =
       !pushMode || delta === 0
@@ -73,7 +71,7 @@ export function previewPositions(
 const clampStart = (start: number) => Math.max(0, Math.min(MAX_START_MINUTES, start))
 const midpoint = (task: TimedTask) => task.start + task.duration / 2
 
-/** Push mode move: swap with every task passed by at least half; null when none was passed. */
+/** Swap with every task passed by at least half (Overlay-off, Normal mode); null when none was passed. */
 function swapPassed(others: TimedTask[], change: DragChange): Map<string | undefined, Position> | null {
   const { originalStart, originalDuration: duration, liveStart } = change
   const down = liveStart > originalStart
