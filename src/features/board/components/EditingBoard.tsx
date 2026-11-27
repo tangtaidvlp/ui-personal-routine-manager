@@ -489,11 +489,11 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     setDragState(null)
   }
 
-  // Where a task is drawn: an Overlay-off task follows the pointer while it is moved and the map holds
-  // its drop slot (F017 R2); otherwise the live preview, then the pending drop, then the stored slot.
+  // Where a task is drawn: in Normal mode an Overlay-off task follows the pointer while it is moved and the
+  // map holds its drop slot (F017 R2); otherwise the live preview, then the pending drop, then the stored slot.
   const shownPosition = (task: T, index: number) => {
     const stored = timedTasks[index]
-    if (dragState?.mode === 'move' && dragState.taskId === task.id && task.overlay === false) {
+    if (!pushMode && dragState?.mode === 'move' && dragState.taskId === task.id && task.overlay === false) {
       return { start: dragState.liveStartMinutes, duration: stored.duration }
     }
     return preview?.get(task.id) ?? pending?.get(task.id) ?? stored

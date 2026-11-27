@@ -28,11 +28,11 @@ describe('previewPositions', () => {
     expect(result.has('a')).toBe(false)
   })
 
-  it('moving up pushes the tasks that start at or before it (Push-up on)', () => {
+  it('moving up with Push-up on pushes the tasks above and brings the ones below', () => {
     const result = previewPositions(tasks, move(420), true, true)
     expect(result.get('b')?.start).toBe(420)
     expect(result.get('a')?.start).toBe(300)
-    expect(result.has('c')).toBe(false)
+    expect(result.get('c')?.start).toBe(540)
   })
 
   it('clamps a downward push at 23:55', () => {
@@ -42,16 +42,24 @@ describe('previewPositions', () => {
     expect(result.get('c')?.start).toBe(635)
   })
 
-  it('Push-up off (the default): moving up pushes nothing; moving down still pushes', () => {
+  it('Push-up off (the default): moving up brings the tasks below along, not the ones above', () => {
     const up = previewPositions(tasks, move(420), true)
-    expect([...up.keys()]).toEqual(['b'])
     expect(up.get('b')?.start).toBe(420)
+    expect(up.get('c')?.start).toBe(540)
+    expect(up.has('a')).toBe(false)
     expect(previewPositions(tasks, move(540), true).get('c')?.start).toBe(660)
   })
 
-  it('Push-up off: an Overlay-off task moved up follows the Normal mode rules', () => {
+  it('Push-up off: an Overlay-off task moving up stops at the end of the task above; the tasks below stop too', () => {
     const offTasks = tasks.map((t) => (t.id === 'b' ? { ...t, overlay: false } : t))
-    expect(previewPositions(offTasks, move(420), true)).toEqual(previewPositions(offTasks, move(420), false))
+    const result = previewPositions(offTasks, move(300), true) // a ends at 07:00
+    expect(result.get('b')?.start).toBe(420)
+    expect(result.get('c')?.start).toBe(540)
+    expect(result.has('a')).toBe(false)
+  })
+
+  it('Push-up off: an Overlay-on task moving up may overlap the task above', () => {
+    expect(previewPositions(tasks, move(300), true).get('b')?.start).toBe(300)
   })
 
   it('clamps an upward push at 00:00 (Push-up on)', () => {

@@ -19,9 +19,10 @@ export type Position = { start: number; duration: number }
 
 /**
  * The new `{start, duration}` of the dragged task plus every task Push mode pushes with it.
- * Moving down pushes the tasks that start at or after the dragged one; moving up pushes those that
- * start at or before it, only when `pushUp` is on (`PUSH_UP_ENABLED`); making a task longer pushes the
- * tasks after its old end. Shrinking pushes nothing.
+ * The tasks that start at or after the dragged one move with it, down or up (keeping the gaps). Moving up
+ * also pushes the tasks above only when `pushUp` is on (`PUSH_UP_ENABLED`); with it off, an Overlay-off
+ * task stops at the end of the task above. Making a task longer pushes the tasks after its old end.
+ * Shrinking pushes nothing.
  * The shift is clamped so every moved start stays within 00:00–23:55.
  * Push mode only pushes, it never swaps (F017: a swap cut the push short). Swapping is the Normal mode
  * rule for Overlay-off tasks, below.
@@ -29,25 +30,33 @@ export type Position = { start: number; duration: number }
 export function previewPositions(
   tasks: TimedTask[],
   change: DragChange,
-  pushModeOn: boolean,
+  pushMode: boolean,
   pushUp: boolean = PUSH_UP_ENABLED,
 ): Map<string | undefined, Position> {
   const result = new Map<string | undefined, Position>()
   const others = tasks.filter((task) => task.id !== change.taskId)
-  // Moving up pushes only with the Push-up toggle on; otherwise it follows the Normal mode rules.
-  const pushMode = pushModeOn && (pushUp || change.mode === 'resize' || change.liveStart >= change.originalStart)
+  const dragged = tasks.find((task) => task.id === change.taskId)
 
   // Push mode pushes every task, whatever its Overlay setting; the Overlay-off rules are for Normal mode.
-  if (!pushMode && tasks.find((task) => task.id === change.taskId)?.overlay === false) {
+  if (!pushMode && dragged?.overlay === false) {
     return change.mode === 'move' ? previewStrictMove(others, change) : previewStrictResize(others, change)
   }
 
   if (change.mode === 'move') {
     let delta = change.liveStart - change.originalStart
+    // The tasks after the dragged one move with it both ways; moving up also pushes the ones above only
+    // with Push-up on.
     const pushed =
       !pushMode || delta === 0
         ? []
-        : others.filter((task) => (delta > 0 ? task.start >= change.originalStart : task.start <= change.originalStart))
+        : others.filter((task) => task.start >= change.originalStart || (delta < 0 && pushUp))
+    if (pushMode && delta < 0 && !pushUp && dragged?.overlay === false) {
+      // Overlay-off moving up stops at the end of the task above (one it did not already overlap).
+      const aboveEnds = others
+        .map((task) => task.start + task.duration)
+        .filter((end) => end <= change.originalStart)
+      if (aboveEnds.length > 0) delta = Math.max(delta, Math.max(...aboveEnds) - change.originalStart)
+    }
     const starts = [change.originalStart, ...pushed.map((task) => task.start)]
     delta = delta > 0 ? Math.min(delta, MAX_START_MINUTES - Math.max(...starts)) : Math.max(delta, -Math.min(...starts))
     result.set(change.taskId, { start: change.originalStart + delta, duration: change.originalDuration })
