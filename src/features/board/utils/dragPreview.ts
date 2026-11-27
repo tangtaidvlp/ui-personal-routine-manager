@@ -1,4 +1,6 @@
 /** Live positions while a task is dragged, and what Push mode moves with it (T002 R3). Minutes from 00:00. */
+import { PUSH_UP_ENABLED } from '../../../config/featureFlags.ts'
+
 const MAX_START_MINUTES = 1435
 
 /** In Normal mode `overlay === false` gets the strict rules (F017 R2); otherwise the T002 behaviour. */
@@ -18,7 +20,8 @@ export type Position = { start: number; duration: number }
 /**
  * The new `{start, duration}` of the dragged task plus every task Push mode pushes with it.
  * Moving down pushes the tasks that start at or after the dragged one; moving up pushes those that
- * start at or before it; making a task longer pushes the tasks after its old end. Shrinking pushes nothing.
+ * start at or before it, only when `pushUp` is on (`PUSH_UP_ENABLED`); making a task longer pushes the
+ * tasks after its old end. Shrinking pushes nothing.
  * The shift is clamped so every moved start stays within 00:00–23:55.
  * Push mode only pushes, it never swaps (F017: a swap cut the push short). Swapping is the Normal mode
  * rule for Overlay-off tasks, below.
@@ -26,10 +29,13 @@ export type Position = { start: number; duration: number }
 export function previewPositions(
   tasks: TimedTask[],
   change: DragChange,
-  pushMode: boolean,
+  pushModeOn: boolean,
+  pushUp: boolean = PUSH_UP_ENABLED,
 ): Map<string | undefined, Position> {
   const result = new Map<string | undefined, Position>()
   const others = tasks.filter((task) => task.id !== change.taskId)
+  // Moving up pushes only with the Push-up toggle on; otherwise it follows the Normal mode rules.
+  const pushMode = pushModeOn && (pushUp || change.mode === 'resize' || change.liveStart >= change.originalStart)
 
   // Push mode pushes every task, whatever its Overlay setting; the Overlay-off rules are for Normal mode.
   if (!pushMode && tasks.find((task) => task.id === change.taskId)?.overlay === false) {

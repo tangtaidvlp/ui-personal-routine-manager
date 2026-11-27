@@ -28,8 +28,8 @@ describe('previewPositions', () => {
     expect(result.has('a')).toBe(false)
   })
 
-  it('moving up pushes the tasks that start at or before it', () => {
-    const result = previewPositions(tasks, move(420), true)
+  it('moving up pushes the tasks that start at or before it (Push-up on)', () => {
+    const result = previewPositions(tasks, move(420), true, true)
     expect(result.get('b')?.start).toBe(420)
     expect(result.get('a')?.start).toBe(300)
     expect(result.has('c')).toBe(false)
@@ -42,9 +42,21 @@ describe('previewPositions', () => {
     expect(result.get('c')?.start).toBe(635)
   })
 
-  it('clamps an upward push at 00:00', () => {
+  it('Push-up off (the default): moving up pushes nothing; moving down still pushes', () => {
+    const up = previewPositions(tasks, move(420), true)
+    expect([...up.keys()]).toEqual(['b'])
+    expect(up.get('b')?.start).toBe(420)
+    expect(previewPositions(tasks, move(540), true).get('c')?.start).toBe(660)
+  })
+
+  it('Push-up off: an Overlay-off task moved up follows the Normal mode rules', () => {
+    const offTasks = tasks.map((t) => (t.id === 'b' ? { ...t, overlay: false } : t))
+    expect(previewPositions(offTasks, move(420), true)).toEqual(previewPositions(offTasks, move(420), false))
+  })
+
+  it('clamps an upward push at 00:00 (Push-up on)', () => {
     // a starts with b (not passed when moving up), so it is pushed and the shift stops at 00:00
-    const result = previewPositions([{ id: 'a', start: 480, duration: 60 }, tasks[1], tasks[2]], move(0), true)
+    const result = previewPositions([{ id: 'a', start: 480, duration: 60 }, tasks[1], tasks[2]], move(0), true, true)
     expect(result.get('a')?.start).toBe(0)
     expect(result.get('b')?.start).toBe(0)
   })
@@ -107,12 +119,12 @@ describe('previewPositions', () => {
       expect(result.get('q')?.start).toBe(810)
     })
 
-    it('pushes the task above when moving up', () => {
+    it('pushes the task above when moving up (Push-up on)', () => {
       const up: TimedTask[] = [
         { id: 'p', start: 480, duration: 30 },
         { id: 'd', start: 540, duration: 60 },
       ]
-      const result = previewPositions(up, { ...drag(480), originalStart: 540 }, true)
+      const result = previewPositions(up, { ...drag(480), originalStart: 540 }, true, true)
       expect(result.get('p')?.start).toBe(420)
       expect(result.get('d')?.start).toBe(480)
     })
