@@ -28,8 +28,8 @@ const BASE_BOARD_HEIGHT_PX = 2400
 const SNAP_MINUTES = 5
 const MIN_DURATION_MINUTES = 5
 const CLICK_DISTANCE_THRESHOLD_PX = 5
-// A press must be held this long, without moving, before it starts a drag (T002 R1).
-const HOLD_TO_DRAG_MS = 150
+// Touch only: a press must be held this long, without moving, before it starts a drag (T002 R1).
+const HOLD_TO_DRAG_MS = 100
 const SAVE_FAILED_MESSAGE = "Something went wrong. Your change wasn't saved."
 // The live board opens with "now" this far below the top of the view.
 const LIVE_SCROLL_OFFSET_PX = 260
@@ -141,7 +141,7 @@ function EditingBoard<T extends BoardTask>({
   const [pending, setPending] = useState<Map<string | undefined, Position> | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   // The press waiting to become a drag (null once armed, cancelled or released), and whether a drag is armed.
-  const pressRef = useRef<{ timer: ReturnType<typeof setTimeout>; detach: () => void } | null>(null)
+  const pressRef = useRef<{ timer: ReturnType<typeof setTimeout> | undefined; detach: () => void } | null>(null)
   const armedRef = useRef(false)
   const containerRef = useRef<HTMLElement | null>(null)
   const scrollContainerRefRef = useRef(scrollContainerRef)
@@ -318,9 +318,10 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     pressRef.current = null
   }
 
-  // Hold-to-drag (T002 R1): a press only becomes a drag after HOLD_TO_DRAG_MS without moving more
-  // than the tolerance. Before that, a swipe scrolls the board and a tap opens the task. Until the
-  // drag is armed the pointer is not captured; window listeners watch the press.
+  // Hold-to-drag (T002 R1), touch only: a press only becomes a drag after HOLD_TO_DRAG_MS without
+  // moving more than the tolerance. Before that, a swipe scrolls the board and a tap opens the task.
+  // With a mouse, the drag starts once the pointer moves past the tolerance. Until the drag is armed
+  // the pointer is not captured; window listeners watch the press.
   const beginPress = (
     event: PointerEvent<HTMLElement>,
     mode: DragState['mode'],
@@ -337,13 +338,38 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     const captureTarget = mainPartsRef.current.get(task.id) ?? event.currentTarget
     const movedFar = (e: globalThis.PointerEvent) => Math.hypot(e.clientX - startX, e.clientY - startY) > CLICK_DISTANCE_THRESHOLD_PX
 
-    // Moving past the tolerance cancels the hold, but the release is still watched: the click that
-    // follows it must not reach the track and open "Add task".
+    const isTouch = event.pointerType === 'touch'
+    const arm = () => {
+      armedRef.current = true
+      try {
+        captureTarget.setPointerCapture(pointerId)
+      } catch {
+        // The pointer is already gone.
+      }
+      setDragState({
+        taskId: task.id,
+        mode,
+        pointerId,
+        startClientY: startY,
+        originalStartMinutes,
+        originalDurationMinutes,
+        liveStartMinutes: originalStartMinutes,
+        liveDurationMinutes: originalDurationMinutes,
+      })
+    }
+
+    // Touch: moving past the tolerance cancels the hold (it is a scroll), but the release is still
+    // watched: the click that follows it must not reach the track and open "Add task".
+    // Mouse and pen: there is no scroll to tell apart, so moving past the tolerance starts the drag.
     let moved = false
     const onMove = (e: globalThis.PointerEvent) => {
       if (e.pointerId === pointerId && !armedRef.current && !moved && movedFar(e)) {
-        moved = true
         clearTimeout(pressRef.current?.timer)
+        if (isTouch) {
+          moved = true
+        } else {
+          arm()
+        }
       }
     }
     const onUp = (e: globalThis.PointerEvent) => {
@@ -366,24 +392,7 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
 
-    const timer = setTimeout(() => {
-      armedRef.current = true
-      try {
-        captureTarget.setPointerCapture(pointerId)
-      } catch {
-        // The pointer is already gone.
-      }
-      setDragState({
-        taskId: task.id,
-        mode,
-        pointerId,
-        startClientY: startY,
-        originalStartMinutes,
-        originalDurationMinutes,
-        liveStartMinutes: originalStartMinutes,
-        liveDurationMinutes: originalDurationMinutes,
-      })
-    }, HOLD_TO_DRAG_MS)
+    const timer = isTouch ? setTimeout(arm, HOLD_TO_DRAG_MS) : undefined
 
     pressRef.current = {
       timer,

@@ -164,8 +164,8 @@ test('today board: Reset day replaces the day with the default routine after con
   await expect(resetButton).toBeDisabled()
 })
 
-// T002 (specs/T002-improvement-for-ux-at-timeline-change): hold to drag, Push mode notice, a failed save reverts.
-test('today board: hold to drag, push mode notice, failed save reverts', async ({ page }) => {
+// T002 (specs/T002-improvement-for-ux-at-timeline-change): mouse drag (the hold is touch only, checked by hand), Push mode notice, a failed save reverts.
+test('today board: mouse drag, push mode notice, failed save reverts', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await registerAndOnboard(page)
   const board = page.locator('.dr-canvas-card')
@@ -187,27 +187,17 @@ test('today board: hold to drag, push mode notice, failed save reverts', async (
     const box = (await task.boundingBox())!
     return { x: box.x + box.width / 2, y: box.y + 20 }
   }
-  const holdDrag = async (hours: number) => {
+  // With a mouse there is no hold: pressing and moving drags at once (the hold is touch only).
+  const mouseDrag = async (hours: number) => {
     const { x, y } = await centre()
     await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.waitForTimeout(400)
     await page.mouse.move(x, y + hours * 100, { steps: 10 })
     await page.mouse.up()
   }
 
-  // A quick press-move-release does not drag.
-  {
-    const { x, y } = await centre()
-    await page.mouse.move(x, y)
-    await page.mouse.down()
-    await page.mouse.move(x, y + 100, { steps: 5 })
-    await page.mouse.up()
-    await expect(timeLabel).toContainText('09:00')
-  }
-
-  // Hold 0.4s, then move down one hour: the new time shows and survives a reload.
-  await holdDrag(1)
+  // Move down one hour: the new time shows and survives a reload.
+  await mouseDrag(1)
   await expect(timeLabel).toContainText('10:00')
   await page.reload()
   await expect(timeLabel).toContainText('10:00')
@@ -218,7 +208,7 @@ test('today board: hold to drag, push mode notice, failed save reverts', async (
 
   // A failed save puts the task back and shows an alert.
   await page.route('**/daily-routine/tasks', (route) => route.abort())
-  await holdDrag(1)
+  await mouseDrag(1)
   await expect(timeLabel).toContainText('10:00')
   await expect(page.getByRole('alert').filter({ hasText: "Your change wasn't saved" })).toBeVisible()
 })
