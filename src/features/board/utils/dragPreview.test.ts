@@ -29,17 +29,28 @@ describe('previewPositions', () => {
   })
 
   it('moving up with Push-up on pushes the tasks above and brings the ones below', () => {
-    const result = previewPositions(tasks, move(420), true, true)
+    const result = previewPositions(tasks, move(420), true, { pushUp: true })
     expect(result.get('b')?.start).toBe(420)
     expect(result.get('a')?.start).toBe(300)
     expect(result.get('c')?.start).toBe(540)
   })
 
-  it('clamps a downward push at 23:55', () => {
-    const result = previewPositions([...tasks, { id: 'd', start: 1400, duration: 30 }], move(540), true)
+  it('clamps a downward push at 23:55 (overnight tasks on)', () => {
+    const result = previewPositions([...tasks, { id: 'd', start: 1400, duration: 30 }], move(540), true, { overnight: true })
     expect(result.get('d')?.start).toBe(1435)
     expect(result.get('b')?.start).toBe(480 + 35)
     expect(result.get('c')?.start).toBe(635)
+  })
+
+  it('overnight tasks off (the default): a downward push stops when a pushed task ends at 24:00', () => {
+    const result = previewPositions([...tasks, { id: 'd', start: 1400, duration: 30 }], move(540), true)
+    expect(result.get('d')?.start).toBe(1410) // ends 24:00
+    expect(result.get('b')?.start).toBe(480 + 10)
+  })
+
+  it('overnight tasks off: an existing overnight task is still pushed past midnight', () => {
+    const result = previewPositions([...tasks, { id: 's', start: 1320, duration: 480 }], move(540), true)
+    expect(result.get('s')?.start).toBe(1380)
   })
 
   it('Push-up off (the default): moving up brings the tasks below along, not the ones above', () => {
@@ -64,14 +75,20 @@ describe('previewPositions', () => {
 
   it('clamps an upward push at 00:00 (Push-up on)', () => {
     // a starts with b (not passed when moving up), so it is pushed and the shift stops at 00:00
-    const result = previewPositions([{ id: 'a', start: 480, duration: 60 }, tasks[1], tasks[2]], move(0), true, true)
+    const result = previewPositions([{ id: 'a', start: 480, duration: 60 }, tasks[1], tasks[2]], move(0), true, { pushUp: true })
     expect(result.get('a')?.start).toBe(0)
     expect(result.get('b')?.start).toBe(0)
   })
 
-  it('clamps the dragged task alone at both bounds', () => {
-    expect(previewPositions(tasks, move(2000), false).get('b')?.start).toBe(1435)
+  it('clamps the dragged task alone at both bounds (overnight tasks on)', () => {
+    expect(previewPositions(tasks, move(2000), false, { overnight: true }).get('b')?.start).toBe(1435)
     expect(previewPositions(tasks, move(-50), false).get('b')?.start).toBe(0)
+  })
+
+  it('overnight tasks off: the dragged task ends by 24:00, unless it already crossed midnight', () => {
+    expect(previewPositions(tasks, move(2000), false).get('b')?.start).toBe(1380)
+    const sleep: DragChange = { mode: 'move', taskId: 's', originalStart: 1320, originalDuration: 480, liveStart: 1400, liveDuration: 480 }
+    expect(previewPositions([{ id: 's', start: 1320, duration: 480 }], sleep, false).get('s')?.start).toBe(1400)
   })
 
   it('does not push anything when the task did not move', () => {
@@ -97,10 +114,17 @@ describe('previewPositions', () => {
     expect(result.get('b')?.duration).toBe(30)
   })
 
-  it('a longer resize stops when a pushed task reaches 23:55', () => {
-    const result = previewPositions([...tasks, { id: 'd', start: 1420, duration: 10 }], resize(200), true)
+  it('a longer resize stops when a pushed task reaches 23:55 (overnight tasks on)', () => {
+    const result = previewPositions([...tasks, { id: 'd', start: 1420, duration: 10 }], resize(200), true, { overnight: true })
     expect(result.get('d')?.start).toBe(1435)
     expect(result.get('b')?.duration).toBe(75)
+  })
+
+  it('overnight tasks off: a resize ends by 24:00, and a push stops when a pushed task ends at 24:00', () => {
+    expect(previewPositions(tasks, resize(2000), false).get('b')?.duration).toBe(960) // 08:00 → 24:00
+    const result = previewPositions([...tasks, { id: 'd', start: 1420, duration: 10 }], resize(200), true)
+    expect(result.get('d')?.start).toBe(1430)
+    expect(result.get('b')?.duration).toBe(70)
   })
 
   describe('Push mode never swaps (F017)', () => {
@@ -132,7 +156,7 @@ describe('previewPositions', () => {
         { id: 'p', start: 480, duration: 30 },
         { id: 'd', start: 540, duration: 60 },
       ]
-      const result = previewPositions(up, { ...drag(480), originalStart: 540 }, true, true)
+      const result = previewPositions(up, { ...drag(480), originalStart: 540 }, true, { pushUp: true })
       expect(result.get('p')?.start).toBe(420)
       expect(result.get('d')?.start).toBe(480)
     })

@@ -1,7 +1,9 @@
 /** Live positions while a task is dragged, and what Push mode moves with it (T002 R3). Minutes from 00:00. */
-import { PUSH_UP_ENABLED } from '../../../config/featureFlags.ts'
+import { OVERNIGHT_TASKS_ENABLED, PUSH_UP_ENABLED } from '../../../config/featureFlags.ts'
+import { mayCrossMidnight } from './overnight.ts'
 
 const MAX_START_MINUTES = 1435
+const MINUTES_PER_DAY = 1440
 
 /** In Normal mode `overlay === false` gets the strict rules (F017 R2); otherwise the T002 behaviour. */
 export type TimedTask = { id: string | undefined; start: number; duration: number; overlay?: boolean }
@@ -31,11 +33,21 @@ export function previewPositions(
   tasks: TimedTask[],
   change: DragChange,
   pushMode: boolean,
-  pushUp: boolean = PUSH_UP_ENABLED,
+  { pushUp = PUSH_UP_ENABLED, overnight = OVERNIGHT_TASKS_ENABLED }: { pushUp?: boolean; overnight?: boolean } = {},
 ): Map<string | undefined, Position> {
   const result = new Map<string | undefined, Position>()
   const others = tasks.filter((task) => task.id !== change.taskId)
   const dragged = tasks.find((task) => task.id === change.taskId)
+  // With overnight tasks off, no task is moved past 24:00 unless it already crosses midnight.
+  const latestStart = (task: { start: number; duration: number }) =>
+    mayCrossMidnight(task.start, task.duration, overnight) ? MAX_START_MINUTES : MINUTES_PER_DAY - task.duration
+  if (!mayCrossMidnight(change.originalStart, change.originalDuration, overnight)) {
+    change = {
+      ...change,
+      liveStart: Math.min(change.liveStart, MINUTES_PER_DAY - change.originalDuration),
+      liveDuration: Math.min(change.liveDuration, MINUTES_PER_DAY - change.originalStart),
+    }
+  }
 
   // Push mode pushes every task, whatever its Overlay setting; the Overlay-off rules are for Normal mode.
   if (!pushMode && dragged?.overlay === false) {
@@ -57,8 +69,11 @@ export function previewPositions(
         .filter((end) => end <= change.originalStart)
       if (aboveEnds.length > 0) delta = Math.max(delta, Math.max(...aboveEnds) - change.originalStart)
     }
-    const starts = [change.originalStart, ...pushed.map((task) => task.start)]
-    delta = delta > 0 ? Math.min(delta, MAX_START_MINUTES - Math.max(...starts)) : Math.max(delta, -Math.min(...starts))
+    const moving = [{ start: change.originalStart, duration: change.originalDuration }, ...pushed]
+    delta =
+      delta > 0
+        ? Math.min(delta, ...moving.map((task) => latestStart(task) - task.start))
+        : Math.max(delta, -Math.min(...moving.map((task) => task.start)))
     result.set(change.taskId, { start: change.originalStart + delta, duration: change.originalDuration })
     for (const task of pushed) {
       result.set(task.id, { start: task.start + delta, duration: task.duration })
@@ -74,7 +89,7 @@ export function previewPositions(
   const oldEnd = change.originalStart + change.originalDuration
   const pushed = others.filter((task) => task.start >= oldEnd)
   if (pushed.length > 0) {
-    delta = Math.max(0, Math.min(delta, MAX_START_MINUTES - Math.max(...pushed.map((task) => task.start))))
+    delta = Math.max(0, Math.min(delta, ...pushed.map((task) => latestStart(task) - task.start)))
   }
   result.set(change.taskId, { start: change.originalStart, duration: change.originalDuration + delta })
   for (const task of pushed) {

@@ -15,6 +15,7 @@ import {
 } from '../utils/radialGeometry.ts'
 import { formatDuration } from '../utils/radialFormat.ts'
 import { labelEdgeX, layoutLabels, type LabelSide } from '../utils/radialLabels.ts'
+import { mayCrossMidnight } from '../../board/utils/overnight.ts'
 
 /** What the chart reads from a routine, daily or reflection task. */
 export type RadialTask = {
@@ -231,7 +232,10 @@ function RadialDayChart<T extends RadialTask>({
             if (!drag || drag.pointerId !== event.pointerId) return
             const angle = pointerAngle(event)
             const turned = drag.turned + angleDelta(drag.lastAngle, angle)
-            setDrag({ ...drag, lastAngle: angle, turned, live: snapToDay(drag.original + (turned / 360) * MINUTES_PER_DAY) })
+            const live = snapToDay(drag.original + (turned / 360) * MINUTES_PER_DAY)
+            // With overnight tasks off, a task that ends by 24:00 stays within the day (featureFlags).
+            const latest = mayCrossMidnight(drag.original, task.durationMinutes) ? live : MINUTES_PER_DAY - task.durationMinutes
+            setDrag({ ...drag, lastAngle: angle, turned, live: Math.min(live, latest) })
           },
           onPointerUp: (event: PointerEvent<SVGElement>) => {
             if (!drag || drag.pointerId !== event.pointerId) return

@@ -5,6 +5,7 @@ import ConfirmDialog from '../../../components/ConfirmDialog.tsx'
 import PaletteSwatches from '../../palette/components/PaletteSwatches.tsx'
 import { usePalette } from '../../palette/hooks/usePalette.ts'
 import { endsLabel, joinDuration, splitDuration } from '../utils/duration.ts'
+import { mayCrossMidnight } from '../utils/overnight.ts'
 
 export type TaskFormValue = {
   id?: string
@@ -16,6 +17,12 @@ export type TaskFormValue = {
   color?: string | null
   /** F017: may overlap other tasks. */
   overlay?: boolean
+}
+
+/** "HH:mm" → minutes from 00:00. */
+const toMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
 }
 
 export type TaskEditModalProps = {
@@ -82,6 +89,12 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
     const durationMinutes = joinDuration(hours, minutes)
     if (durationMinutes < 1 || durationMinutes > 1440) {
       setError('Duration must be between 1 minute and 24 hours.')
+      return
+    }
+    // With overnight tasks off, a new task, or one that ended by 24:00, must end by 24:00 (featureFlags).
+    const original = draftTask?.id !== undefined ? draftTask : { startTime: '00:00', durationMinutes: 0 }
+    if (!mayCrossMidnight(toMinutes(original.startTime), original.durationMinutes) && toMinutes(startTime) + durationMinutes > 1440) {
+      setError('The task must end by 24:00.')
       return
     }
 

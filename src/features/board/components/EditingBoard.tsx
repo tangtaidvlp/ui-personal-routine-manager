@@ -18,6 +18,7 @@ import { taskSegments } from '../utils/taskSegments.ts'
 import { previewPositions, type Position, type TimedTask } from '../utils/dragPreview.ts'
 import { breaksOverlapCap, OVERLAP_CAP_MESSAGE } from '../utils/overlapCap.ts'
 import { layoutLanes } from '../utils/taskLanes.ts'
+import { mayCrossMidnight } from '../utils/overnight.ts'
 import { ApiError } from '../../../lib/api.ts'
 import BoardNotice from './BoardNotice.tsx'
 import BoardToolbar from './BoardToolbar.tsx'
@@ -413,10 +414,17 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
 
     if (dragState.mode === 'move') {
       // The end may pass 24:00: the task then wraps to the top of the board (F011).
-      const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, MINUTES_PER_DAY - SNAP_MINUTES)
+      // With overnight tasks off, a task that ends by 24:00 stays within the day (featureFlags).
+      const latestStart = mayCrossMidnight(dragState.originalStartMinutes, dragState.originalDurationMinutes)
+        ? MINUTES_PER_DAY - SNAP_MINUTES
+        : MINUTES_PER_DAY - dragState.originalDurationMinutes
+      const liveStartMinutes = clamp(dragState.originalStartMinutes + deltaMinutes, 0, latestStart)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveStartMinutes } : current))
     } else {
-      const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, MINUTES_PER_DAY)
+      const longest = mayCrossMidnight(dragState.originalStartMinutes, dragState.originalDurationMinutes)
+        ? MINUTES_PER_DAY
+        : MINUTES_PER_DAY - dragState.originalStartMinutes
+      const liveDurationMinutes = clamp(dragState.originalDurationMinutes + deltaMinutes, MIN_DURATION_MINUTES, longest)
       setDragState((current) => (current && current.pointerId === event.pointerId ? { ...current, liveDurationMinutes } : current))
     }
   }

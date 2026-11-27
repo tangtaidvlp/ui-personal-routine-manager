@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { registerAndOnboard } from './helpers.ts'
+import { OVERNIGHT_TASKS_ENABLED } from '../src/config/featureFlags.ts'
 
 /**
  * F010 UX optimise (specs/.done.F010-ux-optimise/quickstart.md): the Today board is always live (no time
@@ -73,7 +74,25 @@ test('today board: always live, hours + minutes with color, and the "More" menu'
 })
 
 // F011 (specs/.done.F011-sleep-task): one task crossing midnight is drawn as two linked parts and stays one task.
+test('today board: with overnight tasks off, a task must end by 24:00', async ({ page }) => {
+  test.skip(OVERNIGHT_TASKS_ENABLED, 'Overnight tasks are on (src/config/featureFlags.ts)')
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await registerAndOnboard(page)
+  const board = page.locator('.dr-canvas-card')
+
+  await board.getByRole('button', { name: '+ Add task' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('e.g. Morning walk').fill('Sleep')
+  await dialog.locator('input[type="time"]').fill('22:00')
+  await dialog.getByLabel('hour', { exact: true }).fill('8')
+  await dialog.getByLabel('mins', { exact: true }).fill('0')
+  await dialog.locator('button[type="submit"]').click()
+  await expect(dialog.getByText('The task must end by 24:00.')).toBeVisible()
+})
+
 test('today board: an overnight task is one task in two parts', async ({ page }) => {
+  // Existing overnight tasks still show in two parts, but new ones can't be made with the toggle off.
+  test.skip(!OVERNIGHT_TASKS_ENABLED, 'Overnight tasks are off (src/config/featureFlags.ts)')
   await page.setViewportSize({ width: 1600, height: 900 })
   await registerAndOnboard(page)
   const board = page.locator('.dr-canvas-card')
