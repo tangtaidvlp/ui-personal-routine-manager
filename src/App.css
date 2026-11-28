@@ -3164,16 +3164,16 @@
   flex: none;
 }
 
+/* Leader line in the task's own colour (T004), like its arc. */
 .rv-leader {
   --task-accent: var(--task-accent-light, var(--color-border-strong));
   fill: none;
-  stroke: var(--task-bg-light, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
+  stroke: var(--task-accent);
   stroke-width: 1.5;
 }
 
 :root[data-theme='dark'] .rv-leader {
   --task-accent: var(--task-accent-dark, var(--color-border-strong));
-  stroke: var(--task-bg-dark, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
 }
 
 .rv-labels {
