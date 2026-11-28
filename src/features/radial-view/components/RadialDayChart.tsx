@@ -63,6 +63,9 @@ const DISC_RATIO = 0.62 // centre disc radius / clock radius (T004 sketch: 123 o
 const MIN_BAND_FOR_ICONS = 22 // day/night band width needed for the sun and moon
 const MIN_BAND_FOR_LABELS = 36 // ... and for "NIGHT" / "DAY" under them
 const MINOR_TICKS_FROM_RADIUS = 90
+const ARC_CORNER = 3 // corner radius of a task piece (px)
+const ARC_GAP = 1.5 // empty space at each end of a task piece, so touching tasks stay apart (px)
+const MIN_SWEEP = 0.01 // a task too short for its corners is a small block of 2 x ARC_CORNER
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max))
 const SNAP_MINUTES = 5
@@ -175,13 +178,23 @@ function RadialDayChart<T extends RadialTask>({
     const arcs = items.map((item, index) => {
       const band = laneBand(lanes.get(item.id) ?? 0, laneCount, radius - track, radius)
       const r = (band.inner + band.outer) / 2
-      const stroke = Math.max(2, band.outer - band.inner - 2)
+      const thickness = Math.max(2, band.outer - band.inner - 2)
       const sweep = (item.duration / MINUTES_PER_DAY) * 360
-      // Round caps reach half a stroke past the path ends: trim them (plus a small gap) so the arc covers its time.
-      const capDeg = ((stroke / 2 + 1.5) / r) * (180 / Math.PI)
       const startAngle = minutesToAngle(item.start)
       const midAngle = minutesToAngle(item.start + item.duration / 2)
-      const dot = sweep < 360 && sweep - 2 * capDeg <= 0 ? pointAt(cx, cy, r, midAngle) : null
+      // A ring segment inset by the corner radius, stroked 2 x corner with round joins (CSS): the outline keeps
+      // the task's time and lane, with corners rounded by `corner`.
+      const corner = Math.min(ARC_CORNER, thickness / 2)
+      const strokeWidth = 2 * corner
+      const inset = ((ARC_GAP + corner) / r) * (180 / Math.PI)
+      const inner = r - thickness / 2 + corner
+      const outer = r + thickness / 2 - corner
+      const path =
+        sweep >= 360
+          ? annulusPath(cx, cy, inner, outer, 0, 360)
+          : sweep - 2 * inset > 0
+            ? annulusPath(cx, cy, inner, outer, startAngle + inset, sweep - 2 * inset)
+            : annulusPath(cx, cy, inner, outer, midAngle - MIN_SWEEP / 2, MIN_SWEEP)
 
       let labelBox: { side: LabelSide; left: number; top: number } | null = null
       let leader: string | null = null
@@ -195,11 +208,10 @@ function RadialDayChart<T extends RadialTask>({
       }
       return {
         ...item,
-        stroke,
-        dot,
+        strokeWidth,
         labelBox,
         leader,
-        path: dot ? '' : sweep >= 360 ? arcPath(cx, cy, r, 0, 360) : arcPath(cx, cy, r, startAngle + capDeg, sweep - 2 * capDeg),
+        path,
       }
     })
 
@@ -371,11 +383,7 @@ function RadialDayChart<T extends RadialTask>({
               style: resolveTaskColor(arc.task.color, palette) as CSSProperties,
               ...dragHandlers(arc.task, arc.id, arc.start),
             }
-            return arc.dot ? (
-              <circle key={arc.id} {...props} cx={arc.dot.x} cy={arc.dot.y} r={arc.stroke / 2} />
-            ) : (
-              <path key={arc.id} {...props} d={arc.path} strokeWidth={arc.stroke} />
-            )
+            return <path key={arc.id} {...props} d={arc.path} strokeWidth={arc.strokeWidth} />
           })}
           {layout.marks.map((mark) => (
             <g key={mark.hour}>

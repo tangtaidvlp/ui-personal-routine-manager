@@ -3239,16 +3239,12 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Filled ring segment plus a same-colour stroke with round joins: the stroke rounds the corners (ARC_CORNER). */
 .rv-arc {
   --task-accent: var(--task-accent-light, var(--color-border-strong));
-  fill: none;
-  stroke: var(--task-accent);
-  stroke-linecap: round;
-}
-
-circle.rv-arc {
   fill: var(--task-accent);
-  stroke: none;
+  stroke: var(--task-accent);
+  stroke-linejoin: round;
 }
 
 :root[data-theme='dark'] .rv-arc,
