@@ -92,35 +92,6 @@
   font-weight: var(--font-weight-medium);
 }
 
-.tooltip {
-  position: absolute;
-  left: 50%;
-  bottom: var(--space-3);
-  transform: translateX(-50%);
-  background: var(--color-text-primary);
-  color: var(--color-text-on-accent);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  box-shadow: var(--shadow-md);
-  text-align: center;
-  pointer-events: none;
-  min-width: 220px;
-  max-width: 90%;
-  z-index: 6;
-}
-
-.tooltip strong {
-  display: block;
-  font-size: var(--font-size-sm);
-}
-
-.tooltip span {
-  display: block;
-  margin-top: 2px;
-  color: var(--color-border-strong);
-  font-size: var(--font-size-xs);
-}
-
 /* Saving: the drop shows at once, the board waits for the server (T002 R2). */
 .track[data-saving='true'] :global(.ob-board-task-layer) {
   pointer-events: none;

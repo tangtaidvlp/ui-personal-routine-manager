@@ -130,7 +130,6 @@ function EditingBoard<T extends BoardTask>({
   const ownClock = useBoardClock(liveClock && !sharedClock)
   const clock = sharedClock ?? ownClock
   const { currentTime } = clock
-  const [hoveredTask, setHoveredTask] = useState<T | null>(null)
   const [dragState, setDragState] = useState<DragState | null>(null)
   // One zoom level shared by every board and saved to the account (specs/F006 FR-010, FR-011).
   const { zoom: zoomLevel } = useBoardZoom()
@@ -605,8 +604,6 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
                   onPointerUp={handleDragPointerUp}
                   onPointerCancel={handleDragPointerCancel}
                   onClick={(event) => event.stopPropagation()}
-                  onMouseEnter={() => setHoveredTask(task)}
-                  onMouseLeave={() => setHoveredTask(null)}
                   className={[
                     'ob-board-task',
                     isDone ? 'is-done' : '',
@@ -755,15 +752,6 @@ const [completedTasks, setCompletedTasks] = useState<Record<number, boolean>>(()
               Next: {footer.next.name} at {footer.next.startTime}
             </span>
           ) : null}
-        </div>
-      )}
-
-      {hoveredTask && (
-        <div className={styles.tooltip}>
-          <strong>{hoveredTask.name}</strong>
-          <span>
-            {hoveredTask.startTime} - {hoveredTask.endTime} ({showTaskDuration(hoveredTask.durationMinutes)})
-          </span>
         </div>
       )}
 
