@@ -3169,7 +3169,7 @@
   --task-accent: var(--task-accent-light, var(--color-border-strong));
   fill: none;
   stroke: var(--task-accent);
-  stroke-width: 1.5;
+  stroke-width: 1;
 }
 
 :root[data-theme='dark'] .rv-leader {
