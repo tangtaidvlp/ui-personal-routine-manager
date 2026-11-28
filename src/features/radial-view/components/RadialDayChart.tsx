@@ -40,7 +40,7 @@ type RadialDayChartProps<T extends RadialTask> = {
   /** Drag an arc round the clock to move the task (5-minute steps). Absent = arcs only click. */
   onMoveTask?: (task: T, startMinutes: number) => Promise<unknown> | void
   showCompletion?: boolean
-  /** Live clock in minutes since midnight: centre time and task, now hand and the "Now" badge. Absent = setup board. */
+  /** Live clock in minutes since midnight: centre time and task, now hand and the current task's label filled in its colour. Absent = setup board. */
   currentTime?: number
   /** Size of the board area the chart is centred in (measured by the parent). Height 0 = unknown. */
   width: number
@@ -309,7 +309,8 @@ function RadialDayChart<T extends RadialTask>({
         <span className="rv-row-text">
           <span className="rv-name-line">
             <span className="rv-name">{item.task.name}</span>
-            {status ? <span className={`rv-badge${isNow ? ' is-now' : ''}`}>{status}</span> : null}
+            {/* The current task shows by its colour fill, so only Done gets a badge (screen readers still hear "now"). */}
+            {status === 'Done' ? <span className="rv-badge">Done</span> : null}
           </span>
           <span className="rv-time">{`${formatTime(item.start)} – ${end} · ${duration}`}</span>
         </span>

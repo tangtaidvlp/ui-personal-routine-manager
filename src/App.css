@@ -3382,9 +3382,9 @@
   max-width: 100%;
   min-width: 24px;
   min-height: 24px;
-  padding: 2px var(--space-2);
+  padding: 4px calc(var(--space-2) + 2px);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text-secondary);
   font: inherit;
@@ -3458,11 +3458,6 @@ button.rv-row:focus-visible {
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
   color: var(--color-text-secondary);
-}
-
-.rv-badge.is-now {
-  background: var(--color-text-primary);
-  color: var(--color-bg-surface);
 }
 
 /* Narrow screens: the Timeline | Circle switch drops below the date row instead of squeezing it. */
