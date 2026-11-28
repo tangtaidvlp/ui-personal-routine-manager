@@ -1,0 +1,72 @@
+/* Day & night face of the radial clock (T004). Tokens only; .rv-* rules that e2e selects stay in App.css. */
+
+.bandNight {
+  fill: var(--color-clock-night-band);
+}
+
+.bandDay {
+  fill: var(--color-clock-day-band);
+}
+
+.trackNight,
+.trackDay {
+  fill: none;
+}
+
+.trackNight {
+  stroke: var(--color-clock-night-track);
+}
+
+.trackDay {
+  stroke: var(--color-clock-day-track);
+}
+
+.moon {
+  color: var(--color-clock-night-ink);
+}
+
+.nightLabel {
+  fill: var(--color-clock-night-ink);
+}
+
+.sun {
+  color: var(--color-clock-sun);
+}
+
+.dayLabel {
+  fill: var(--color-clock-day-ink);
+}
+
+.nightLabel,
+.dayLabel {
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.1em;
+}
+
+/* Shorter, thinner and lighter than the hour marks. */
+line.minor {
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+/* Element-qualified so they beat the single-class .rv-tick / .rv-hour rules in App.css. */
+line.night {
+  stroke: var(--color-clock-night-tone);
+}
+
+line.day {
+  stroke: var(--color-clock-day-tone);
+}
+
+text.night {
+  fill: var(--color-clock-night-tone);
+}
+
+text.day {
+  fill: var(--color-clock-day-tone);
+}
+
+.pill {
+  fill: var(--color-clock-pill-bg);
+}

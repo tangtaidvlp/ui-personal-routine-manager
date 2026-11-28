@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { angleAt, angleDelta, arcPath, assignLanes, findNowAndNext, laneBand, minutesToAngle, parseStartMinutes, pointAt } from './radialGeometry.ts'
+import { annulusPath, angleAt, angleDelta, arcPath, assignLanes, findNowAndNext, laneBand, minutesToAngle, parseStartMinutes, pointAt } from './radialGeometry.ts'
 
 describe('parseStartMinutes', () => {
   it('accepts H:mm, HH:mm and HH:mm:ss', () => {
@@ -159,5 +159,26 @@ describe('angleAt / angleDelta', () => {
     expect(angleDelta(40, 10)).toBe(-30)
     expect(angleDelta(350, 10)).toBe(20)
     expect(angleDelta(10, 350)).toBe(-20)
+  })
+})
+
+describe('annulusPath', () => {
+  it('draws a half ring between both radii: outer arc, line in, inner arc back', () => {
+    // 90° → 270° from the centre (100, 100): right side down to the left side (day half).
+    expect(annulusPath(100, 100, 60, 80, 90, 180)).toBe(
+      'M 180 100 A 80 80 0 0 1 20 100 L 40 100 A 60 60 0 0 0 160 100 Z',
+    )
+  })
+
+  it('starts and ends on both radii', () => {
+    const path = annulusPath(0, 0, 10, 20, 270, 180) // night half: left → top → right
+    expect(path.startsWith('M -20 0 ')).toBe(true)
+    expect(path).toContain('20 0 L 10 0')
+    expect(path.endsWith('-10 0 Z')).toBe(true)
+  })
+
+  it('is empty for no sweep and a full ring for 360°', () => {
+    expect(annulusPath(0, 0, 10, 20, 0, 0)).toBe('')
+    expect(annulusPath(0, 0, 10, 20, 0, 360).match(/Z/g)).toHaveLength(2)
   })
 })

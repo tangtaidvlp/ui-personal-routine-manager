@@ -963,16 +963,17 @@
   color: var(--color-danger);
 }
 
-/* Current task (live clock) */
+/* Current task (live clock): reversed in its own colour, like the circle's centre pill (task fill, surface text). */
 .ob-board-task.is-current {
-  background: var(--color-task-current-bg);
-  border-color: var(--color-task-current);
+  background: var(--task-accent);
+  border-color: var(--task-accent);
   border-width: 1.5px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-task-current) 12%, transparent);
+  color: var(--color-bg-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--task-accent) 24%, transparent);
 }
 
-.ob-board-task.is-current::before {
-  background: var(--color-task-current);
+.ob-board-task.is-current .ob-board-task-time {
+  color: color-mix(in srgb, var(--color-bg-surface) 85%, transparent);
 }
 
 /* Completed */
@@ -3163,16 +3164,16 @@
   flex: none;
 }
 
+/* Leader line in the task's own colour (T004), like its arc. */
 .rv-leader {
   --task-accent: var(--task-accent-light, var(--color-border-strong));
   fill: none;
-  stroke: var(--task-bg-light, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
-  stroke-width: 1.5;
+  stroke: var(--task-accent);
+  stroke-width: 1;
 }
 
 :root[data-theme='dark'] .rv-leader {
   --task-accent: var(--task-accent-dark, var(--color-border-strong));
-  stroke: var(--task-bg-dark, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
 }
 
 .rv-labels {
@@ -3212,11 +3213,6 @@
   shape-rendering: geometricPrecision;
 }
 
-.rv-track {
-  fill: none;
-  stroke: var(--color-bg-muted);
-}
-
 .rv-tick {
   stroke: var(--color-border-strong);
   stroke-width: 1.5;
@@ -3244,16 +3240,12 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Filled ring segment plus a same-colour stroke with round joins: the stroke rounds the corners (ARC_CORNER). */
 .rv-arc {
   --task-accent: var(--task-accent-light, var(--color-border-strong));
-  fill: none;
-  stroke: var(--task-accent);
-  stroke-linecap: round;
-}
-
-circle.rv-arc {
   fill: var(--task-accent);
-  stroke: none;
+  stroke: var(--task-accent);
+  stroke-linejoin: round;
 }
 
 :root[data-theme='dark'] .rv-arc,
@@ -3309,16 +3301,6 @@ circle.rv-arc {
   box-shadow: var(--shadow-md);
   text-align: center;
   pointer-events: none;
-}
-
-.rv-centre.is-active {
-  --task-accent: var(--task-accent-light, var(--color-border-strong));
-  background: var(--task-bg-light, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
-}
-
-:root[data-theme='dark'] .rv-centre.is-active {
-  --task-accent: var(--task-accent-dark, var(--color-border-strong));
-  background: var(--task-bg-dark, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
 }
 
 .rv-centre-day {
@@ -3400,9 +3382,9 @@ circle.rv-arc {
   max-width: 100%;
   min-width: 24px;
   min-height: 24px;
-  padding: 2px var(--space-2);
+  padding: 4px calc(var(--space-2) + 2px);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text-secondary);
   font: inherit;
@@ -3427,9 +3409,14 @@ button.rv-row:focus-visible {
   outline-offset: 1px;
 }
 
+/* Current task: reversed in its own colour, like the timeline and the centre pill. */
 .rv-item.is-now .rv-row {
-  background: var(--color-bg-muted);
-  color: var(--color-text-primary);
+  background: var(--task-accent);
+  color: var(--color-bg-surface);
+}
+
+.rv-item.is-now .rv-name {
+  color: var(--color-bg-surface);
 }
 
 .rv-row-text {
@@ -3471,11 +3458,6 @@ button.rv-row:focus-visible {
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
   color: var(--color-text-secondary);
-}
-
-.rv-badge.is-now {
-  background: var(--color-text-primary);
-  color: var(--color-bg-surface);
 }
 
 /* Narrow screens: the Timeline | Circle switch drops below the date row instead of squeezing it. */

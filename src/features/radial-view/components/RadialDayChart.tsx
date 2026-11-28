@@ -4,6 +4,7 @@ import { resolveTaskColor } from '../../palette/utils/taskColor.ts'
 import {
   MINUTES_PER_DAY,
   angleAt,
+  annulusPath,
   angleDelta,
   arcPath,
   assignLanes,
@@ -16,6 +17,8 @@ import {
 import { formatDuration } from '../utils/radialFormat.ts'
 import { labelEdgeX, layoutLabels, type LabelSide } from '../utils/radialLabels.ts'
 import { mayCrossMidnight } from '../../board/utils/overnight.ts'
+import { MoonIcon, SunIcon } from './DayNightIcons.tsx'
+import styles from './RadialDayChart.module.css'
 
 /** What the chart reads from a routine, daily or reflection task. */
 export type RadialTask = {
@@ -37,7 +40,7 @@ type RadialDayChartProps<T extends RadialTask> = {
   /** Drag an arc round the clock to move the task (5-minute steps). Absent = arcs only click. */
   onMoveTask?: (task: T, startMinutes: number) => Promise<unknown> | void
   showCompletion?: boolean
-  /** Live clock in minutes since midnight: centre time and task, now hand and the "Now" badge. Absent = setup board. */
+  /** Live clock in minutes since midnight: centre time and task, now hand and the current task's label filled in its colour. Absent = setup board. */
   currentTime?: number
   /** Size of the board area the chart is centred in (measured by the parent). Height 0 = unknown. */
   width: number
@@ -56,6 +59,13 @@ const MAX_RADIUS = 240
 const MIN_RING_RADIUS = 100
 const ALL_NUMBERS_FROM_RADIUS = 80
 const CENTRE_DETAILS_FROM = 64 // centre disc radius needed for the "until" line under the current task
+const DISC_RATIO = 0.62 // centre disc radius / clock radius (T004 sketch: 123 of 200)
+const MIN_BAND_FOR_ICONS = 22 // day/night band width needed for the sun and moon
+const MIN_BAND_FOR_LABELS = 36 // ... and for "NIGHT" / "DAY" under them
+const MINOR_TICKS_FROM_RADIUS = 90
+const ARC_CORNER = 3 // corner radius of a task piece (px)
+const ARC_GAP = 1.5 // empty space at each end of a task piece, so touching tasks stay apart (px)
+const MIN_SWEEP = 0.01 // a task too short for its corners is a small block of 2 x ARC_CORNER
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max))
 const SNAP_MINUTES = 5
@@ -153,18 +163,38 @@ function RadialDayChart<T extends RadialTask>({
     }
 
     const track = clamp(0.11 * radius, 10, 24)
-    const discRadius = radius - track - 18
+    const discRadius = DISC_RATIO * radius
+    const bandWidth = radius - track - discRadius
+    const showIcons = bandWidth >= MIN_BAND_FOR_ICONS
+    const showLabels = bandWidth >= MIN_BAND_FOR_LABELS
+    // Icon and label sit near the outer edge of their half (night: top, day: bottom), as in the sketch;
+    // without the label the icon is centred in the band.
+    const iconSize = clamp(bandWidth * 0.35, 14, 24)
+    const nightIcon = pointAt(cx, cy, radius - track - bandWidth * (showLabels ? 0.35 : 0.5), 0)
+    const nightText = pointAt(cx, cy, radius - track - bandWidth * 0.72, 0)
+    const dayIcon = pointAt(cx, cy, radius - track - bandWidth * (showLabels ? 0.63 : 0.5), 180)
+    const dayText = pointAt(cx, cy, radius - track - bandWidth * 0.26, 180)
     const { lanes, laneCount } = assignLanes(items)
     const arcs = items.map((item, index) => {
       const band = laneBand(lanes.get(item.id) ?? 0, laneCount, radius - track, radius)
       const r = (band.inner + band.outer) / 2
-      const stroke = Math.max(2, band.outer - band.inner - 2)
+      const thickness = Math.max(2, band.outer - band.inner - 2)
       const sweep = (item.duration / MINUTES_PER_DAY) * 360
-      // Round caps reach half a stroke past the path ends: trim them (plus a small gap) so the arc covers its time.
-      const capDeg = ((stroke / 2 + 1.5) / r) * (180 / Math.PI)
       const startAngle = minutesToAngle(item.start)
       const midAngle = minutesToAngle(item.start + item.duration / 2)
-      const dot = sweep < 360 && sweep - 2 * capDeg <= 0 ? pointAt(cx, cy, r, midAngle) : null
+      // A ring segment inset by the corner radius, stroked 2 x corner with round joins (CSS): the outline keeps
+      // the task's time and lane, with corners rounded by `corner`.
+      const corner = Math.min(ARC_CORNER, thickness / 2)
+      const strokeWidth = 2 * corner
+      const inset = ((ARC_GAP + corner) / r) * (180 / Math.PI)
+      const inner = r - thickness / 2 + corner
+      const outer = r + thickness / 2 - corner
+      const path =
+        sweep >= 360
+          ? annulusPath(cx, cy, inner, outer, 0, 360)
+          : sweep - 2 * inset > 0
+            ? annulusPath(cx, cy, inner, outer, startAngle + inset, sweep - 2 * inset)
+            : annulusPath(cx, cy, inner, outer, midAngle - MIN_SWEEP / 2, MIN_SWEEP)
 
       let labelBox: { side: LabelSide; left: number; top: number } | null = null
       let leader: string | null = null
@@ -178,28 +208,36 @@ function RadialDayChart<T extends RadialTask>({
       }
       return {
         ...item,
-        stroke,
-        dot,
+        strokeWidth,
         labelBox,
         leader,
-        path: dot ? '' : sweep >= 360 ? arcPath(cx, cy, r, 0, 360) : arcPath(cx, cy, r, startAngle + capDeg, sweep - 2 * capDeg),
+        path,
       }
     })
 
     const marks = Array.from({ length: 24 }, (_, hour) => {
       const angle = hour * 15
       const major = hour % 6 === 0
+      const half = major ? '' : hour > 6 && hour < 18 ? styles.day : styles.night
       return {
         hour,
         major,
+        half,
+        pill: hour === 6 || hour === 18,
         tickFrom: pointAt(cx, cy, radius + 4, angle),
         tickTo: pointAt(cx, cy, radius + (major ? 12 : 9), angle),
         text: pointAt(cx, cy, radius + 21, angle),
         showNumber: major || radius >= ALL_NUMBERS_FROM_RADIUS,
+        minor: radius >= MINOR_TICKS_FROM_RADIUS
+          ? [1, 2, 3].map((quarter) => ({
+              from: pointAt(cx, cy, radius + 4, angle + quarter * 3.75),
+              to: pointAt(cx, cy, radius + 6.5, angle + quarter * 3.75),
+            }))
+          : [],
       }
     })
 
-    return { stacked, column, radius, cx, cy, boxWidth, boxHeight, track, discRadius, arcs, marks }
+    return { stacked, column, radius, cx, cy, boxWidth, boxHeight, track, discRadius, showIcons, showLabels, iconSize, nightIcon, nightText, dayIcon, dayText, arcs, marks }
   }, [items, width, boardHeight])
 
   if (!layout) return <figure className="rv-chart" aria-label={label} data-board-view="radial" />
@@ -208,7 +246,7 @@ function RadialDayChart<T extends RadialTask>({
   const { current, minutesLeft, next } = live ? findNowAndNext(items, currentTime) : { current: null, minutesLeft: 0, next: null }
   const { cx, cy, radius, track, discRadius } = layout
   const nowAngle = live ? minutesToAngle(currentTime) : 0
-  const handFrom = pointAt(cx, cy, radius - track - 14, nowAngle)
+  const handFrom = pointAt(cx, cy, discRadius, nowAngle)
   const handTo = pointAt(cx, cy, radius + 4, nowAngle)
   const knob = pointAt(cx, cy, radius - track / 2, nowAngle)
   const details = discRadius >= CENTRE_DETAILS_FROM
@@ -271,7 +309,8 @@ function RadialDayChart<T extends RadialTask>({
         <span className="rv-row-text">
           <span className="rv-name-line">
             <span className="rv-name">{item.task.name}</span>
-            {status ? <span className={`rv-badge${isNow ? ' is-now' : ''}`}>{status}</span> : null}
+            {/* The current task shows by its colour fill, so only Done gets a badge (screen readers still hear "now"). */}
+            {status === 'Done' ? <span className="rv-badge">Done</span> : null}
           </span>
           <span className="rv-time">{`${formatTime(item.start)} – ${end} · ${duration}`}</span>
         </span>
@@ -300,7 +339,26 @@ function RadialDayChart<T extends RadialTask>({
     <figure className={`rv-chart ${layout.stacked ? 'is-stacked' : 'is-ring'}`} aria-label={label} data-board-view="radial">
       <div className="rv-clock" style={{ width: layout.boxWidth, height: layout.boxHeight }}>
         <svg className="rv-svg" width={layout.boxWidth} height={layout.boxHeight} aria-hidden="true">
-          <circle className="rv-track" cx={cx} cy={cy} r={radius - track / 2} strokeWidth={track} />
+          <path className={styles.bandNight} d={annulusPath(cx, cy, discRadius, radius - track, 270, 180)} />
+          <path className={styles.bandDay} d={annulusPath(cx, cy, discRadius, radius - track, 90, 180)} />
+          <path className={styles.trackNight} d={arcPath(cx, cy, radius - track / 2, 270, 180)} strokeWidth={track} />
+          <path className={styles.trackDay} d={arcPath(cx, cy, radius - track / 2, 90, 180)} strokeWidth={track} />
+          {layout.showIcons ? (
+            <>
+              <MoonIcon className={styles.moon} x={layout.nightIcon.x} y={layout.nightIcon.y} size={layout.iconSize} />
+              <SunIcon className={styles.sun} x={layout.dayIcon.x} y={layout.dayIcon.y} size={layout.iconSize} />
+            </>
+          ) : null}
+          {layout.showLabels ? (
+            <>
+              <text className={styles.nightLabel} x={layout.nightText.x} y={layout.nightText.y} textAnchor="middle" dominantBaseline="central">
+                NIGHT
+              </text>
+              <text className={styles.dayLabel} x={layout.dayText.x} y={layout.dayText.y} textAnchor="middle" dominantBaseline="central">
+                DAY
+              </text>
+            </>
+          ) : null}
           {layout.arcs.map((arc) =>
             arc.leader ? (
               <polyline
@@ -326,16 +384,18 @@ function RadialDayChart<T extends RadialTask>({
               style: resolveTaskColor(arc.task.color, palette) as CSSProperties,
               ...dragHandlers(arc.task, arc.id, arc.start),
             }
-            return arc.dot ? (
-              <circle key={arc.id} {...props} cx={arc.dot.x} cy={arc.dot.y} r={arc.stroke / 2} />
-            ) : (
-              <path key={arc.id} {...props} d={arc.path} strokeWidth={arc.stroke} />
-            )
+            return <path key={arc.id} {...props} d={arc.path} strokeWidth={arc.strokeWidth} />
           })}
           {layout.marks.map((mark) => (
             <g key={mark.hour}>
+              {mark.minor.map((tick, index) => (
+                <line key={index} className={`rv-tick ${styles.minor} ${mark.half}`} x1={tick.from.x} y1={tick.from.y} x2={tick.to.x} y2={tick.to.y} />
+              ))}
+              {mark.pill && mark.showNumber ? (
+                <rect className={styles.pill} x={mark.text.x - 12} y={mark.text.y - 10} width={24} height={20} rx={10} />
+              ) : null}
               <line
-                className={`rv-tick${mark.major ? ' is-major' : ''}`}
+                className={`rv-tick${mark.major ? ' is-major' : ''} ${mark.half}`}
                 x1={mark.tickFrom.x}
                 y1={mark.tickFrom.y}
                 x2={mark.tickTo.x}
@@ -343,7 +403,7 @@ function RadialDayChart<T extends RadialTask>({
               />
               {mark.showNumber ? (
                 <text
-                  className={`rv-hour${mark.major ? ' is-major' : ''}`}
+                  className={`rv-hour${mark.major ? ' is-major' : ''} ${mark.half}`}
                   x={mark.text.x}
                   y={mark.text.y}
                   textAnchor="middle"
@@ -363,9 +423,8 @@ function RadialDayChart<T extends RadialTask>({
         </svg>
 
         <div
-          className={`rv-centre${current ? ' is-active' : ''}`}
+          className="rv-centre"
           style={{
-            ...(current ? (resolveTaskColor(current.task.color, palette) as CSSProperties) : {}),
             left: cx,
             top: cy,
             width: 2 * discRadius,

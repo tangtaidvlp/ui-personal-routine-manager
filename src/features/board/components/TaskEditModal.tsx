@@ -132,7 +132,8 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
             </button>
           </div>
 
-          <form className="ob-modal-body" onSubmit={handleSubmit}>
+          {/* noValidate: handleSubmit checks every field; the browser would also refuse minutes off the 5-minute step (e.g. 7). */}
+          <form className="ob-modal-body" onSubmit={handleSubmit} noValidate>
             {error && (
               <div className="ob-modal-error" role="alert">
                 {error}
@@ -174,7 +175,7 @@ function TaskEditModal({ isOpen, mode, draftTask, onClose, onSubmitTask, onSaved
                     type="number"
                     min={0}
                     max={59}
-                    step={1}
+                    step={5}
                     value={Number.isNaN(minutes) ? '' : minutes}
                     onChange={(event) => setMinutes(event.target.valueAsNumber)}
                   />
