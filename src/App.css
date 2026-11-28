@@ -3212,11 +3212,6 @@
   shape-rendering: geometricPrecision;
 }
 
-.rv-track {
-  fill: none;
-  stroke: var(--color-bg-muted);
-}
-
 .rv-tick {
   stroke: var(--color-border-strong);
   stroke-width: 1.5;
@@ -3309,16 +3304,6 @@ circle.rv-arc {
   box-shadow: var(--shadow-md);
   text-align: center;
   pointer-events: none;
-}
-
-.rv-centre.is-active {
-  --task-accent: var(--task-accent-light, var(--color-border-strong));
-  background: var(--task-bg-light, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
-}
-
-:root[data-theme='dark'] .rv-centre.is-active {
-  --task-accent: var(--task-accent-dark, var(--color-border-strong));
-  background: var(--task-bg-dark, color-mix(in srgb, var(--task-accent) 14%, var(--color-bg-surface)));
 }
 
 .rv-centre-day {

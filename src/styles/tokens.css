@@ -143,6 +143,18 @@
   --color-task-current: var(--color-purple-500);
   --color-task-current-bg: var(--color-purple-50);
 
+  /* Day & night clock face (T004): the band is the same in both themes; only the rim tracks and the tones change */
+  --color-clock-night-band: #20336F;
+  --color-clock-day-band: #FFF8EE;
+  --color-clock-night-ink: #EEF1FB;
+  --color-clock-sun: #C9781F;
+  --color-clock-day-ink: #3B2F1E;
+  --color-clock-night-track: #DDE3F4;
+  --color-clock-day-track: #F6E9D4;
+  --color-clock-night-tone: #5B6794;
+  --color-clock-day-tone: #8A6A3E;
+  --color-clock-pill-bg: transparent;
+
   /* Chat */
   --color-chat-bot-bg: var(--color-slate-25);
   --color-chat-user-bg: var(--color-accent);
@@ -251,6 +263,13 @@
   --color-now-line: var(--color-red-dark-400);
   --color-task-current: var(--color-purple-dark-400);
   --color-task-current-bg: var(--color-purple-dark-soft);
+
+  /* Day & night clock face (T004) */
+  --color-clock-night-track: #272D47;
+  --color-clock-day-track: #342A1D;
+  --color-clock-night-tone: #9AA5D6;
+  --color-clock-day-tone: #C4A574;
+  --color-clock-pill-bg: var(--color-ink-800);
 
   /* Chat */
   --color-chat-bot-bg: var(--color-ink-850);

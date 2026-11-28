@@ -40,6 +40,21 @@ export function arcPath(cx: number, cy: number, r: number, startAngle: number, s
   return `M ${n(start.x)} ${n(start.y)} A ${n(r)} ${n(r)} 0 ${sweepDeg > 180 ? 1 : 0} 1 ${n(end.x)} ${n(end.y)}`
 }
 
+/** A filled ring segment between two radii, clockwise from startAngle (empty for 0 sweep, a full ring at 360°). */
+export function annulusPath(cx: number, cy: number, inner: number, outer: number, startAngle: number, sweepDeg: number): string {
+  if (sweepDeg <= 0) return ''
+  if (sweepDeg >= 360) return `${circleSubpath(cx, cy, outer, true)} ${circleSubpath(cx, cy, inner, false)}`
+  const large = sweepDeg > 180 ? 1 : 0
+  const outerStart = pointAt(cx, cy, outer, startAngle)
+  const outerEnd = pointAt(cx, cy, outer, startAngle + sweepDeg)
+  const innerEnd = pointAt(cx, cy, inner, startAngle + sweepDeg)
+  const innerStart = pointAt(cx, cy, inner, startAngle)
+  return (
+    `M ${n(outerStart.x)} ${n(outerStart.y)} A ${n(outer)} ${n(outer)} 0 ${large} 1 ${n(outerEnd.x)} ${n(outerEnd.y)} ` +
+    `L ${n(innerEnd.x)} ${n(innerEnd.y)} A ${n(inner)} ${n(inner)} 0 ${large} 0 ${n(innerStart.x)} ${n(innerStart.y)} Z`
+  )
+}
+
 type LaneItem = { id: string; start: number; duration: number }
 
 /** Overlap on the 24h cycle: `[start, start + duration)` may run past 1440 and wrap; touching ends don't overlap. */

@@ -41,6 +41,22 @@ describe.each(Object.entries(THEMES))('design token contrast (%s theme)', (_them
     expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(4.5)
   })
 
+  // Day & night clock face (T004).
+  it.each([
+    ['--color-clock-night-ink', '--color-clock-night-band'],
+    ['--color-clock-day-ink', '--color-clock-day-band'],
+  ])('%s on %s reaches 4.5:1', (fg, bg) => {
+    expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each([
+    ['--color-clock-sun', '--color-clock-day-band'],
+    ['--color-clock-night-tone', '--color-bg-surface'],
+    ['--color-clock-day-tone', '--color-bg-surface'],
+  ])('%s on %s reaches 3:1', (fg, bg) => {
+    expect(contrastRatio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(3)
+  })
+
   it('--color-text-muted on --color-bg-surface reaches 3:1', () => {
     expect(contrastRatio(tokens['--color-text-muted'], tokens['--color-bg-surface'])).toBeGreaterThanOrEqual(3)
   })
