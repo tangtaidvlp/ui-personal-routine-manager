@@ -963,16 +963,17 @@
   color: var(--color-danger);
 }
 
-/* Current task (live clock) */
+/* Current task (live clock): reversed in its own colour, like the circle's centre pill (task fill, surface text). */
 .ob-board-task.is-current {
-  background: var(--color-task-current-bg);
-  border-color: var(--color-task-current);
+  background: var(--task-accent);
+  border-color: var(--task-accent);
   border-width: 1.5px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-task-current) 12%, transparent);
+  color: var(--color-bg-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--task-accent) 24%, transparent);
 }
 
-.ob-board-task.is-current::before {
-  background: var(--color-task-current);
+.ob-board-task.is-current .ob-board-task-time {
+  color: color-mix(in srgb, var(--color-bg-surface) 85%, transparent);
 }
 
 /* Completed */
@@ -3408,9 +3409,14 @@ button.rv-row:focus-visible {
   outline-offset: 1px;
 }
 
+/* Current task: reversed in its own colour, like the timeline and the centre pill. */
 .rv-item.is-now .rv-row {
-  background: var(--color-bg-muted);
-  color: var(--color-text-primary);
+  background: var(--task-accent);
+  color: var(--color-bg-surface);
+}
+
+.rv-item.is-now .rv-name {
+  color: var(--color-bg-surface);
 }
 
 .rv-row-text {
